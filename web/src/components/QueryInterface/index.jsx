@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { useQueryGeneration, useQueryResults } from '../../hooks/useQuery'
-import QueryInput from './QueryInput'
-import SQLDisplay from './SQLDisplay'
+import ConversationalQueryInput from './ConversationalQueryInput'
+import SQLEditor from './SQLEditor'
 import ResultsTable from './ResultsTable'
 import RuleFromQuery from '../RulesManager/RuleFromQuery'
+import { useConversation } from '../../context/ConversationContext'
 import toast from 'react-hot-toast'
 
 export default function QueryInterface() {
   const [currentQueryId, setCurrentQueryId] = useState(null)
   const [currentSql, setCurrentSql] = useState(null)
-  const [recentQueries, setRecentQueries] = useState([])
+  const [originalSql, setOriginalSql] = useState(null)
   const [showRuleModal, setShowRuleModal] = useState(false)
 
   const { generate, isGenerating, data: queryData } = useQueryGeneration()
+  const { addMessage, getCurrentSession } = useConversation()
 
   const {
     data: resultsData,
@@ -22,14 +24,28 @@ export default function QueryInterface() {
     enabled: !!currentQueryId,
   })
 
-  const handleSubmit = (question) => {
+  const handleSubmit = (question, sessionId) => {
+    // Add user message to conversation
+    if (sessionId) {
+      addMessage(sessionId, 'user', question)
+    }
+
     generate(
-      { question, execute: true, includeExplanation: true },
+      { question, execute: true, includeExplanation: true, sessionId },
       {
         onSuccess: (data) => {
           setCurrentQueryId(data.query_id)
           setCurrentSql(data.sql)
-          setRecentQueries((prev) => [question, ...prev.slice(0, 4)])
+          setOriginalSql(data.sql)
+
+          // Add assistant message to conversation
+          if (sessionId) {
+            const assistantMessage = data.explanation || 'Generated SQL query'
+            addMessage(sessionId, 'assistant', assistantMessage, {
+              sql: data.sql,
+              queryId: data.query_id,
+            })
+          }
         },
       }
     )
@@ -38,6 +54,11 @@ export default function QueryInterface() {
   const handleSqlEdit = (newSql) => {
     setCurrentSql(newSql)
     toast.info('SQL updated. Click Execute to run the modified query.')
+  }
+
+  const handleRevertSql = () => {
+    setCurrentSql(originalSql)
+    toast.success('SQL reverted to AI-generated version.')
   }
 
   const handleSaveAsRule = () => {
@@ -62,10 +83,9 @@ export default function QueryInterface() {
       </div>
 
       <div className="card">
-        <QueryInput
+        <ConversationalQueryInput
           onSubmit={handleSubmit}
           isLoading={isGenerating}
-          recentQueries={recentQueries}
         />
       </div>
 
@@ -80,10 +100,11 @@ export default function QueryInterface() {
 
       {currentSql && !isGenerating && (
         <div className="card">
-          <SQLDisplay
+          <SQLEditor
             sql={currentSql}
             warnings={queryData?.warnings || []}
             onEdit={handleSqlEdit}
+            onRevert={handleRevertSql}
           />
 
           {queryData?.explanation && (
@@ -143,6 +164,7 @@ export default function QueryInterface() {
         <RuleFromQuery
           query={currentSql}
           explanation={queryData?.explanation}
+          queryMetrics={resultsData?.results}
           onClose={handleRuleModalClose}
           onSuccess={handleRuleCreated}
         />

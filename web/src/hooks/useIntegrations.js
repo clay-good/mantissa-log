@@ -76,6 +76,21 @@ export function useDeleteIntegration() {
 }
 
 /**
+ * Get integration status for UI indicators
+ */
+export function useIntegrationStatus() {
+  return useQuery({
+    queryKey: ['integrations', 'status'],
+    queryFn: async () => {
+      const response = await api.get('/integrations/status');
+      return response.data;
+    },
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 60 * 1000, // Refresh every minute
+  });
+}
+
+/**
  * Get default integrations structure (mock data for development)
  */
 export function useDefaultIntegrations() {

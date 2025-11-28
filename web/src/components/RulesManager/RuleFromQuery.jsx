@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useCreateRule } from '../../hooks/useRules'
+import CostProjection from './CostProjection'
+import AlertDestinationSelector from './AlertDestinationSelector'
 
 const SEVERITY_OPTIONS = ['critical', 'high', 'medium', 'low', 'info']
 const CATEGORY_OPTIONS = ['access', 'network', 'data', 'compliance', 'threat']
 
-export default function RuleFromQuery({ query, explanation, onClose, onSuccess }) {
+export default function RuleFromQuery({ query, explanation, onClose, onSuccess, queryMetrics }) {
   const { mutate: createRule, isPending } = useCreateRule()
 
   const [formData, setFormData] = useState({
@@ -18,6 +20,7 @@ export default function RuleFromQuery({ query, explanation, onClose, onSuccess }
       count: 1,
       window: '5m',
     },
+    alertDestinations: [],
   })
 
   const handleChange = (field, value) => {
@@ -52,6 +55,7 @@ export default function RuleFromQuery({ query, explanation, onClose, onSuccess }
         count: parseInt(formData.threshold.count, 10),
         window: formData.threshold.window,
       },
+      alert_destinations: formData.alertDestinations,
       metadata: {
         tags: ['generated-from-query'],
         created_from: 'natural-language-query',
@@ -254,6 +258,20 @@ export default function RuleFromQuery({ query, explanation, onClose, onSuccess }
                 </p>
               </div>
             </div>
+
+            {queryMetrics && (
+              <CostProjection
+                dataScannedBytes={queryMetrics.data_scanned_bytes || 0}
+                executionTimeMs={queryMetrics.execution_time_ms || 2300}
+                lambdaMemoryMB={512}
+                schedule={formData.schedule}
+              />
+            )}
+
+            <AlertDestinationSelector
+              selected={formData.alertDestinations}
+              onChange={(destinations) => handleChange('alertDestinations', destinations)}
+            />
 
             <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
               <button
