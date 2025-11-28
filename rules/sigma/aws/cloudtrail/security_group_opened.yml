@@ -1,0 +1,54 @@
+title: AWS Security Group Opened to Internet
+id: aws-cloudtrail-sg-internet-001
+status: stable
+description: Detects security group rules allowing broad internet access to sensitive ports
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName: AuthorizeSecurityGroupIngress
+    errorCode: null
+  selection_cidr:
+    requestParameters|contains:
+      - '0.0.0.0/0'
+      - '::/0'
+  selection_ports:
+    requestParameters|contains:
+      - '"toPort":22'
+      - '"toPort":3389'
+      - '"toPort":1433'
+      - '"toPort":3306'
+      - '"toPort":5432'
+      - '"toPort":5439'
+      - '"toPort":6379'
+      - '"toPort":27017'
+      - '"toPort":9200'
+  condition: selection and selection_cidr and selection_ports
+
+fields:
+  - userIdentity.principalId
+  - requestParameters.groupId
+  - eventName
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Temporary rules for troubleshooting
+  - Specific administrative needs
+  - Load balancer or proxy configurations
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.t1190
+  - attack.t1133
+
+references:
+  - https://attack.mitre.org/techniques/T1190/
+  - https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html

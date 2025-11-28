@@ -1,0 +1,56 @@
+name: "AWS Config Rule Deleted"
+description: "Detects deletion of AWS Config rules which may indicate an attempt to bypass compliance monitoring"
+enabled: true
+severity: "high"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as deleted_by,
+    eventname,
+    requestparameters.configRuleName as rule_name,
+    sourceipaddress,
+    eventtime,
+    'AWS Config rule deleted' as reason
+  FROM cloudtrail
+  WHERE eventsource = 'config.amazonaws.com'
+    AND eventname IN ('DeleteConfigRule', 'DeleteOrganizationConfigRule')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1562"
+    - "T1562.001"
+  tags:
+    - "cloud"
+    - "config"
+    - "compliance"
+    - "defense-evasion"
+    - "cloudtrail"
+  false_positives:
+    - "Authorized Config rule management"
+    - "Cleanup of deprecated rules"
+    - "Migration to new compliance framework"
+    - "Testing and development activities"
+  response_actions:
+    - "Verify if deletion is authorized"
+    - "Re-create the Config rule if unauthorized"
+    - "Review what the deleted rule was monitoring"
+    - "Check if resources are now non-compliant"
+    - "Investigate who performed the deletion"
+    - "Review recent configuration changes in affected resources"
+    - "Consider protecting critical Config rules with SCPs"
+  references:
+    - "https://attack.mitre.org/techniques/T1562/"
+    - "https://docs.aws.amazon.com/config/latest/developerguide/evaluate-config.html"
+  notes:
+    - "AWS Config monitors resource compliance"
+    - "Deleting rules removes compliance visibility"
+    - "May indicate attempt to hide non-compliant changes"
+    - "Use AWS Config Conformance Packs for bundled rules"
+    - "Protect critical Config rules with AWS Organizations SCPs"

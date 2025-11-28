@@ -1,0 +1,66 @@
+name: "Dangerous IAM Policy Created"
+description: "Detects creation or modification of IAM policies with overly permissive or dangerous permissions"
+enabled: true
+severity: "high"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as created_by,
+    eventname,
+    requestparameters.policyName as policy_name,
+    requestparameters.policyArn as policy_arn,
+    sourceipaddress,
+    eventtime
+  FROM cloudtrail
+  WHERE eventsource = 'iam.amazonaws.com'
+    AND eventname IN ('CreatePolicy', 'CreatePolicyVersion', 'PutUserPolicy', 'PutGroupPolicy', 'PutRolePolicy')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+    AND (
+      CAST(requestparameters AS VARCHAR) LIKE '%"Action":"*"%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%"Action":["*"]%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%"Resource":"*"%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%"Resource":["*"]%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%iam:*%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%organizations:*%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%sts:AssumeRole%'
+    )
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1098"
+    - "T1078.004"
+  tags:
+    - "cloud"
+    - "iam"
+    - "privilege-escalation"
+    - "cloudtrail"
+  false_positives:
+    - "Administrative policies for break-glass accounts"
+    - "Service roles requiring broad permissions"
+    - "Terraform or IaC deployment roles"
+  response_actions:
+    - "Review the policy document for actual permissions"
+    - "Verify if broad permissions are necessary"
+    - "Check what principal this policy is attached to"
+    - "Apply principle of least privilege"
+    - "Consider using AWS managed policies instead"
+    - "Review who created the policy and their authorization"
+    - "Audit existing resources for similar overly-permissive policies"
+  references:
+    - "https://attack.mitre.org/techniques/T1098/"
+    - "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+  tuning:
+    - "Whitelist known admin/break-glass policy patterns"
+    - "Adjust based on your IAM policy standards"
+    - "Consider separate rules for different policy types"
+  notes:
+    - "Policies with Action:* and Resource:* grant full AWS access"
+    - "IAM:* permissions allow privilege escalation"
+    - "Use IAM Access Analyzer to identify overly permissive policies"
+    - "Consider AWS IAM policy validation"

@@ -9,7 +9,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
-from jsonschema import validate, ValidationError
+
+try:
+    from jsonschema import validate, ValidationError
+    JSONSCHEMA_AVAILABLE = True
+except ImportError:
+    JSONSCHEMA_AVAILABLE = False
+    ValidationError = Exception
+
+from .sigma_converter import SigmaRuleConverter, SigmaConversionError, SIGMA_AVAILABLE
 
 
 @dataclass
@@ -267,7 +275,7 @@ class RuleValidator:
                 errors.append("Schedule must contain 'interval' or 'cron' field")
 
         # Validate against JSON schema if available
-        if self.schema:
+        if self.schema and JSONSCHEMA_AVAILABLE:
             try:
                 validate(instance=rule_dict, schema=self.schema)
             except ValidationError as e:
@@ -305,16 +313,32 @@ class RuleValidator:
 class RuleLoader:
     """Loads and manages detection rules."""
 
-    def __init__(self, rules_path: str, schema_path: Optional[str] = None):
+    def __init__(
+        self,
+        rules_path: str,
+        schema_path: Optional[str] = None,
+        backend_type: str = "athena"
+    ):
         """Initialize rule loader.
 
         Args:
             rules_path: Path to rules directory or S3 location
             schema_path: Path to JSON schema for validation
+            backend_type: Backend for Sigma conversion (athena, bigquery, synapse)
         """
         self.rules_path = rules_path
         self.validator = RuleValidator(schema_path)
         self.rules_cache: Dict[str, DetectionRule] = {}
+        self.backend_type = backend_type
+
+        # Initialize Sigma converter if available
+        self.sigma_converter = None
+        if SIGMA_AVAILABLE:
+            try:
+                self.sigma_converter = SigmaRuleConverter(backend_type)
+            except (ImportError, ValueError) as e:
+                print(f"Warning: Sigma converter not available: {e}")
+                print("Only legacy SQL rules will be supported.")
 
     def load_all_rules(self) -> List[DetectionRule]:
         """Load all rules from the rules directory.
@@ -351,6 +375,8 @@ class RuleLoader:
     def load_rule(self, rule_path: str) -> DetectionRule:
         """Load a single rule file.
 
+        Supports both Sigma format and legacy custom format.
+
         Args:
             rule_path: Path to rule YAML file
 
@@ -360,6 +386,137 @@ class RuleLoader:
         with open(rule_path, 'r') as f:
             rule_dict = yaml.safe_load(f)
 
+        # Detect rule format
+        is_sigma = self._is_sigma_format(rule_dict)
+
+        if is_sigma:
+            # Sigma format rule
+            return self._load_sigma_rule(rule_path, rule_dict)
+        else:
+            # Legacy format rule
+            return self._load_legacy_rule(rule_dict)
+
+    def _is_sigma_format(self, rule_dict: Dict[str, Any]) -> bool:
+        """Detect if a rule is in Sigma format.
+
+        Args:
+            rule_dict: Rule dictionary
+
+        Returns:
+            True if Sigma format, False if legacy format
+        """
+        # Sigma rules have 'logsource' and 'detection' fields
+        # Legacy rules have 'query' field with 'sql'
+        sigma_fields = {'logsource', 'detection'}
+        legacy_fields = {'query'}
+
+        has_sigma_fields = any(field in rule_dict for field in sigma_fields)
+        has_legacy_fields = any(field in rule_dict for field in legacy_fields)
+
+        if has_sigma_fields and not has_legacy_fields:
+            return True
+        elif has_legacy_fields and not has_sigma_fields:
+            return False
+        elif has_sigma_fields and has_legacy_fields:
+            # Ambiguous - prefer Sigma
+            return True
+        else:
+            # Neither format detected - default to legacy
+            return False
+
+    def _load_sigma_rule(
+        self,
+        rule_path: str,
+        rule_dict: Dict[str, Any]
+    ) -> DetectionRule:
+        """Load a Sigma format rule.
+
+        Args:
+            rule_path: Path to rule file
+            rule_dict: Parsed rule dictionary
+
+        Returns:
+            DetectionRule object
+
+        Raises:
+            ValueError: If Sigma conversion fails
+        """
+        if not self.sigma_converter:
+            raise ValueError(
+                "Sigma converter not available. Install pySigma to use Sigma rules."
+            )
+
+        # Convert Sigma to SQL
+        try:
+            sql_query = self.sigma_converter.convert_rule_to_sql(rule_path)
+        except SigmaConversionError as e:
+            raise ValueError(f"Failed to convert Sigma rule: {str(e)}")
+
+        # Map Sigma fields to legacy format
+        legacy_rule = {
+            "id": rule_dict.get("id", ""),
+            "name": rule_dict.get("title", ""),
+            "description": rule_dict.get("description", ""),
+            "author": rule_dict.get("author", ""),
+            "created": rule_dict.get("date", ""),
+            "modified": rule_dict.get("modified", rule_dict.get("date", "")),
+            "version": "1.0.0",  # Sigma doesn't have version field
+            "severity": self._map_sigma_level(rule_dict.get("level", "medium")),
+            "enabled": rule_dict.get("status", "stable") != "disabled",
+            "query": {
+                "type": "sql",
+                "sql": sql_query,
+                "parameters": {}
+            },
+            "schedule": {
+                "interval": "15m"  # Default, can be overridden
+            },
+            "threshold": {
+                "field": "count",
+                "operator": ">=",
+                "value": 1
+            }
+        }
+
+        # Add alert configuration
+        if "title" in rule_dict or "description" in rule_dict:
+            legacy_rule["alert"] = {
+                "destinations": [],
+                "title_template": rule_dict.get("title", ""),
+                "body_template": rule_dict.get("description", "")
+            }
+
+        # Add tags
+        if "tags" in rule_dict:
+            legacy_rule["tags"] = rule_dict["tags"]
+
+        # Add metadata
+        legacy_rule["metadata"] = {}
+        if "falsepositives" in rule_dict:
+            legacy_rule["metadata"]["false_positives"] = rule_dict["falsepositives"]
+        if "references" in rule_dict:
+            legacy_rule["metadata"]["references"] = rule_dict["references"]
+
+        # Extract MITRE ATT&CK tags
+        mitre_tags = [tag for tag in rule_dict.get("tags", []) if tag.startswith("attack.")]
+        if mitre_tags:
+            legacy_rule["metadata"]["mitre_attack"] = [
+                tag.replace("attack.", "").upper().replace("_", "-")
+                for tag in mitre_tags
+            ]
+
+        # Parse as legacy rule
+        return self._parse_rule(legacy_rule)
+
+    def _load_legacy_rule(self, rule_dict: Dict[str, Any]) -> DetectionRule:
+        """Load a legacy format rule.
+
+        Args:
+            rule_dict: Parsed rule dictionary
+
+        Returns:
+            DetectionRule object
+        """
         # Validate rule
         is_valid, errors = self.validator.validate_rule(rule_dict)
         if not is_valid:
@@ -373,6 +530,24 @@ class RuleLoader:
 
         # Parse rule into DetectionRule object
         return self._parse_rule(rule_dict)
+
+    def _map_sigma_level(self, sigma_level: str) -> str:
+        """Map Sigma level to Mantissa severity.
+
+        Args:
+            sigma_level: Sigma level (critical, high, medium, low, informational)
+
+        Returns:
+            Mantissa severity string
+        """
+        level_map = {
+            "critical": "critical",
+            "high": "high",
+            "medium": "medium",
+            "low": "low",
+            "informational": "info"
+        }
+        return level_map.get(sigma_level.lower(), "medium")
 
     def _parse_rule(self, rule_dict: Dict[str, Any]) -> DetectionRule:
         """Parse rule dictionary into DetectionRule object.

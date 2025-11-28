@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sigma Detection Rule",
+  "description": "JSON Schema for Sigma detection rules",
+  "type": "object",
+  "required": ["title", "id", "logsource", "detection"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "A brief title for the rule"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique identifier for the rule"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "test", "experimental", "deprecated", "unsupported"],
+      "description": "Rule stability status"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of what the rule detects"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author of the rule"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Creation date in YYYY-MM-DD format"
+    },
+    "modified": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Last modification date in YYYY-MM-DD format"
+    },
+    "logsource": {
+      "type": "object",
+      "description": "Definition of the log source",
+      "minProperties": 1,
+      "properties": {
+        "product": {
+          "type": "string",
+          "enum": ["aws", "azure", "gcp", "okta", "kubernetes", "linux", "windows", "macos"]
+        },
+        "service": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "definition": {
+          "type": "string"
+        }
+      }
+    },
+    "detection": {
+      "type": "object",
+      "description": "Detection logic",
+      "required": ["condition"],
+      "properties": {
+        "condition": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Detection condition expression"
+        },
+        "timeframe": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$",
+          "description": "Time window for detection (e.g., 5m, 1h, 24h)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "fields": {
+      "type": "array",
+      "description": "List of fields to include in alert output",
+      "items": {
+        "type": "string"
+      }
+    },
+    "falsepositives": {
+      "type": "array",
+      "description": "Known false positive scenarios",
+      "items": {
+        "type": "string"
+      }
+    },
+    "level": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low", "informational"],
+      "description": "Severity level"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags including MITRE ATT&CK techniques",
+      "items": {
+        "type": "string"
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Reference URLs",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    }
+  },
+  "additionalProperties": false
+}

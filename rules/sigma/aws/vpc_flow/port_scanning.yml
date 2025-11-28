@@ -1,0 +1,36 @@
+title: AWS Port Scanning Detected
+id: aws-vpc-flow-port-scan-001
+status: stable
+description: Detects potential port scanning activity where a source attempts connections to many different ports
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    action: REJECT
+  timeframe: 5m
+  condition: selection | count(dstport) by srcaddr > 50
+
+fields:
+  - srcaddr
+  - dstport
+
+falsepositives:
+  - Network monitoring tools
+  - Vulnerability scanners (authorized)
+  - Load balancer health checks
+  - Misconfigured applications trying multiple ports
+
+level: medium
+
+tags:
+  - attack.discovery
+  - attack.t1046
+
+references:
+  - https://attack.mitre.org/techniques/T1046/
+  - https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html

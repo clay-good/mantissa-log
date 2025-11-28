@@ -1,0 +1,72 @@
+name: "DNS Tunneling Indicators"
+description: "Detects potential DNS tunneling based on unusually long queries or high query volume to single domain"
+enabled: true
+severity: "medium"
+category: "network"
+
+query: |
+  WITH dns_traffic AS (
+    SELECT
+      srcaddr,
+      dstaddr,
+      COUNT(*) as query_count,
+      MIN(start_time) as first_query,
+      MAX(end_time) as last_query
+    FROM vpc_flow_logs
+    WHERE dstport = 53
+      AND action = 'ACCEPT'
+      AND start_time > CAST(CURRENT_TIMESTAMP - INTERVAL '15' MINUTE AS BIGINT)
+    GROUP BY srcaddr, dstaddr
+  )
+  SELECT
+    srcaddr as source_ip,
+    dstaddr as dns_server,
+    query_count,
+    first_query,
+    last_query,
+    query_count / 15.0 as queries_per_minute
+  FROM dns_traffic
+  WHERE query_count > 100
+
+threshold:
+  count: 1
+  window: "15m"
+
+metadata:
+  mitre_attack:
+    - "T1071.004"
+    - "T1048.003"
+    - "T1568.002"
+  tags:
+    - "network"
+    - "dns-tunneling"
+    - "exfiltration"
+    - "c2"
+    - "vpc-flow-logs"
+  false_positives:
+    - "Legitimate applications with high DNS query rates"
+    - "Load balancers with many backend hosts"
+    - "Microservices with service discovery"
+    - "CDN or reverse proxy configurations"
+    - "DNS-based load balancing"
+  response_actions:
+    - "Review DNS query logs for unusual patterns"
+    - "Check domain names being queried"
+    - "Investigate source instance purpose"
+    - "Look for encoded data in subdomain names"
+    - "Consider blocking if malicious domain identified"
+    - "Review DNS resolver logs if available"
+    - "Implement DNS query monitoring/logging"
+  references:
+    - "https://attack.mitre.org/techniques/T1071/004/"
+    - "https://attack.mitre.org/techniques/T1048/003/"
+  tuning:
+    - "Adjust query count threshold based on normal patterns"
+    - "Consider tracking query length (requires DNS logs, not flow logs)"
+    - "May need higher thresholds for microservice environments"
+    - "Correlate with other exfiltration indicators"
+  notes:
+    - "VPC Flow Logs show connections to DNS servers, not query content"
+    - "For detailed DNS analysis, enable Route 53 Resolver Query Logging"
+    - "Look for sustained high query rates, not just bursts"
+    - "DNS tunneling often uses long subdomain names"

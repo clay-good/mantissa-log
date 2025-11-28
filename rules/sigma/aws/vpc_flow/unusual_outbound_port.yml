@@ -1,0 +1,67 @@
+title: AWS Unusual Outbound Port Connection
+id: aws-vpc-flow-unusual-port-001
+status: test
+description: Detects outbound connections to uncommon ports that may indicate command and control or backdoor activity
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    action: ACCEPT
+  filter_common_ports:
+    dstport:
+      - 20
+      - 21
+      - 22
+      - 23
+      - 25
+      - 53
+      - 80
+      - 110
+      - 143
+      - 443
+      - 465
+      - 587
+      - 993
+      - 995
+      - 1433
+      - 1521
+      - 3306
+      - 3389
+      - 5432
+      - 5439
+      - 6379
+      - 8080
+      - 8443
+      - 9200
+      - 9300
+      - 27017
+  timeframe: 1h
+  condition: selection and not filter_common_ports | count() by srcaddr, dstaddr, dstport > 10
+
+fields:
+  - srcaddr
+  - dstaddr
+  - dstport
+
+falsepositives:
+  - Custom applications on non-standard ports
+  - Internal services
+  - Database replication on custom ports
+  - Monitoring and management tools
+  - Container orchestration traffic
+
+level: low
+
+tags:
+  - attack.command_and_control
+  - attack.t1071
+  - attack.t1571
+
+references:
+  - https://attack.mitre.org/techniques/T1071/
+  - https://attack.mitre.org/techniques/T1571/

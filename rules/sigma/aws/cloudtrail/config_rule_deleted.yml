@@ -1,0 +1,43 @@
+title: AWS Config Rule Deleted
+id: aws-cloudtrail-config-rule-deleted-001
+status: stable
+description: Detects deletion of AWS Config rules which may indicate an attempt to bypass compliance monitoring
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventSource: config.amazonaws.com
+    eventName:
+      - DeleteConfigRule
+      - DeleteOrganizationConfigRule
+    errorCode: null
+  condition: selection
+
+fields:
+  - userIdentity.principalId
+  - eventName
+  - requestParameters.configRuleName
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Authorized Config rule management
+  - Cleanup of deprecated rules
+  - Migration to new compliance framework
+  - Testing and development activities
+
+level: high
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562
+  - attack.t1562.001
+
+references:
+  - https://attack.mitre.org/techniques/T1562/
+  - https://docs.aws.amazon.com/config/latest/developerguide/evaluate-config.html

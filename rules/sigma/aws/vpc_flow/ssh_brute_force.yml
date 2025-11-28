@@ -1,0 +1,38 @@
+title: AWS SSH Brute Force Attack
+id: aws-vpc-flow-ssh-brute-force-001
+status: stable
+description: Detects multiple rejected SSH connection attempts indicating potential brute force attack
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    dstport: 22
+    action: REJECT
+  timeframe: 5m
+  condition: selection | count() by srcaddr, dstaddr > 20
+
+fields:
+  - srcaddr
+  - dstaddr
+
+falsepositives:
+  - Misconfigured SSH clients retrying connections
+  - Automated deployment scripts with incorrect credentials
+  - Network connectivity issues causing retries
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.t1110
+  - attack.t1110.001
+  - attack.t1021.004
+
+references:
+  - https://attack.mitre.org/techniques/T1110/
+  - https://attack.mitre.org/techniques/T1021/004/

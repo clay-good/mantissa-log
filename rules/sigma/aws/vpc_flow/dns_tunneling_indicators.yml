@@ -1,0 +1,41 @@
+title: AWS DNS Tunneling Indicators
+id: aws-vpc-flow-dns-tunneling-001
+status: stable
+description: Detects potential DNS tunneling based on high query volume to DNS servers
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    dstport: 53
+    action: ACCEPT
+  timeframe: 15m
+  condition: selection | count() by srcaddr, dstaddr > 100
+
+fields:
+  - srcaddr
+  - dstaddr
+
+falsepositives:
+  - Legitimate applications with high DNS query rates
+  - Load balancers with many backend hosts
+  - Microservices with service discovery
+  - CDN or reverse proxy configurations
+  - DNS-based load balancing
+
+level: medium
+
+tags:
+  - attack.command_and_control
+  - attack.exfiltration
+  - attack.t1071.004
+  - attack.t1048.003
+  - attack.t1568.002
+
+references:
+  - https://attack.mitre.org/techniques/T1071/004/
+  - https://attack.mitre.org/techniques/T1048/003/

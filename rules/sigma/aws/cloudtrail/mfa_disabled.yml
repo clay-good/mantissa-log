@@ -1,0 +1,43 @@
+title: AWS MFA Device Deactivation
+id: aws-cloudtrail-mfa-disabled-001
+status: stable
+description: Detects when multi-factor authentication is disabled for an IAM user, which weakens account security and may indicate persistence attempts
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName:
+      - DeactivateMFADevice
+      - DeleteVirtualMFADevice
+    errorCode: null
+  condition: selection
+
+fields:
+  - userIdentity.principalId
+  - requestParameters.userName
+  - requestParameters.serialNumber
+  - sourceIPAddress
+  - eventTime
+  - userAgent
+
+falsepositives:
+  - Legitimate MFA device replacement
+  - User lost access to MFA device
+  - Administrator assistance with MFA issues
+  - Decommissioning user accounts
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.t1556
+  - attack.t1556.006
+
+references:
+  - https://attack.mitre.org/techniques/T1556/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html

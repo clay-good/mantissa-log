@@ -1,0 +1,45 @@
+title: AWS GuardDuty Disabled
+id: aws-cloudtrail-guardduty-disabled-001
+status: stable
+description: Detects when AWS GuardDuty threat detection is disabled, which removes an important security layer
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_delete:
+    eventSource: guardduty.amazonaws.com
+    eventName: DeleteDetector
+    errorCode: null
+  selection_disable:
+    eventSource: guardduty.amazonaws.com
+    eventName: UpdateDetector
+    errorCode: null
+    requestParameters|contains: '"enable":false'
+  condition: selection_delete or selection_disable
+
+fields:
+  - userIdentity.principalId
+  - eventName
+  - requestParameters.detectorId
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Authorized GuardDuty configuration changes
+  - Migration to different threat detection solution
+  - Cost optimization during testing
+
+level: critical
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562
+  - attack.t1562.001
+
+references:
+  - https://attack.mitre.org/techniques/T1562/
+  - https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html

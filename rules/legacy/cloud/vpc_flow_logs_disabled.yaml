@@ -1,0 +1,58 @@
+name: "VPC Flow Logs Disabled"
+description: "Detects when VPC Flow Logs are deleted, removing important network visibility"
+enabled: true
+severity: "high"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as performed_by,
+    eventname,
+    requestparameters.DeleteFlowLogsRequest.FlowLogId as flow_log_ids,
+    sourceipaddress,
+    eventtime,
+    'VPC Flow Logs deleted' as reason
+  FROM cloudtrail
+  WHERE eventsource = 'ec2.amazonaws.com'
+    AND eventname = 'DeleteFlowLogs'
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1562"
+    - "T1562.001"
+  tags:
+    - "cloud"
+    - "vpc"
+    - "flow-logs"
+    - "network-visibility"
+    - "defense-evasion"
+    - "cloudtrail"
+  false_positives:
+    - "Authorized flow log management"
+    - "Migration to centralized logging"
+    - "Cost optimization efforts"
+  response_actions:
+    - "IMMEDIATE: Verify if deletion is authorized"
+    - "Re-enable VPC Flow Logs if unauthorized"
+    - "Identify affected VPCs"
+    - "Review network activity during period without logging"
+    - "Investigate who performed the deletion"
+    - "Check for malicious network activity"
+    - "Consider automated remediation to re-create flow logs"
+    - "Protect flow log configuration with IAM policies"
+  references:
+    - "https://attack.mitre.org/techniques/T1562/"
+    - "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html"
+  notes:
+    - "VPC Flow Logs provide critical network visibility"
+    - "Deleting them is often precursor to network-based attacks"
+    - "Should trigger immediate investigation"
+    - "Consider centralized flow log management"
+    - "Enable flow logs on all VPCs"
+    - "Store flow logs in separate security account"

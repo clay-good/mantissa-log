@@ -1,0 +1,60 @@
+title: AWS Potential Data Exfiltration
+id: aws-vpc-flow-data-exfiltration-001
+status: stable
+description: Detects large outbound data transfers to external IP addresses that may indicate data exfiltration
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    action: ACCEPT
+  filter_internal:
+    dstaddr|startswith:
+      - '10.'
+      - '172.16.'
+      - '172.17.'
+      - '172.18.'
+      - '172.19.'
+      - '172.20.'
+      - '172.21.'
+      - '172.22.'
+      - '172.23.'
+      - '172.24.'
+      - '172.25.'
+      - '172.26.'
+      - '172.27.'
+      - '172.28.'
+      - '172.29.'
+      - '172.30.'
+      - '172.31.'
+      - '192.168.'
+  timeframe: 1h
+  condition: selection and not filter_internal | sum(bytes) by srcaddr, dstaddr, dstport > 1073741824
+
+fields:
+  - srcaddr
+  - dstaddr
+  - dstport
+  - bytes
+
+falsepositives:
+  - Legitimate large file transfers
+  - Backup operations to cloud storage
+  - Content delivery to external services
+  - Database replication to external systems
+  - Video streaming or media downloads
+
+level: high
+
+tags:
+  - attack.exfiltration
+  - attack.t1041
+  - attack.t1048
+
+references:
+  - https://attack.mitre.org/techniques/T1041/
+  - https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html

@@ -25,3 +25,7 @@ openai>=1.0.0
 # Parser dependencies
 ipaddress>=1.0.23
 user-agents>=2.2.0
+
+# Sigma detection rules
+pysigma>=0.10.0
+pysigma-backend-athena>=0.2.0

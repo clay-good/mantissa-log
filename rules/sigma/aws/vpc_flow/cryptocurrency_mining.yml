@@ -1,0 +1,51 @@
+title: AWS Cryptocurrency Mining Activity
+id: aws-vpc-flow-cryptomining-001
+status: stable
+description: Detects outbound connections to known cryptocurrency mining pools
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: vpcflowlogs
+
+detection:
+  selection:
+    action: ACCEPT
+  selection_ports:
+    dstport:
+      - 3333
+      - 4444
+      - 5555
+      - 7777
+      - 8888
+      - 9999
+      - 14433
+      - 14444
+      - 45560
+      - 45700
+  selection_ips:
+    dstaddr:
+      - 192.99.142.249
+      - 51.15.89.151
+      - 104.238.221.81
+  condition: selection and (selection_ports or selection_ips)
+
+fields:
+  - srcaddr
+  - dstaddr
+  - dstport
+
+falsepositives:
+  - Authorized cryptocurrency operations
+  - Blockchain development environments
+  - Financial analysis systems
+
+level: medium
+
+tags:
+  - attack.impact
+  - attack.t1496
+
+references:
+  - https://attack.mitre.org/techniques/T1496/

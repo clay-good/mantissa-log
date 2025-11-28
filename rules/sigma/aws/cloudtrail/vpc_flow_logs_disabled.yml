@@ -1,0 +1,40 @@
+title: AWS VPC Flow Logs Disabled
+id: aws-cloudtrail-vpc-flow-logs-disabled-001
+status: stable
+description: Detects when VPC Flow Logs are deleted, removing important network visibility
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventSource: ec2.amazonaws.com
+    eventName: DeleteFlowLogs
+    errorCode: null
+  condition: selection
+
+fields:
+  - userIdentity.principalId
+  - eventName
+  - requestParameters.DeleteFlowLogsRequest.FlowLogId
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Authorized flow log management
+  - Migration to centralized logging
+  - Cost optimization efforts
+
+level: high
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562
+  - attack.t1562.001
+
+references:
+  - https://attack.mitre.org/techniques/T1562/
+  - https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html

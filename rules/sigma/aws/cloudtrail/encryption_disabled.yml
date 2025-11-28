@@ -1,0 +1,49 @@
+title: AWS Encryption Configuration Removed
+id: aws-cloudtrail-encryption-disabled-001
+status: stable
+description: Detects when encryption is disabled on resources like S3 buckets or EBS volumes
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_s3:
+    eventSource: s3.amazonaws.com
+    eventName:
+      - DeleteBucketEncryption
+      - PutBucketEncryption
+    errorCode: null
+  selection_ebs:
+    eventSource: ec2.amazonaws.com
+    eventName: DisableEbsEncryptionByDefault
+    errorCode: null
+  condition: selection_s3 or selection_ebs
+
+fields:
+  - userIdentity.principalId
+  - eventName
+  - eventSource
+  - requestParameters.bucketName
+  - requestParameters.volumeId
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Authorized encryption policy changes
+  - Migration to different encryption method
+  - Temporary encryption removal for troubleshooting
+
+level: medium
+
+tags:
+  - attack.impact
+  - attack.t1485
+  - attack.t1486
+
+references:
+  - https://attack.mitre.org/techniques/T1485/
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html

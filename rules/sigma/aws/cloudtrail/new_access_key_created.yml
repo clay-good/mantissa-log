@@ -1,0 +1,41 @@
+title: AWS IAM Access Key Created
+id: aws-cloudtrail-access-key-created-001
+status: stable
+description: Detects creation of long-term IAM access keys, which may indicate persistence attempts or credential harvesting
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName: CreateAccessKey
+    errorCode: null
+  condition: selection
+
+fields:
+  - userIdentity.principalId
+  - requestParameters.userName
+  - responseElements.accessKey.accessKeyId
+  - sourceIPAddress
+  - eventTime
+  - userAgent
+
+falsepositives:
+  - Legitimate creation of service account credentials
+  - New employee onboarding
+  - Application deployment requiring AWS access
+  - Rotating existing access keys
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.t1098
+  - attack.t1098.001
+
+references:
+  - https://attack.mitre.org/techniques/T1098/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html

@@ -1,0 +1,48 @@
+title: AWS S3 Bucket Made Public
+id: aws-cloudtrail-s3-public-001
+status: stable
+description: Detects changes to S3 bucket policies or ACLs that may make buckets publicly accessible
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventSource: s3.amazonaws.com
+    eventName:
+      - PutBucketPolicy
+      - PutBucketAcl
+      - PutBucketPublicAccessBlock
+    errorCode: null
+  selection_public:
+    requestParameters|contains:
+      - '"Principal":"*"'
+      - AllUsers
+      - AuthenticatedUsers
+  condition: selection and selection_public
+
+fields:
+  - userIdentity.principalId
+  - requestParameters.bucketName
+  - eventName
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Legitimate static website hosting
+  - Public content distribution buckets
+  - Open data sharing initiatives
+
+level: critical
+
+tags:
+  - attack.exfiltration
+  - attack.t1530
+  - attack.t1567.002
+
+references:
+  - https://attack.mitre.org/techniques/T1530/
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html

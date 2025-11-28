@@ -1,0 +1,42 @@
+title: AWS CloudTrail Logging Disabled
+id: aws-cloudtrail-disabled-001
+status: stable
+description: Detects when CloudTrail logging is stopped or trails are deleted, which may indicate an attempt to hide malicious activity
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventSource: cloudtrail.amazonaws.com
+    eventName:
+      - StopLogging
+      - DeleteTrail
+      - UpdateTrail
+    errorCode: null
+  condition: selection
+
+fields:
+  - userIdentity.principalId
+  - eventName
+  - requestParameters.name
+  - sourceIPAddress
+  - eventTime
+
+falsepositives:
+  - Authorized trail management operations
+  - Cost optimization efforts
+  - Trail reconfiguration
+
+level: critical
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562.008
+
+references:
+  - https://attack.mitre.org/techniques/T1562/008/
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html

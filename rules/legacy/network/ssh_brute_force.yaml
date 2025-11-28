@@ -1,0 +1,59 @@
+name: "SSH Brute Force Attack"
+description: "Detects multiple rejected SSH connection attempts indicating potential brute force attack"
+enabled: true
+severity: "high"
+category: "network"
+
+query: |
+  SELECT
+    srcaddr,
+    dstaddr,
+    COUNT(*) as rejected_connections,
+    MIN(start_time) as first_attempt,
+    MAX(end_time) as last_attempt
+  FROM vpc_flow_logs
+  WHERE dstport = 22
+    AND action = 'REJECT'
+    AND start_time > CAST(CURRENT_TIMESTAMP - INTERVAL '5' MINUTE AS BIGINT)
+  GROUP BY srcaddr, dstaddr
+  HAVING COUNT(*) > 20
+
+threshold:
+  count: 1
+  window: "5m"
+
+metadata:
+  mitre_attack:
+    - "T1110"
+    - "T1110.001"
+    - "T1021.004"
+  tags:
+    - "network"
+    - "brute-force"
+    - "ssh"
+    - "vpc-flow-logs"
+  false_positives:
+    - "Misconfigured SSH clients retrying connections"
+    - "Automated deployment scripts with incorrect credentials"
+    - "Network connectivity issues causing retries"
+  response_actions:
+    - "Block source IP at network level if malicious"
+    - "Review SSH server logs for successful authentications"
+    - "Verify SSH is restricted to necessary sources only"
+    - "Consider implementing SSH key-based authentication only"
+    - "Review security group rules for port 22"
+    - "Enable fail2ban or similar on SSH servers"
+    - "Consider using AWS Systems Manager Session Manager instead of SSH"
+  references:
+    - "https://attack.mitre.org/techniques/T1110/"
+    - "https://attack.mitre.org/techniques/T1021/004/"
+  tuning:
+    - "Adjust connection count threshold based on normal patterns"
+    - "Consider separate rules for bastion hosts vs other servers"
+    - "Lower threshold for production servers"
+    - "Whitelist known administrative IPs"
+  notes:
+    - "SSH should not be exposed to 0.0.0.0/0 in production"
+    - "Consider using VPN or AWS Systems Manager for SSH access"
+    - "Monitor for successful connections after brute force attempts"
+    - "This rule only detects rejected attempts; review successful ones separately"

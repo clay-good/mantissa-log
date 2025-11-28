@@ -1,0 +1,54 @@
+title: AWS IAM Privilege Escalation via Policy Modification
+id: aws-cloudtrail-priv-esc-policy-001
+status: stable
+description: Detects potential privilege escalation attempts through IAM policy creation or modification
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_policy_change:
+    eventName:
+      - PutUserPolicy
+      - PutGroupPolicy
+      - PutRolePolicy
+      - CreatePolicy
+      - CreatePolicyVersion
+      - AttachUserPolicy
+      - AttachGroupPolicy
+      - AttachRolePolicy
+      - UpdateAssumeRolePolicy
+  selection_admin_actions:
+    requestParameters|contains:
+      - AdministratorAccess
+      - iam:*
+      - '*:*'
+  condition: selection_policy_change or selection_admin_actions
+
+fields:
+  - userIdentity.principalId
+  - userIdentity.arn
+  - sourceIPAddress
+  - requestParameters
+  - eventName
+  - eventTime
+
+falsepositives:
+  - Legitimate administrative policy updates
+  - Infrastructure as Code deployments
+  - Automated provisioning systems
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.t1078.004
+  - attack.t1098
+
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://attack.mitre.org/techniques/T1098/
+  - https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/

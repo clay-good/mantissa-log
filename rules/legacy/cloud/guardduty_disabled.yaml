@@ -1,0 +1,59 @@
+name: "GuardDuty Disabled"
+description: "Detects when AWS GuardDuty threat detection is disabled, which removes an important security layer"
+enabled: true
+severity: "critical"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as performed_by,
+    eventname,
+    requestparameters.detectorId as detector_id,
+    sourceipaddress,
+    eventtime,
+    'GuardDuty disabled' as reason
+  FROM cloudtrail
+  WHERE eventsource = 'guardduty.amazonaws.com'
+    AND eventname IN ('DeleteDetector', 'UpdateDetector')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+    AND (
+      eventname = 'DeleteDetector'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%"enable":false%'
+    )
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1562"
+    - "T1562.001"
+  tags:
+    - "cloud"
+    - "guardduty"
+    - "defense-evasion"
+    - "cloudtrail"
+  false_positives:
+    - "Authorized GuardDuty configuration changes"
+    - "Migration to different threat detection solution"
+    - "Cost optimization during testing"
+  response_actions:
+    - "IMMEDIATE: Verify if this is authorized"
+    - "Re-enable GuardDuty immediately if unauthorized"
+    - "Review all GuardDuty findings before it was disabled"
+    - "Investigate who performed the action"
+    - "Check for malicious activity during disabled period"
+    - "Review IAM policies granting GuardDuty permissions"
+    - "Consider automated remediation to re-enable"
+    - "Protect GuardDuty with SCPs if using AWS Organizations"
+  references:
+    - "https://attack.mitre.org/techniques/T1562/"
+    - "https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html"
+  notes:
+    - "GuardDuty is AWS native threat detection service"
+    - "Disabling it removes important security visibility"
+    - "Often precedes malicious activity"
+    - "Should trigger immediate investigation"
+    - "Consider centralized GuardDuty management with AWS Organizations"

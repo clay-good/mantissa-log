@@ -1,0 +1,52 @@
+name: "New IAM Access Key Created"
+description: "Detects creation of long-term IAM access keys, which may indicate persistence attempts or credential harvesting"
+enabled: true
+severity: "medium"
+category: "authentication"
+
+query: |
+  SELECT
+    useridentity.principalid as created_by,
+    requestparameters.userName as user_for_key,
+    responseelements.accessKey.accessKeyId as new_access_key,
+    sourceipaddress,
+    eventtime,
+    useragent
+  FROM cloudtrail
+  WHERE eventname = 'CreateAccessKey'
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1098"
+    - "T1098.001"
+  tags:
+    - "authentication"
+    - "access-keys"
+    - "cloudtrail"
+    - "persistence"
+  false_positives:
+    - "Legitimate creation of service account credentials"
+    - "New employee onboarding"
+    - "Application deployment requiring AWS access"
+    - "Rotating existing access keys"
+  response_actions:
+    - "Verify the access key creation was authorized"
+    - "Check if user for whom key was created expects this"
+    - "Review permissions associated with the IAM user"
+    - "Monitor for usage of the new access key"
+    - "Consider if temporary credentials (STS) would be more appropriate"
+    - "Verify key is not for root account (critical if so)"
+  references:
+    - "https://attack.mitre.org/techniques/T1098/"
+    - "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+  notes:
+    - "AWS best practices recommend using temporary credentials via IAM roles"
+    - "Long-term access keys are harder to rotate and track"
+    - "Consider alerting on programmatic access to root account separately"
+    - "Monitor for immediate usage from unexpected IPs after creation"

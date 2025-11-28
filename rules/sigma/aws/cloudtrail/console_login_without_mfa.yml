@@ -1,0 +1,42 @@
+title: AWS Console Login Without MFA
+id: aws-cloudtrail-no-mfa-login-001
+status: stable
+description: Detects successful console logins that did not use multi-factor authentication, indicating weaker security posture
+author: Mantissa Security Team
+date: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_login:
+    eventName: ConsoleLogin
+  selection_success:
+    errorCode: null
+    responseElements.ConsoleLogin: Success
+  filter_mfa:
+    additionalEventData.MFAUsed: 'Yes'
+  condition: selection_login and selection_success and not filter_mfa
+
+fields:
+  - userIdentity.principalId
+  - sourceIPAddress
+  - eventTime
+  - userAgent
+
+falsepositives:
+  - Users who haven't yet enrolled in MFA
+  - Break-glass emergency access accounts
+  - Service accounts (should use programmatic access instead)
+  - Users in process of MFA enrollment
+
+level: medium
+
+tags:
+  - attack.t1078
+  - attack.t1078.004
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html
+  - https://attack.mitre.org/techniques/T1078/
