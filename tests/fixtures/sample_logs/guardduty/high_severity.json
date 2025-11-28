@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "2.0",
+  "accountId": "123456789012",
+  "region": "us-east-1",
+  "partition": "aws",
+  "id": "abc123def456ghi789",
+  "arn": "arn:aws:guardduty:us-east-1:123456789012:detector/def456/finding/abc123",
+  "type": "UnauthorizedAccess:EC2/SSHBruteForce",
+  "resource": {
+    "resourceType": "Instance",
+    "instanceDetails": {
+      "instanceId": "i-1234567890abcdef0",
+      "instanceType": "t2.micro",
+      "launchTime": "2024-11-27T10:00:00Z",
+      "networkInterfaces": [{
+        "privateIpAddress": "10.0.1.5",
+        "publicIp": "203.0.113.42"
+      }],
+      "tags": [{
+        "key": "Name",
+        "value": "web-server-1"
+      }]
+    }
+  },
+  "service": {
+    "serviceName": "guardduty",
+    "detectorId": "abc123def456",
+    "action": {
+      "actionType": "NETWORK_CONNECTION",
+      "networkConnectionAction": {
+        "connectionDirection": "INBOUND",
+        "remoteIpDetails": {
+          "ipAddressV4": "198.51.100.5",
+          "organization": {
+            "asn": "12345",
+            "asnOrg": "Example ISP"
+          },
+          "country": {
+            "countryName": "United States"
+          },
+          "city": {
+            "cityName": "Seattle"
+          }
+        },
+        "remotePortDetails": {
+          "port": 54321,
+          "portName": "Unknown"
+        },
+        "localPortDetails": {
+          "port": 22,
+          "portName": "SSH"
+        },
+        "protocol": "TCP"
+      }
+    },
+    "eventFirstSeen": "2024-11-27T10:20:00Z",
+    "eventLastSeen": "2024-11-27T10:25:00Z",
+    "count": 25
+  },
+  "severity": 8.0,
+  "title": "SSH brute force attack detected",
+  "description": "Multiple failed SSH login attempts detected from 198.51.100.5",
+  "createdAt": "2024-11-27T10:26:00Z",
+  "updatedAt": "2024-11-27T10:26:00Z"
+}

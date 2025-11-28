@@ -1,0 +1,19 @@
+# Mantissa Log - Script Dependencies
+
+# Rule validation
+PyYAML>=6.0
+sqlparse>=0.4.4
+
+# AWS SDK
+boto3>=1.28.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+moto>=4.2.0
+
+# Code quality
+black>=23.7.0
+flake8>=6.1.0
+mypy>=1.5.0

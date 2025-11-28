@@ -1,0 +1,55 @@
+name: "Console Login Without MFA"
+description: "Detects successful console logins that did not use multi-factor authentication, indicating weaker security posture"
+enabled: true
+severity: "medium"
+category: "authentication"
+
+query: |
+  SELECT
+    useridentity.principalid as user,
+    sourceipaddress,
+    eventtime,
+    useragent,
+    'Console login without MFA' as reason
+  FROM cloudtrail
+  WHERE eventname = 'ConsoleLogin'
+    AND errorcode IS NULL
+    AND responseelements.ConsoleLogin != 'Failure'
+    AND additionalEventData.MFAUsed != 'Yes'
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1078"
+    - "T1078.004"
+  tags:
+    - "authentication"
+    - "mfa"
+    - "cloudtrail"
+    - "weak-security"
+  false_positives:
+    - "Users who haven't yet enrolled in MFA"
+    - "Break-glass emergency access accounts"
+    - "Service accounts (should use programmatic access instead)"
+    - "Users in process of MFA enrollment"
+  response_actions:
+    - "Contact user to enable MFA if not already configured"
+    - "Review account permissions and recent activity"
+    - "Consider enforcing MFA via IAM policies"
+    - "Educate users on importance of MFA"
+    - "Track repeat offenders for policy enforcement"
+  references:
+    - "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html"
+    - "https://attack.mitre.org/techniques/T1078/"
+  tuning:
+    - "Consider excluding specific break-glass accounts from this rule"
+    - "Lower severity to 'low' during initial MFA rollout period"
+    - "Create separate high-severity rule for privileged users without MFA"
+  notes:
+    - "AWS supports virtual MFA devices, hardware tokens, and WebAuthn"
+    - "Consider requiring MFA for all console access via IAM policy"
+    - "This rule helps enforce MFA adoption across the organization"

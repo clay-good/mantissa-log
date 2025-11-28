@@ -1,0 +1,34 @@
+name: "Test Detection Rule"
+description: "Sample detection rule for testing purposes"
+enabled: true
+severity: "medium"
+category: "authentication"
+
+query: |
+  SELECT
+    useridentity.principalid as user,
+    COUNT(*) as login_count
+  FROM cloudtrail
+  WHERE eventname = 'ConsoleLogin'
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+  GROUP BY useridentity.principalid
+  HAVING COUNT(*) > 10
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1078"
+  tags:
+    - "authentication"
+    - "testing"
+  false_positives:
+    - "Automated testing scripts"
+  response_actions:
+    - "Verify user activity"
+    - "Check for account compromise"
+  references:
+    - "https://example.com/test-doc"

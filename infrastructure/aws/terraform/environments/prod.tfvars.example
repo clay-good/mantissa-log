@@ -1,0 +1,48 @@
+aws_region  = "us-east-1"
+environment = "prod"
+
+project_prefix = "mantissa-log"
+
+log_retention_days = 365
+enable_glacier     = true
+
+detection_engine_schedule = "rate(5 minutes)"
+
+llm_provider = "bedrock"
+
+enable_vpc = true
+vpc_id     = "vpc-xxxxxxxxxxxxxxxxx"
+subnet_ids = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"]
+
+enable_crawlers = false
+
+lambda_memory_detection = 1024
+lambda_memory_llm       = 512
+lambda_memory_alert     = 512
+
+enable_kms_encryption = true
+kms_key_arn           = "arn:aws:kms:us-east-1:123456789012:key/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+cloudwatch_log_retention_days = 30
+
+alert_destinations = {
+  slack = {
+    enabled = true
+    config = {
+      webhook_secret_name = "mantissa-log/prod/slack-webhook"
+    }
+  }
+  pagerduty = {
+    enabled = true
+    config = {
+      api_key_secret_name = "mantissa-log/prod/pagerduty-api-key"
+    }
+  }
+}
+
+tags = {
+  Owner       = "security-team"
+  CostCenter  = "security"
+  Compliance  = "required"
+  Terraform   = "true"
+}

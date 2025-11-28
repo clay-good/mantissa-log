@@ -1,0 +1,5 @@
+# Custom Detection Rules
+
+Place your organization-specific custom detection rules in this directory.
+
+Custom rules follow the same YAML format as the built-in rules. See the parent README.md for rule format and examples.

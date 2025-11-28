@@ -1,0 +1,108 @@
+# Example Mantissa Log Detection Rule
+# This rule detects potential brute force login attempts
+
+id: aws-console-brute-force
+name: AWS Console Brute Force Login Attempts
+description: |
+  Detects multiple failed AWS Console login attempts from the same IP address
+  within a short time period, indicating potential brute force attack.
+version: 1.0.0
+author: Mantissa Security Team
+created_date: 2025-01-27
+modified_date: 2025-01-27
+
+# SQL query to execute (Athena-compatible)
+query: |
+  SELECT
+    source_ip,
+    COUNT(*) as failed_attempts,
+    COUNT(DISTINCT user) as unique_users,
+    MIN(timestamp) as first_attempt,
+    MAX(timestamp) as last_attempt,
+    ARRAY_AGG(DISTINCT user) as attempted_users
+  FROM cloudtrail_logs
+  WHERE
+    event_name = 'ConsoleLogin'
+    AND result = 'failure'
+    AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+  GROUP BY source_ip
+  HAVING COUNT(*) >= 5
+
+# Execution schedule
+# Options: '5m', '15m', '1h', '6h', '24h', or cron expression
+schedule: 15m
+
+# Time window to query historical data
+lookback_window: 1h
+
+# Alert severity
+severity: high
+
+# Rule is active
+enabled: true
+
+# Threshold configuration
+threshold:
+  field: failed_attempts
+  operator: '>='
+  value: 5
+
+# Alert template with placeholders
+alert_template:
+  title: "AWS Console Brute Force Attack from {{source_ip}}"
+  description: |
+    Detected {{failed_attempts}} failed console login attempts from IP {{source_ip}}
+    targeting {{unique_users}} different user account(s).
+
+    Time Range: {{first_attempt}} to {{last_attempt}}
+    Targeted Users: {{attempted_users}}
+
+    This may indicate a brute force attack against AWS Console credentials.
+  include_fields:
+    - source_ip
+    - failed_attempts
+    - unique_users
+    - attempted_users
+    - first_attempt
+    - last_attempt
+
+# Alert suppression to prevent duplicate alerts
+suppression:
+  enabled: true
+  fields:
+    - source_ip
+  duration: 6h
+
+# Alert routing (optional override of global defaults)
+alert_destinations:
+  - slack
+  - pagerduty
+  - email
+
+# Categorization tags
+tags:
+  - authentication
+  - brute-force
+  - aws
+  - cloudtrail
+  - initial-access
+
+# MITRE ATT&CK mapping
+mitre_attack:
+  tactics:
+    - credential-access
+    - initial-access
+  techniques:
+    - T1110
+    - T1110.001
+
+# References
+references:
+  - https://attack.mitre.org/techniques/T1110/
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference.html
+
+# Known false positives
+false_positives:
+  - Legitimate users with forgotten passwords
+  - Automated testing scripts
+  - SSO integration issues

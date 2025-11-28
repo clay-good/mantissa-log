@@ -1,0 +1,28 @@
+{
+  "eventVersion": "1.08",
+  "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAI23HXK2XMPEXAMPLE",
+    "arn": "arn:aws:iam::123456789012:user/alice",
+    "accountId": "123456789012",
+    "userName": "alice"
+  },
+  "eventTime": "2024-11-27T10:30:00Z",
+  "eventSource": "signin.amazonaws.com",
+  "eventName": "ConsoleLogin",
+  "awsRegion": "us-east-1",
+  "sourceIPAddress": "203.0.113.42",
+  "userAgent": "Mozilla/5.0",
+  "requestParameters": null,
+  "responseElements": {
+    "ConsoleLogin": "Success"
+  },
+  "additionalEventData": {
+    "LoginTo": "https://console.aws.amazon.com",
+    "MobileVersion": "No",
+    "MFAUsed": "Yes"
+  },
+  "eventID": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "eventType": "AwsConsoleSignIn",
+  "recipientAccountId": "123456789012"
+}

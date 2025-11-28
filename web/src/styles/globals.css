@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-mono-50 dark:bg-mono-950 text-mono-950 dark:text-mono-50;
+    @apply transition-colors duration-300;
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-mono-100 dark:bg-mono-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-mono-400 dark:bg-mono-600 rounded-lg;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-mono-500 dark:bg-mono-500;
+  }
+
+  ::selection {
+    @apply bg-mono-900 dark:bg-mono-200 text-mono-50 dark:text-mono-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800;
+    @apply rounded-lg shadow-sm transition-all duration-200 p-6;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-mono-950 dark:bg-mono-50 text-mono-50 dark:text-mono-950;
+    @apply hover:bg-mono-800 dark:hover:bg-mono-200;
+  }
+
+  .btn-secondary {
+    @apply btn bg-transparent border border-mono-300 dark:border-mono-700;
+    @apply text-mono-950 dark:text-mono-50;
+    @apply hover:bg-mono-100 dark:hover:bg-mono-800;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg bg-white dark:bg-mono-900;
+    @apply border border-mono-300 dark:border-mono-700;
+    @apply text-mono-950 dark:text-mono-50;
+    @apply placeholder-mono-400 dark:placeholder-mono-600;
+    @apply focus:outline-none focus:ring-2 focus:ring-mono-500;
+    @apply transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-mono-700 dark:text-mono-300 mb-1;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium;
+  }
+
+  .badge-default {
+    @apply badge bg-mono-200 dark:bg-mono-800 text-mono-900 dark:text-mono-100;
+  }
+}

@@ -1,0 +1,55 @@
+name: "CloudTrail Logging Disabled"
+description: "Detects when CloudTrail logging is stopped or trails are deleted, which may indicate an attempt to hide malicious activity"
+enabled: true
+severity: "critical"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as performed_by,
+    eventname,
+    requestparameters.name as trail_name,
+    sourceipaddress,
+    eventtime,
+    'CloudTrail logging disabled or trail deleted' as reason
+  FROM cloudtrail
+  WHERE eventsource = 'cloudtrail.amazonaws.com'
+    AND eventname IN ('StopLogging', 'DeleteTrail', 'UpdateTrail')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1562.008"
+  tags:
+    - "cloud"
+    - "cloudtrail"
+    - "defense-evasion"
+    - "logging"
+  false_positives:
+    - "Authorized trail management operations"
+    - "Cost optimization efforts"
+    - "Trail reconfiguration"
+  response_actions:
+    - "IMMEDIATE: Verify if this is authorized"
+    - "Re-enable CloudTrail logging immediately if unauthorized"
+    - "Review all actions in the time window when logging was disabled"
+    - "Investigate who performed the action"
+    - "Check for other suspicious activities by same principal"
+    - "Review IAM policies granting CloudTrail permissions"
+    - "Consider automated remediation to re-enable trails"
+    - "Enable CloudTrail log file validation"
+  references:
+    - "https://attack.mitre.org/techniques/T1562/008/"
+    - "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html"
+  notes:
+    - "Disabling CloudTrail is a critical security event"
+    - "This is often a precursor to malicious activity"
+    - "Should trigger immediate investigation"
+    - "Consider protecting CloudTrail with SCPs in AWS Organizations"
+    - "Enable multi-region trails"
+    - "Store CloudTrail logs in separate security account"

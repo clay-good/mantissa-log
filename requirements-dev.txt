@@ -1,0 +1,42 @@
+# Mantissa Log - Development Dependencies
+# Python 3.11+
+
+# Include production dependencies
+-r requirements.txt
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+pytest-xdist>=3.5.0
+moto>=4.2.0
+responses>=0.24.0
+
+# Code formatting
+black>=23.12.0
+isort>=5.13.0
+
+# Linting
+flake8>=6.1.0
+flake8-docstrings>=1.7.0
+flake8-bugbear>=23.12.0
+mypy>=1.7.0
+pylint>=3.0.0
+
+# Security scanning
+bandit>=1.7.5
+safety>=2.3.0
+
+# Pre-commit hooks
+pre-commit>=3.6.0
+
+# Development tools
+ipython>=8.18.0
+ipdb>=0.13.13
+
+# Type stubs
+boto3-stubs[essential]>=1.34.0
+types-requests>=2.31.0
+types-PyYAML>=6.0.12
+types-python-dateutil>=2.8.19

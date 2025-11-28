@@ -1,0 +1,98 @@
+id: cloud-003-iam-dangerous
+name: Dangerous IAM Policy Created
+description: |
+  Detects creation or modification of IAM policies that grant overly permissive access,
+  such as full admin rights (*:*) or dangerous permissions like iam:PassRole with wildcards.
+  These policies violate the principle of least privilege and can enable privilege escalation.
+author: Mantissa Log Team
+version: 1.0.0
+created: 2025-01-27
+modified: 2025-01-27
+
+severity: high
+
+enabled: true
+
+query:
+  type: sql
+  sql: |
+    SELECT
+      useridentity.principalid as user,
+      useridentity.arn as user_arn,
+      eventname,
+      requestparameters.policyName as policy_name,
+      requestparameters.policyArn as policy_arn,
+      requestparameters.policyDocument as policy_document,
+      sourceipaddress as source_ip,
+      useragent,
+      eventtime as timestamp,
+      awsregion as region
+    FROM cloudtrail_logs
+    WHERE
+      year = ${year}
+      AND month = ${month}
+      AND day = ${day}
+      AND eventsource = 'iam.amazonaws.com'
+      AND eventtime >= '${time_window_start}'
+      AND eventtime < '${time_window_end}'
+      AND eventname IN ('CreatePolicy', 'CreatePolicyVersion', 'PutUserPolicy', 'PutRolePolicy', 'PutGroupPolicy')
+      AND (
+        requestparameters LIKE '%"Action":"*"%'
+        OR requestparameters LIKE '%"Action":["*"]%'
+        OR (requestparameters LIKE '%iam:PassRole%' AND requestparameters LIKE '%"Resource":"*"%')
+        OR (requestparameters LIKE '%sts:AssumeRole%' AND requestparameters LIKE '%"Resource":"*"%')
+      )
+    ORDER BY eventtime DESC
+  parameters:
+    time_window_hours: 24
+
+schedule:
+  interval: 5m
+
+threshold:
+  field: count
+  operator: ">="
+  value: 1
+
+alert:
+  destinations:
+    - slack
+    - pagerduty
+    - email
+  title_template: "Dangerous IAM policy created: ${policy_name}"
+  body_template: |
+    An IAM policy with overly permissive or dangerous permissions has been created or modified.
+
+    Policy: ${policy_name}
+    Policy ARN: ${policy_arn}
+    Action: ${eventname}
+    User: ${user}
+    User ARN: ${user_arn}
+    Source IP: ${source_ip}
+    Region: ${region}
+    Time: ${timestamp}
+
+    This policy may grant excessive permissions or enable privilege escalation attacks.
+    Review the policy document to ensure it follows the principle of least privilege.
+    Consider whether wildcard permissions (*) are truly necessary.
+
+suppression:
+  key: "${policy_name}-${eventname}"
+  duration: 2h
+
+tags:
+  - cloud
+  - aws
+  - iam
+  - privilege-escalation
+  - misconfiguration
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/
+
+mitre_attack:
+  tactic: privilege-escalation
+  technique: T1078
+  subtechnique: T1078.004

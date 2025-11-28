@@ -1,0 +1,59 @@
+name: "S3 Bucket Made Public"
+description: "Detects changes to S3 bucket policies or ACLs that may make buckets publicly accessible"
+enabled: true
+severity: "critical"
+category: "cloud"
+
+query: |
+  SELECT
+    useridentity.principalid as changed_by,
+    requestparameters.bucketName as bucket,
+    eventname,
+    requestparameters,
+    sourceipaddress,
+    eventtime
+  FROM cloudtrail
+  WHERE eventsource = 's3.amazonaws.com'
+    AND eventname IN ('PutBucketPolicy', 'PutBucketAcl', 'PutBucketPublicAccessBlock')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+    AND (
+      CAST(requestparameters AS VARCHAR) LIKE '%"Principal":"*"%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%AllUsers%'
+      OR CAST(requestparameters AS VARCHAR) LIKE '%AuthenticatedUsers%'
+    )
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1530"
+    - "T1567.002"
+  tags:
+    - "cloud"
+    - "s3"
+    - "data-exposure"
+    - "cloudtrail"
+  false_positives:
+    - "Legitimate static website hosting"
+    - "Public content distribution buckets"
+    - "Open data sharing initiatives"
+  response_actions:
+    - "IMMEDIATE: Review bucket contents for sensitive data"
+    - "Verify if public access is intentional and authorized"
+    - "Check bucket policy and ACL configuration"
+    - "Scan bucket for sensitive information"
+    - "Revert to private if unauthorized"
+    - "Enable S3 Block Public Access if not needed"
+    - "Review who made the change and their authorization"
+    - "Check for data access during public exposure window"
+  references:
+    - "https://attack.mitre.org/techniques/T1530/"
+    - "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+  notes:
+    - "S3 data exposure is a common cloud security incident"
+    - "Enable S3 Block Public Access at account level"
+    - "Use S3 Access Analyzer to identify public buckets"
+    - "Consider automated remediation for unauthorized public buckets"

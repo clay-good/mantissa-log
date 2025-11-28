@@ -1,0 +1,52 @@
+name: "MFA Device Deactivation"
+description: "Detects when multi-factor authentication is disabled for an IAM user, which weakens account security"
+enabled: true
+severity: "high"
+category: "authentication"
+
+query: |
+  SELECT
+    useridentity.principalid as performer,
+    requestparameters.userName as affected_user,
+    requestparameters.serialNumber as mfa_device,
+    sourceipaddress,
+    eventtime,
+    useragent
+  FROM cloudtrail
+  WHERE eventname IN ('DeactivateMFADevice', 'DeleteVirtualMFADevice')
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1556"
+    - "T1556.006"
+  tags:
+    - "authentication"
+    - "mfa"
+    - "cloudtrail"
+    - "persistence"
+  false_positives:
+    - "Legitimate MFA device replacement"
+    - "User lost access to MFA device"
+    - "Administrator assistance with MFA issues"
+    - "Decommissioning user accounts"
+  response_actions:
+    - "Verify the user initiated this action"
+    - "Contact affected user to confirm legitimacy"
+    - "Review recent authentication events for the user"
+    - "Check if account has been compromised"
+    - "Ensure MFA is re-enabled promptly"
+    - "Review who performed the action and their authorization"
+    - "Monitor affected account for suspicious activity"
+  references:
+    - "https://attack.mitre.org/techniques/T1556/"
+    - "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html"
+  notes:
+    - "Attackers may disable MFA to maintain persistence"
+    - "This is often a precursor to account takeover"
+    - "Monitor for subsequent password changes or access key creation"

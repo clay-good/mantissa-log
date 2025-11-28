@@ -1,0 +1,59 @@
+name: "Privilege Escalation via AssumeRole"
+description: "Detects successful AssumeRole operations to privileged roles that could indicate privilege escalation attempts"
+enabled: true
+severity: "medium"
+category: "authentication"
+
+query: |
+  SELECT
+    useridentity.principalid as assumed_by,
+    requestparameters.roleArn as role_assumed,
+    requestparameters.roleSessionName as session_name,
+    sourceipaddress,
+    eventtime,
+    useragent
+  FROM cloudtrail
+  WHERE eventname = 'AssumeRole'
+    AND errorcode IS NULL
+    AND eventtime > CURRENT_TIMESTAMP - INTERVAL '1' HOUR
+    AND (
+      LOWER(requestparameters.roleArn) LIKE '%admin%'
+      OR LOWER(requestparameters.roleArn) LIKE '%root%'
+      OR LOWER(requestparameters.roleArn) LIKE '%poweruser%'
+      OR LOWER(requestparameters.roleArn) LIKE '%security%'
+      OR LOWER(requestparameters.roleArn) LIKE '%elevated%'
+    )
+
+threshold:
+  count: 1
+  window: "1h"
+
+metadata:
+  mitre_attack:
+    - "T1078"  # Valid Accounts
+    - "T1078.004"  # Cloud Accounts
+    - "T1548"  # Abuse Elevation Control Mechanism
+  tags:
+    - "authentication"
+    - "privilege-escalation"
+    - "cloudtrail"
+    - "iam"
+  false_positives:
+    - "Legitimate administrative actions"
+    - "Automated processes using service roles"
+    - "CI/CD pipelines with elevated permissions"
+    - "Scheduled tasks requiring admin access"
+  response_actions:
+    - "Verify the user has legitimate need for elevated access"
+    - "Review actions performed with the assumed role"
+    - "Check if this is part of normal workflow for this user"
+    - "Investigate source IP if unexpected"
+    - "Review IAM trust policies for the role"
+    - "Ensure least privilege principles are followed"
+  references:
+    - "https://attack.mitre.org/techniques/T1548/"
+    - "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html"
+  tuning:
+    - "Adjust role name patterns based on your naming conventions"
+    - "Consider whitelisting known service accounts"
+    - "Increase severity to 'high' for specific critical admin roles"
