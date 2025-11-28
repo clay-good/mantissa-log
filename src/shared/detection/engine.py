@@ -204,13 +204,18 @@ class AthenaQueryExecutor(QueryExecutor):
 
 
 class DetectionEngine:
-    """Main detection engine that executes rules and generates alerts."""
+    """Main detection engine that executes rules and generates alerts.
+
+    Supports multi-cloud execution via query executor abstraction.
+    """
 
     def __init__(
         self,
         rule_loader: RuleLoader,
         query_executor: QueryExecutor,
-        state_manager: Optional[Any] = None
+        state_manager: Optional[Any] = None,
+        cloud_provider: Optional[str] = None,
+        sigma_converter: Optional[Any] = None
     ):
         """Initialize detection engine.
 
@@ -218,10 +223,46 @@ class DetectionEngine:
             rule_loader: RuleLoader instance
             query_executor: QueryExecutor instance
             state_manager: StateManager for deduplication (optional)
+            cloud_provider: Cloud provider (aws, gcp, azure) for Sigma conversion
+            sigma_converter: SigmaRuleConverter instance (optional)
         """
         self.rule_loader = rule_loader
         self.query_executor = query_executor
         self.state_manager = state_manager
+        self.cloud_provider = cloud_provider or self._detect_cloud_provider()
+        self.sigma_converter = sigma_converter
+
+        # Initialize Sigma converter if not provided
+        if self.sigma_converter is None and self.cloud_provider:
+            try:
+                from .sigma_converter import SigmaRuleConverter
+                backend_type = self._get_backend_type(self.cloud_provider)
+                self.sigma_converter = SigmaRuleConverter(backend_type=backend_type)
+            except ImportError:
+                # Sigma support not available
+                self.sigma_converter = None
+
+    def _detect_cloud_provider(self) -> str:
+        """Detect cloud provider from executor type"""
+        executor_class = self.query_executor.__class__.__name__
+
+        if 'Athena' in executor_class:
+            return 'aws'
+        elif 'BigQuery' in executor_class:
+            return 'gcp'
+        elif 'Synapse' in executor_class:
+            return 'azure'
+
+        return 'aws'  # Default
+
+    def _get_backend_type(self, cloud_provider: str) -> str:
+        """Map cloud provider to Sigma backend type"""
+        mapping = {
+            'aws': 'athena',
+            'gcp': 'bigquery',
+            'azure': 'synapse'
+        }
+        return mapping.get(cloud_provider, 'athena')
 
     def execute_rule(
         self,

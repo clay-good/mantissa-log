@@ -13,12 +13,12 @@ tags:
     - attack.t1566
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
         outcome.reason: 'FastPass declined phishing attempt'
         outcome.result: FAILURE
-        eventtype: user.authentication.auth_via_mfa
+        event.action: user.authentication.auth_via_mfa
     condition: selection
 falsepositives:
     - Unlikely

@@ -16,10 +16,10 @@ tags:
     - attack.t1078.004
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection_event:
-        eventtype: 'policy.evaluate_sign_on'
+        event.action: 'policy.evaluate_sign_on'
         target.displayname: 'Okta Admin Console'
     selection_positive:
         - debugcontext.debugdata.behaviors|contains: 'POSITIVE'

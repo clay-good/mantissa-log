@@ -1,0 +1,39 @@
+title: GitHub Branch Protection Disabled
+id: e5f6a7b8-c9d0-1234-5678-901234efghij
+status: stable
+description: Detects disabling of branch protection rules which could allow unauthorized code changes
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: github
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'protected_branch.destroy'
+      - 'protected_branch.dismiss_stale_reviews'
+      - 'protected_branch.policy_override'
+  condition: selection
+
+fields:
+  - user.name
+  - '@timestamp'
+  - source.geo.country_iso_code
+  - github.action
+  - github.org
+  - github.repo
+  - github.protected_branch
+
+falsepositives:
+  - Repository archival procedures
+  - Approved security policy changes
+  - Emergency hotfix deployments
+
+level: medium
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562  # Impair Defenses

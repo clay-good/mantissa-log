@@ -14,10 +14,10 @@ tags:
     - attack.t1098.003
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype:
+        event.action:
             - group.privilege.grant
             - user.account.privilege.grant
     condition: selection

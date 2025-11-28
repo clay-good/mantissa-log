@@ -1,0 +1,38 @@
+title: Kubernetes ClusterRoleBinding Created
+id: d4e5f6a7-b8c9-0123-4567-890123defghi
+status: stable
+description: Detects creation of ClusterRoleBindings which grant cluster-wide permissions, potentially leading to privilege escalation
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    event.action: 'create'
+    kubernetes.object_ref.resource: 'clusterrolebindings'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.name
+  - kubernetes.object_ref.name
+  - '@timestamp'
+  - source.ip
+  - kubernetes.request_object
+
+falsepositives:
+  - Legitimate RBAC configuration by administrators
+  - CI/CD system setup
+  - Application deployment requiring cluster access
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.persistence
+  - attack.t1098  # Account Manipulation
+  - attack.t1078  # Valid Accounts

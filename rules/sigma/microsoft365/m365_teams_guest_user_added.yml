@@ -1,0 +1,44 @@
+title: Microsoft 365 Teams Guest User Added
+id: f6a7b8c9-d0e1-2345-6789-012345fghijk
+status: stable
+description: Detects addition of external guest users to Teams which could lead to data exposure
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: microsoftteams
+
+detection:
+  selection:
+    event.action:
+      - 'MemberAdded'
+      - 'TeamCreated'
+  filter_guest:
+    microsoft365.members:
+      - Role: 'Guest'
+  condition: selection and filter_guest
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - microsoft365.operation
+  - microsoft365.team_name
+  - microsoft365.channel_name
+  - microsoft365.members
+
+falsepositives:
+  - Legitimate external collaboration
+  - Partner access for joint projects
+  - Customer support interactions
+
+level: low
+
+tags:
+  - attack.persistence
+  - attack.collection
+  - attack.t1136.003  # Create Account: Cloud Account
+  - attack.t1213      # Data from Information Repositories

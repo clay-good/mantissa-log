@@ -1,0 +1,41 @@
+title: GitHub Organization Administrator Added
+id: a1b2c3d4-e5f6-7890-1234-567890abcdef
+status: stable
+description: Detects addition of organization administrator role which provides full organization access
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: github
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'org.add_member'
+      - 'org.update_member'
+  filter_admin:
+    github.permission: 'admin'
+  condition: selection and filter_admin
+
+fields:
+  - user.name
+  - '@timestamp'
+  - source.geo.country_iso_code
+  - github.action
+  - github.org
+  - github.user
+  - github.permission
+
+falsepositives:
+  - Approved administrative changes
+  - New administrator onboarding
+  - Role rotation procedures
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1098  # Account Manipulation

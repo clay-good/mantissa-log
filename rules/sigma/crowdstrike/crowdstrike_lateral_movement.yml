@@ -1,0 +1,38 @@
+title: CrowdStrike Lateral Movement Detection
+id: b2c3d4e5-f6a7-8901-2345-678901bcdefg
+status: stable
+description: Detects lateral movement activity identified by CrowdStrike Falcon behavioral analysis
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: crowdstrike
+  service: falcon
+
+detection:
+  selection:
+    event.kind: 'alert'
+    crowdstrike.detection.tactic: 'Lateral Movement'
+  condition: selection
+
+fields:
+  - host.name
+  - user.name
+  - source.ip
+  - '@timestamp'
+  - crowdstrike.detection.technique
+  - crowdstrike.detection.scenario
+  - crowdstrike.detection.confidence
+
+falsepositives:
+  - Legitimate administrative remote access
+  - IT management tools
+  - Automated deployment systems
+
+level: high
+
+tags:
+  - attack.lateral_movement
+  - attack.t1021  # Remote Services
+  - attack.t1570  # Lateral Tool Transfer

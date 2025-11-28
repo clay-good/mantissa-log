@@ -1,0 +1,41 @@
+title: Okta Login from New or Suspicious Geolocation
+id: d4e5f6a7-b8c9-0123-4567-890123defghi
+status: stable
+description: Detects successful logins from geographic locations that are unusual or potentially suspicious for the organization
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action: 'user.session.start'
+    event.outcome: 'success'
+    okta.security_context.is_proxy: true
+  condition: selection
+
+fields:
+  - user.name
+  - user.email
+  - source.ip
+  - source.geo.country_name
+  - source.geo.city_name
+  - '@timestamp'
+  - okta.security_context.is_proxy
+  - okta.client.device
+
+falsepositives:
+  - Legitimate business travel
+  - Remote workers using VPN
+  - Distributed workforce locations
+  - Legitimate use of privacy tools
+
+level: medium
+
+tags:
+  - attack.initial_access
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1090      # Proxy

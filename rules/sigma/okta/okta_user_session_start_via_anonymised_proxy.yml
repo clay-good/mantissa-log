@@ -12,10 +12,10 @@ tags:
     - attack.t1562.006
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: 'user.session.start'
+        event.action: 'user.session.start'
         securitycontext.isproxy: 'true'
     condition: selection
 falsepositives:

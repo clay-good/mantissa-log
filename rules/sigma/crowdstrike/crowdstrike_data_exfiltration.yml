@@ -1,0 +1,39 @@
+title: CrowdStrike Data Exfiltration Detection
+id: f6a7b8c9-d0e1-2345-6789-012345fghijk
+status: stable
+description: Detects potential data exfiltration attempts identified by CrowdStrike Falcon network and file monitoring
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: crowdstrike
+  service: falcon
+
+detection:
+  selection:
+    event.kind: 'alert'
+    crowdstrike.detection.tactic: 'Exfiltration'
+  condition: selection
+
+fields:
+  - host.name
+  - user.name
+  - source.ip
+  - '@timestamp'
+  - crowdstrike.detection.technique
+  - file.path
+  - process.command_line
+
+falsepositives:
+  - Legitimate cloud backup operations
+  - Data synchronization tools
+  - Authorized file transfers
+
+level: high
+
+tags:
+  - attack.exfiltration
+  - attack.t1041  # Exfiltration Over C2 Channel
+  - attack.t1567  # Exfiltration Over Web Service
+  - attack.t1020  # Automated Exfiltration

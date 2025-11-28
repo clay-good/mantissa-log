@@ -9,11 +9,11 @@ references:
 tags:
     - attack.credential-access
 logsource:
-    service: okta
+    service: system
     product: okta
 detection:
     selection:
-        eventtype: 'user.lifecycle.create'
+        event.action: 'user.lifecycle.create'
     condition: selection
 falsepositives:
     - Legitimate and authorized user creation

@@ -13,10 +13,10 @@ tags:
     - attack.t1531
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        displaymessage: Max sign in attempts exceeded
+        message: Max sign in attempts exceeded
     condition: selection
 falsepositives:
     - Unknown

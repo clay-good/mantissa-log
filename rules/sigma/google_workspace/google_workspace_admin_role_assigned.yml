@@ -1,0 +1,40 @@
+title: Google Workspace Admin Role Assigned to User
+id: f1a2b3c4-d5e6-7890-1234-567890abcdef
+status: stable
+description: Detects when administrator privileges are granted to a user in Google Workspace, which could indicate privilege escalation
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: admin
+
+detection:
+  selection:
+    event.action:
+      - 'ASSIGN_ROLE'
+      - 'ADD_PRIVILEGE'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.ROLE_NAME
+  - google_workspace.events.parameters.USER_EMAIL
+
+falsepositives:
+  - Legitimate administrator provisioning
+  - Authorized role delegation
+  - IT administrative tasks
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation

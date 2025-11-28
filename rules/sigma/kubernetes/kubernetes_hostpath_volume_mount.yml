@@ -1,0 +1,45 @@
+title: Kubernetes Pod with HostPath Volume Mount
+id: e5f6a7b8-c9d0-1234-5678-901234efghij
+status: stable
+description: Detects pods mounting host filesystem paths which could be used for container escape or host compromise
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    event.action: 'create'
+    kubernetes.object_ref.resource: 'pods'
+    event.outcome: 'success'
+  filter_hostpath:
+    kubernetes.request_object|contains: '"hostPath"'
+  filter_safe_paths:
+    kubernetes.request_object|contains:
+      - '/var/log'
+      - '/var/lib/docker/containers'
+  condition: selection and filter_hostpath and not filter_safe_paths
+
+fields:
+  - user.name
+  - kubernetes.object_ref.namespace
+  - kubernetes.object_ref.name
+  - '@timestamp'
+  - source.ip
+  - kubernetes.request_object
+
+falsepositives:
+  - Logging agents mounting log directories
+  - Monitoring agents requiring host access
+  - Storage provisioners
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.persistence
+  - attack.t1611  # Escape to Host
+  - attack.t1610  # Deploy Container

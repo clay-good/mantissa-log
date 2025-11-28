@@ -1,0 +1,47 @@
+title: Microsoft 365 Suspicious Mailbox Forwarding Rule
+id: a1b2c3d4-e5f6-7890-1234-567890abcdef
+status: stable
+description: Detects creation of mailbox forwarding rules which could be used for data exfiltration or persistence
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: exchange
+
+detection:
+  selection:
+    event.action:
+      - 'New-InboxRule'
+      - 'Set-InboxRule'
+      - 'Set-Mailbox'
+  filter_forward:
+    microsoft365.parameters:
+      - Name: 'ForwardTo'
+      - Name: 'ForwardAsAttachmentTo'
+      - Name: 'RedirectTo'
+      - Name: 'ForwardingSmtpAddress'
+  condition: selection and filter_forward
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - microsoft365.operation
+  - microsoft365.object_id
+  - microsoft365.parameters
+
+falsepositives:
+  - Legitimate automated forwarding rules
+  - Executive assistant configurations
+  - IT-approved business process automation
+
+level: medium
+
+tags:
+  - attack.collection
+  - attack.exfiltration
+  - attack.t1114.003  # Email Forwarding Rule
+  - attack.t1048      # Exfiltration Over Alternative Protocol

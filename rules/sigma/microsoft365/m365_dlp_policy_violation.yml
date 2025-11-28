@@ -1,0 +1,44 @@
+title: Microsoft 365 Data Loss Prevention Policy Violation
+id: e5f6a7b8-c9d0-1234-5678-901234efghij
+status: stable
+description: Detects DLP policy violations indicating potential sensitive data exposure
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: dlp
+
+detection:
+  selection:
+    event.action: 'DlpRuleMatch'
+  filter_severity:
+    microsoft365.severity:
+      - 'High'
+      - 'Medium'
+  condition: selection and filter_severity
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - microsoft365.policy_name
+  - microsoft365.rule_name
+  - microsoft365.severity
+  - microsoft365.sensitive_info_type_data
+  - microsoft365.object_id
+
+falsepositives:
+  - False positive DLP rule matches
+  - Testing of DLP policies
+  - Approved sensitive data transfers
+
+level: high
+
+tags:
+  - attack.exfiltration
+  - attack.collection
+  - attack.t1567  # Exfiltration Over Web Service
+  - attack.t1530  # Data from Cloud Storage Object

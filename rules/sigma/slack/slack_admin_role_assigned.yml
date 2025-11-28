@@ -1,0 +1,42 @@
+title: Slack Admin or Owner Role Assigned
+id: c3d4e5f6-a7b8-9012-3456-789012cdefgh
+status: stable
+description: Detects when a user is granted admin or owner privileges in Slack workspace
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: slack
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'role_change_to_admin'
+      - 'role_change_to_owner'
+      - 'user_promoted_to_admin'
+      - 'user_promoted_to_owner'
+      - 'permissions_assigned'
+  condition: selection
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - slack.entity.id
+  - slack.entity.email
+  - slack.details
+
+falsepositives:
+  - Legitimate administrator provisioning
+  - Employee promotions
+  - IT onboarding processes
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1098  # Account Manipulation

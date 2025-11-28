@@ -1,0 +1,39 @@
+title: Slack Workspace Data Export
+id: a1b2c3d4-e5f6-7890-1234-567890abcdef
+status: stable
+description: Detects when workspace data is exported from Slack, which could indicate data exfiltration
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: slack
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'workspace_export_started'
+      - 'compliance_export_started'
+      - 'data_export_requested'
+  condition: selection
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - slack.entity.type
+  - slack.details
+
+falsepositives:
+  - Legitimate compliance exports
+  - Authorized data backups
+  - eDiscovery requests
+
+level: high
+
+tags:
+  - attack.exfiltration
+  - attack.collection
+  - attack.t1567  # Exfiltration Over Web Service

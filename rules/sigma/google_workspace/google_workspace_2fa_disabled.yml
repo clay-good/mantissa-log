@@ -1,0 +1,41 @@
+title: Google Workspace 2-Step Verification Disabled
+id: d5e6f7a8-b9c0-1234-5678-901234efghij
+status: stable
+description: Detects when 2-step verification (2FA/MFA) is disabled for users, which weakens account security
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: admin
+
+detection:
+  selection:
+    event.action:
+      - 'UNENROLL_USER_FROM_STRONG_AUTH'
+      - 'WEAK_PROGRAMMATIC_LOGIN_SETTINGS_CHANGED'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.email
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.USER_EMAIL
+  - google_workspace.events.parameters.NEW_VALUE
+  - google_workspace.events.parameters.OLD_VALUE
+
+falsepositives:
+  - Legitimate security policy changes
+  - User device replacement procedures
+  - IT troubleshooting activities
+
+level: high
+
+tags:
+  - attack.defense_evasion
+  - attack.persistence
+  - attack.credential_access
+  - attack.t1556      # Modify Authentication Process
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts

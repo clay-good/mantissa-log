@@ -13,10 +13,10 @@ tags:
     - attack.command-and-control
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: security.threat.detected
+        event.action: security.threat.detected
     condition: selection
 falsepositives:
     - Unknown

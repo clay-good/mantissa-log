@@ -15,10 +15,10 @@ tags:
     - attack.t1556.006
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype:
+        event.action:
             - user.mfa.factor.deactivate
             - user.mfa.factor.reset_all
     condition: selection

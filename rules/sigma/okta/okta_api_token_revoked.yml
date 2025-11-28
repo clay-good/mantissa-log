@@ -12,10 +12,10 @@ tags:
     - attack.impact
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: system.api_token.revoke
+        event.action: system.api_token.revoke
     condition: selection
 falsepositives:
     - Unknown

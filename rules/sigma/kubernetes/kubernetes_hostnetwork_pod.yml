@@ -1,0 +1,41 @@
+title: Kubernetes Pod Created with Host Network
+id: f6a7b8c9-d0e1-2345-6789-012345fghijk
+status: stable
+description: Detects pods created with host network access which bypasses network policies and can access host services
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    event.action: 'create'
+    kubernetes.object_ref.resource: 'pods'
+    event.outcome: 'success'
+  filter_hostnetwork:
+    kubernetes.request_object|contains: '"hostNetwork":true'
+  condition: selection and filter_hostnetwork
+
+fields:
+  - user.name
+  - kubernetes.object_ref.namespace
+  - kubernetes.object_ref.name
+  - '@timestamp'
+  - source.ip
+  - kubernetes.request_object
+
+falsepositives:
+  - Network plugins and CNI components
+  - Ingress controllers
+  - Load balancers
+
+level: medium
+
+tags:
+  - attack.privilege_escalation
+  - attack.lateral_movement
+  - attack.t1611  # Escape to Host
+  - attack.t1021  # Remote Services

@@ -13,10 +13,10 @@ tags:
     - attack.t1098.001
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: 'system.idp.lifecycle.create'
+        event.action: 'system.idp.lifecycle.create'
     condition: selection
 falsepositives:
     - When an admin creates a new, authorised identity provider.

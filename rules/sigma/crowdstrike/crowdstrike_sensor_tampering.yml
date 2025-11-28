@@ -1,0 +1,41 @@
+title: CrowdStrike Falcon Sensor Tampering Attempt
+id: a7b8c9d0-e1f2-3456-7890-123456ghijkl
+status: stable
+description: Detects attempts to disable or tamper with CrowdStrike Falcon sensor through audit events
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: crowdstrike
+  service: falcon
+
+detection:
+  selection:
+    event.category: 'configuration'
+    crowdstrike.audit.operation_name:
+      - 'sensor_update_policy_disable'
+      - 'sensor_visibility_disable'
+      - 'prevention_policy_disable'
+      - 'sensor_uninstall'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.name
+  - host.name
+  - '@timestamp'
+  - crowdstrike.audit.service_name
+  - crowdstrike.audit.audit_key_values
+
+falsepositives:
+  - Legitimate sensor maintenance by security team
+  - Planned sensor upgrades or migrations
+  - Decommissioning of endpoints
+
+level: critical
+
+tags:
+  - attack.defense_evasion
+  - attack.t1562.001  # Impair Defenses: Disable or Modify Tools
+  - attack.t1070      # Indicator Removal

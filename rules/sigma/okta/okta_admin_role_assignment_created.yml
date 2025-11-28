@@ -11,10 +11,10 @@ tags:
     - attack.persistence
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: 'iam.resourceset.bindings.add'
+        event.action: 'iam.resourceset.bindings.add'
     condition: selection
 falsepositives:
     - Legitimate creation of a new admin role assignment

@@ -1,0 +1,40 @@
+title: Google Workspace OAuth Token Granted to Third-Party Application
+id: e6f7a8b9-c0d1-2345-6789-012345fghijk
+status: stable
+description: Detects when OAuth tokens are granted to third-party applications, which could be used for persistence or data access
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: token
+
+detection:
+  selection:
+    event.action:
+      - 'authorize'
+      - 'grant'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.email
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.app_name
+  - google_workspace.events.parameters.client_id
+  - google_workspace.events.parameters.scope
+
+falsepositives:
+  - Legitimate third-party application integrations
+  - Authorized business tool connections
+  - Productivity app installations
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.credential_access
+  - attack.t1528      # Steal Application Access Token
+  - attack.t1550.001  # Use Alternate Authentication Material: Application Access Token

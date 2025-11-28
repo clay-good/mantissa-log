@@ -1,0 +1,41 @@
+title: Okta Administrator Role Assigned
+id: a1b2c3d4-e5f6-7890-1234-567890abcdef
+status: stable
+description: Detects when a user is assigned an administrator role in Okta, which could indicate privilege escalation
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action:
+      - 'user.account.privilege.grant'
+      - 'group.privilege.grant'
+      - 'user.role.add'
+    okta.target.type: 'User'
+  condition: selection
+
+fields:
+  - user.name
+  - user.email
+  - okta.target.alternate_id
+  - okta.target.display_name
+  - '@timestamp'
+  - source.ip
+  - okta.outcome.result
+
+falsepositives:
+  - Legitimate administrator provisioning
+  - Automated user onboarding processes
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation

@@ -1,0 +1,57 @@
+title: AWS Console Login Impossible Travel
+id: aws-cloudtrail-impossible-travel-001
+status: stable
+description: |
+  Detects successful console logins from different IP addresses for the same user
+  within a short time period, which may indicate account compromise. This rule
+  identifies when a user logs in from multiple distinct source IPs within the
+  detection timeframe, suggesting potentially impossible geographic travel.
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_successful_login:
+    eventName: ConsoleLogin
+    responseElements.ConsoleLogin: Success
+  filter_errors:
+    errorCode|exists: true
+  timeframe: 6h
+  condition: selection_successful_login and not filter_errors | count(sourceIPAddress) by userIdentity.principalId >= 2
+
+fields:
+  - userIdentity.principalId
+  - userIdentity.arn
+  - userIdentity.userName
+  - sourceIPAddress
+  - eventTime
+  - userAgent
+  - awsRegion
+
+falsepositives:
+  - VPN usage causing IP address changes
+  - Mobile users switching between WiFi and cellular
+  - Corporate proxy infrastructure with multiple egress IPs
+  - Shared accounts (should be avoided per AWS best practices)
+  - Users traveling with legitimate access from multiple locations
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.t1078
+  - attack.t1078.004
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/cloudtrail-integration.html
+
+# Note: This Sigma rule detects multiple IPs per user within the timeframe.
+# For true impossible travel detection with geographic distance calculation,
+# use the LLM-enriched alerts feature which can query IP geolocation data
+# and calculate actual distances between login locations.

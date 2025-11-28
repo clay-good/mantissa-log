@@ -1,0 +1,19 @@
+# Terraform Backend Configuration for Azure Storage
+#
+# Copy this file to backend.tf and configure with your Azure Storage details
+# The storage account and container must be created before running terraform init
+
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "your-terraform-state-rg"
+    storage_account_name = "yourterraformstate"
+    container_name       = "tfstate"
+    key                  = "mantissa-log.tfstate"
+
+    # Optional: Use managed identity for authentication
+    # use_msi = true
+
+    # Optional: Specify subscription ID
+    # subscription_id = "your-subscription-id"
+  }
+}

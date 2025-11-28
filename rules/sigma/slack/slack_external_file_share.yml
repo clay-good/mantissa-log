@@ -1,0 +1,38 @@
+title: Slack File Shared Externally
+id: b2c3d4e5-f6a7-8901-2345-678901bcdefg
+status: stable
+description: Detects when files are shared with external users or made publicly accessible in Slack
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: slack
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'file_public_link_created'
+      - 'file_shared_externally'
+      - 'file_external_shared'
+  condition: selection
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - slack.entity.name
+  - slack.entity.type
+
+falsepositives:
+  - Legitimate external collaboration
+  - Authorized file sharing with partners
+  - Public documentation links
+
+level: medium
+
+tags:
+  - attack.exfiltration
+  - attack.t1567.002  # Exfiltration Over Web Service: Exfiltration to Cloud Storage

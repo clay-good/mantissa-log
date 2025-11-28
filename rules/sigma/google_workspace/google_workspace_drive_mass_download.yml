@@ -1,0 +1,39 @@
+title: Google Drive Mass File Download
+id: c4d5e6f7-a8b9-0123-4567-890123defghi
+status: stable
+description: Detects potential data exfiltration through mass file downloads from Google Drive
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: drive
+
+detection:
+  selection:
+    event.action: 'download'
+    event.category: 'file'
+  condition: selection | count(user.email) by user.email > 50
+  timeframe: 15m
+
+fields:
+  - user.email
+  - source.ip
+  - '@timestamp'
+  - google_workspace.events.parameters.doc_title
+  - google_workspace.events.parameters.doc_type
+  - google_workspace.events.parameters.owner
+
+falsepositives:
+  - Legitimate bulk download operations
+  - Backup or archival procedures
+  - Data migration activities
+
+level: high
+
+tags:
+  - attack.exfiltration
+  - attack.collection
+  - attack.t1005      # Data from Local System
+  - attack.t1567.002  # Exfiltration Over Web Service: Exfiltration to Cloud Storage

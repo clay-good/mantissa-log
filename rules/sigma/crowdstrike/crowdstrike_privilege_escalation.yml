@@ -1,0 +1,39 @@
+title: CrowdStrike Privilege Escalation Detection
+id: c3d4e5f6-a7b8-9012-3456-789012cdefgh
+status: stable
+description: Detects privilege escalation attempts identified by CrowdStrike Falcon
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: crowdstrike
+  service: falcon
+
+detection:
+  selection:
+    event.kind: 'alert'
+    crowdstrike.detection.tactic: 'Privilege Escalation'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - host.name
+  - user.name
+  - process.command_line
+  - '@timestamp'
+  - crowdstrike.detection.technique
+  - crowdstrike.detection.severity
+  - file.path
+
+falsepositives:
+  - Legitimate software updates requiring elevated privileges
+  - Administrative maintenance tasks
+  - Installer processes
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.t1068  # Exploitation for Privilege Escalation
+  - attack.t1548  # Abuse Elevation Control Mechanism

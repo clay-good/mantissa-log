@@ -1,0 +1,43 @@
+title: Slack Suspicious App Installation
+id: d4e5f6a7-b8c9-0123-4567-890123defghi
+status: stable
+description: Detects installation of third-party Slack apps which could be used for data access or persistence
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: slack
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'app_installed'
+      - 'app_approved'
+      - 'app_scopes_expanded'
+  filter_approved:
+    slack.entity.app.directory_approved: true
+  condition: selection and not filter_approved
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - slack.entity.app.name
+  - slack.entity.app.id
+  - slack.details
+
+falsepositives:
+  - Legitimate productivity app installations
+  - Authorized integrations
+  - IT-approved third-party tools
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.collection
+  - attack.t1528  # Steal Application Access Token
+  - attack.t1213  # Data from Information Repositories

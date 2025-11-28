@@ -1,0 +1,40 @@
+title: GitHub OAuth Application Access
+id: b2c3d4e5-f6a7-8901-2345-678901bcdefg
+status: stable
+description: Detects OAuth application authorization which could be used for persistence or data access
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: github
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'oauth_application.create'
+      - 'oauth_access.create'
+      - 'oauth_authorization.create'
+  condition: selection
+
+fields:
+  - user.name
+  - '@timestamp'
+  - source.geo.country_iso_code
+  - github.action
+  - github.org
+  - github.oauth_application_id
+  - github.application
+
+falsepositives:
+  - Approved third-party integrations
+  - CI/CD pipeline applications
+  - Legitimate development tools
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.collection
+  - attack.t1528  # Steal Application Access Token

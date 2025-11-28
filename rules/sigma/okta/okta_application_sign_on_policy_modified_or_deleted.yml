@@ -12,10 +12,10 @@ tags:
     - attack.impact
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype:
+        event.action:
             - application.policy.sign_on.update
             - application.policy.sign_on.rule.delete
     condition: selection

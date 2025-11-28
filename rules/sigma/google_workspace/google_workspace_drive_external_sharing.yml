@@ -1,0 +1,44 @@
+title: Google Drive File Shared Externally
+id: b3c4d5e6-f7a8-9012-3456-789012cdefgh
+status: stable
+description: Detects when a file or folder is shared with external users outside the organization, which could indicate data exfiltration
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: drive
+
+detection:
+  selection:
+    event.action:
+      - 'create'
+      - 'edit'
+    event.category: 'file'
+    google_workspace.events.parameters.visibility: 'people_with_link'
+  filter:
+    google_workspace.events.parameters.visibility_change: 'private'
+  condition: selection and not filter
+
+fields:
+  - user.email
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.doc_title
+  - google_workspace.events.parameters.doc_type
+  - google_workspace.events.parameters.visibility
+  - google_workspace.events.parameters.target_user
+
+falsepositives:
+  - Authorized external collaboration
+  - Legitimate business file sharing
+  - Marketing or sales material distribution
+
+level: medium
+
+tags:
+  - attack.exfiltration
+  - attack.collection
+  - attack.t1567.002  # Exfiltration Over Web Service: Exfiltration to Cloud Storage
+  - attack.t1537      # Transfer Data to Cloud Account

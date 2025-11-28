@@ -1,0 +1,44 @@
+title: Kubernetes Anonymous API Request
+id: a7b8c9d0-e1f2-3456-7890-123456ghijkl
+status: stable
+description: Detects API requests from anonymous users which could indicate misconfigured RBAC or reconnaissance attempts
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    user.name: 'system:anonymous'
+    event.outcome: 'success'
+  filter_healthcheck:
+    kubernetes.request_uri:
+      - '/healthz'
+      - '/livez'
+      - '/readyz'
+      - '/version'
+  condition: selection and not filter_healthcheck
+
+fields:
+  - kubernetes.request_uri
+  - kubernetes.verb
+  - '@timestamp'
+  - source.ip
+  - user_agent.original
+  - kubernetes.object_ref.resource
+
+falsepositives:
+  - Health check endpoints
+  - Public API endpoints by design
+  - Load balancer health checks
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.discovery
+  - attack.t1190  # Exploit Public-Facing Application
+  - attack.t1087  # Account Discovery

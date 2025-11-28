@@ -1,0 +1,46 @@
+title: CrowdStrike Ransomware Behavior Detection
+id: e5f6a7b8-c9d0-1234-5678-901234efghij
+status: stable
+description: Detects ransomware-like behavior patterns identified by CrowdStrike Falcon machine learning
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: crowdstrike
+  service: falcon
+
+detection:
+  selection:
+    event.kind: 'alert'
+    crowdstrike.detection.tactic: 'Impact'
+    crowdstrike.detection.technique:
+      - 'Data Encrypted for Impact'
+      - 'Inhibit System Recovery'
+  filter_severity:
+    crowdstrike.detection.severity:
+      - 'Critical'
+      - 'High'
+  condition: selection and filter_severity
+
+fields:
+  - host.name
+  - user.name
+  - file.path
+  - process.command_line
+  - '@timestamp'
+  - crowdstrike.detection.pattern_disposition
+  - crowdstrike.detection.confidence
+
+falsepositives:
+  - Legitimate encryption software
+  - Backup and archival tools
+  - Disk encryption utilities
+
+level: critical
+
+tags:
+  - attack.impact
+  - attack.t1486  # Data Encrypted for Impact
+  - attack.t1490  # Inhibit System Recovery
+  - attack.t1491  # Defacement

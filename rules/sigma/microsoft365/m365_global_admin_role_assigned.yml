@@ -1,0 +1,45 @@
+title: Microsoft 365 Global Administrator Role Assignment
+id: b2c3d4e5-f6a7-8901-2345-678901bcdefg
+status: stable
+description: Detects assignment of Global Administrator role which provides full tenant access
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: azureactivedirectory
+
+detection:
+  selection:
+    event.action:
+      - 'Add member to role'
+      - 'Add member to role completed'
+  filter_global_admin:
+    microsoft365.modified_properties:
+      - Name: 'Role.DisplayName'
+        NewValue: 'Global Administrator'
+      - Name: 'Role.DisplayName'
+        NewValue: 'Company Administrator'
+  condition: selection and filter_global_admin
+
+fields:
+  - user.email
+  - user.name
+  - '@timestamp'
+  - source.ip
+  - microsoft365.operation
+  - microsoft365.modified_properties
+  - microsoft365.target
+
+falsepositives:
+  - Approved administrative changes
+  - New hire onboarding processes
+  - Privileged Access Management workflows
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1098.003  # Additional Cloud Roles

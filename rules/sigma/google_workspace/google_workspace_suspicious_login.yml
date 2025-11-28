@@ -1,0 +1,41 @@
+title: Google Workspace Suspicious Login Activity
+id: a2b3c4d5-e6f7-8901-2345-678901bcdefg
+status: stable
+description: Detects suspicious login attempts in Google Workspace based on risk signals from Google's security systems
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: login
+
+detection:
+  selection:
+    event.action:
+      - 'login_failure'
+      - 'suspicious_login'
+      - 'suspicious_login_less_secure_app'
+      - 'risky_sensitive_action_blocked'
+  condition: selection
+
+fields:
+  - user.email
+  - source.ip
+  - '@timestamp'
+  - google_workspace.events.parameters.login_failure_type
+  - google_workspace.events.parameters.login_challenge_method
+  - google_workspace.events.parameters.is_suspicious
+
+falsepositives:
+  - Legitimate access from new locations
+  - Users traveling internationally
+  - VPN or proxy usage
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1110      # Brute Force

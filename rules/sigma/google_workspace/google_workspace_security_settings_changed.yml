@@ -1,0 +1,50 @@
+title: Google Workspace Security Settings Modified
+id: f7a8b9c0-d1e2-3456-7890-123456ghijkl
+status: stable
+description: Detects modifications to critical security settings in Google Workspace that could weaken security posture
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: admin
+
+detection:
+  selection:
+    event.action:
+      - 'CHANGE_APPLICATION_SETTING'
+      - 'TOGGLE_SERVICE_ENABLED'
+      - 'CHANGE_CHROME_OS_SETTING'
+      - 'SECURITY_SETTING'
+    event.outcome: 'success'
+  filter_settings:
+    google_workspace.events.parameters.SETTING_NAME:
+      - 'PasswordManagementEnabled'
+      - 'EnforceStrongAuthentication'
+      - 'AllowUserInvites'
+      - 'EnableDriveApps'
+      - 'SharingOptions'
+  condition: selection and filter_settings
+
+fields:
+  - user.email
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.SETTING_NAME
+  - google_workspace.events.parameters.NEW_VALUE
+  - google_workspace.events.parameters.OLD_VALUE
+  - google_workspace.events.parameters.APPLICATION_NAME
+
+falsepositives:
+  - Authorized security policy updates
+  - Compliance-driven configuration changes
+  - Planned security improvements
+
+level: medium
+
+tags:
+  - attack.defense_evasion
+  - attack.persistence
+  - attack.t1562.001  # Impair Defenses: Disable or Modify Tools
+  - attack.t1556      # Modify Authentication Process

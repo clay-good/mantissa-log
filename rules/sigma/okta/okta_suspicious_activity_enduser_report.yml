@@ -12,10 +12,10 @@ tags:
     - attack.t1586.003
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: 'user.account.report_suspicious_activity_by_enduser'
+        event.action: 'user.account.report_suspicious_activity_by_enduser'
     condition: selection
 falsepositives:
     - If an end-user incorrectly identifies normal activity as suspicious.

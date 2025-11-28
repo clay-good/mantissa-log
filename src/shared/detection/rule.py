@@ -1,6 +1,16 @@
-"""Detection rule loading, validation, and management."""
+"""Detection rule loading, validation, and management.
+
+This module provides Sigma-only detection rule support. All rules must be in
+Sigma format (YAML with logsource and detection fields). Legacy SQL format
+has been removed to enable true multi-cloud portability (AWS, GCP, Azure).
+
+For complex detection patterns that cannot be expressed in Sigma (e.g.,
+impossible travel with geographic distance calculations), use the LLM-powered
+natural language query interface which can generate SQL on-demand.
+"""
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -19,12 +29,13 @@ except ImportError:
 
 from .sigma_converter import SigmaRuleConverter, SigmaConversionError, SIGMA_AVAILABLE
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class QueryConfig:
-    """Configuration for a detection query."""
+    """Configuration for a detection query (generated from Sigma)."""
 
-    type: str = "sql"
     sql: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
 
@@ -35,7 +46,7 @@ class ThresholdConfig:
 
     field: str = "count"
     operator: str = ">="
-    value: Any = 0
+    value: Any = 1
 
 
 @dataclass
@@ -59,7 +70,7 @@ class SuppressionConfig:
 class ScheduleConfig:
     """Detection schedule configuration."""
 
-    interval: str = "5m"
+    interval: str = "15m"
     cron: Optional[str] = None
 
 
@@ -74,7 +85,7 @@ class MitreAttackMapping:
 
 @dataclass
 class DetectionRule:
-    """Represents a detection rule."""
+    """Represents a detection rule (loaded from Sigma format)."""
 
     id: str
     name: str
@@ -82,7 +93,6 @@ class DetectionRule:
     author: str
     created: str
     modified: str
-    version: str
     severity: str
     query: QueryConfig
     schedule: ScheduleConfig
@@ -93,7 +103,8 @@ class DetectionRule:
     tags: List[str] = field(default_factory=list)
     references: List[str] = field(default_factory=list)
     mitre_attack: Optional[MitreAttackMapping] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    false_positives: List[str] = field(default_factory=list)
+    fields: List[str] = field(default_factory=list)
 
     def get_query(self, time_window_start: datetime, time_window_end: datetime) -> str:
         """Generate the query with time window substitution.
@@ -183,13 +194,13 @@ class DetectionRule:
         context["count"] = len(results)
 
         # Substitute title
-        title = self.alert.title_template
+        title = self.alert.title_template or self.name
         for key, value in context.items():
             pattern = r"\$\{" + re.escape(str(key)) + r"\}"
             title = re.sub(pattern, str(value), title)
 
         # Substitute body
-        body = self.alert.body_template
+        body = self.alert.body_template or self.description
         for key, value in context.items():
             pattern = r"\$\{" + re.escape(str(key)) + r"\}"
             body = re.sub(pattern, str(value), body)
@@ -211,21 +222,21 @@ class DetectionRule:
         key = self.suppression.key
 
         # Substitute variables
-        for field, value in result.items():
-            pattern = r"\$\{" + re.escape(str(field)) + r"\}"
+        for field_name, value in result.items():
+            pattern = r"\$\{" + re.escape(str(field_name)) + r"\}"
             key = re.sub(pattern, str(value), key)
 
         return key
 
 
-class RuleValidator:
-    """Validates detection rules against schema."""
+class SigmaRuleValidator:
+    """Validates Sigma detection rules."""
 
     def __init__(self, schema_path: Optional[str] = None):
         """Initialize validator.
 
         Args:
-            schema_path: Path to JSON schema file
+            schema_path: Path to Sigma JSON schema file
         """
         self.schema_path = schema_path
         self.schema = None
@@ -235,7 +246,7 @@ class RuleValidator:
                 self.schema = json.load(f)
 
     def validate_rule(self, rule_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        """Validate a rule dictionary.
+        """Validate a Sigma rule dictionary.
 
         Args:
             rule_dict: Rule as dictionary
@@ -245,34 +256,34 @@ class RuleValidator:
         """
         errors = []
 
-        # Required fields
-        required_fields = ["id", "name", "description", "author", "created",
-                          "modified", "version", "severity", "query", "schedule"]
+        # Required Sigma fields
+        if "logsource" not in rule_dict:
+            errors.append("Missing required field: logsource")
+        if "detection" not in rule_dict:
+            errors.append("Missing required field: detection")
+        if "title" not in rule_dict:
+            errors.append("Missing required field: title")
 
-        for field in required_fields:
-            if field not in rule_dict:
-                errors.append(f"Missing required field: {field}")
+        # Validate logsource structure
+        if "logsource" in rule_dict:
+            logsource = rule_dict["logsource"]
+            if not isinstance(logsource, dict):
+                errors.append("logsource must be a dictionary")
+            elif not any(key in logsource for key in ["product", "service", "category"]):
+                errors.append("logsource must have at least one of: product, service, category")
 
-        # Validate severity
-        valid_severities = ["critical", "high", "medium", "low", "info"]
-        if "severity" in rule_dict and rule_dict["severity"] not in valid_severities:
-            errors.append(f"Invalid severity: {rule_dict['severity']}. Must be one of {valid_severities}")
+        # Validate detection structure
+        if "detection" in rule_dict:
+            detection = rule_dict["detection"]
+            if not isinstance(detection, dict):
+                errors.append("detection must be a dictionary")
+            elif "condition" not in detection:
+                errors.append("detection must contain 'condition' field")
 
-        # Validate query structure
-        if "query" in rule_dict:
-            query = rule_dict["query"]
-            if not isinstance(query, dict):
-                errors.append("Query must be a dictionary")
-            elif "sql" not in query:
-                errors.append("Query must contain 'sql' field")
-
-        # Validate schedule
-        if "schedule" in rule_dict:
-            schedule = rule_dict["schedule"]
-            if not isinstance(schedule, dict):
-                errors.append("Schedule must be a dictionary")
-            elif "interval" not in schedule and "cron" not in schedule:
-                errors.append("Schedule must contain 'interval' or 'cron' field")
+        # Validate level if present
+        valid_levels = ["critical", "high", "medium", "low", "informational"]
+        if "level" in rule_dict and rule_dict["level"] not in valid_levels:
+            errors.append(f"Invalid level: {rule_dict['level']}. Must be one of {valid_levels}")
 
         # Validate against JSON schema if available
         if self.schema and JSONSCHEMA_AVAILABLE:
@@ -284,7 +295,7 @@ class RuleValidator:
         return len(errors) == 0, errors
 
     def validate_sql(self, sql: str) -> Tuple[bool, List[str]]:
-        """Perform basic SQL validation.
+        """Perform basic SQL validation on generated query.
 
         Args:
             sql: SQL query string
@@ -294,11 +305,15 @@ class RuleValidator:
         """
         errors = []
 
+        if not sql or not sql.strip():
+            errors.append("Query is empty")
+            return False, errors
+
         # Check for SELECT statement
         if not sql.strip().upper().startswith("SELECT"):
             errors.append("Query must be a SELECT statement")
 
-        # Check for dangerous commands
+        # Check for dangerous commands (should never appear in generated SQL)
         dangerous_keywords = ["DROP", "DELETE", "TRUNCATE", "INSERT", "UPDATE",
                              "CREATE", "ALTER", "GRANT", "REVOKE"]
 
@@ -311,7 +326,10 @@ class RuleValidator:
 
 
 class RuleLoader:
-    """Loads and manages detection rules."""
+    """Loads and manages Sigma detection rules.
+
+    All rules must be in Sigma format. Legacy SQL rules are no longer supported.
+    """
 
     def __init__(
         self,
@@ -322,26 +340,33 @@ class RuleLoader:
         """Initialize rule loader.
 
         Args:
-            rules_path: Path to rules directory or S3 location
-            schema_path: Path to JSON schema for validation
+            rules_path: Path to rules directory (must contain Sigma YAML files)
+            schema_path: Path to Sigma JSON schema for validation
             backend_type: Backend for Sigma conversion (athena, bigquery, synapse)
+
+        Raises:
+            ImportError: If pySigma is not available
         """
         self.rules_path = rules_path
-        self.validator = RuleValidator(schema_path)
+        self.validator = SigmaRuleValidator(schema_path)
         self.rules_cache: Dict[str, DetectionRule] = {}
         self.backend_type = backend_type
 
-        # Initialize Sigma converter if available
-        self.sigma_converter = None
-        if SIGMA_AVAILABLE:
-            try:
-                self.sigma_converter = SigmaRuleConverter(backend_type)
-            except (ImportError, ValueError) as e:
-                print(f"Warning: Sigma converter not available: {e}")
-                print("Only legacy SQL rules will be supported.")
+        # Sigma is required
+        if not SIGMA_AVAILABLE:
+            raise ImportError(
+                "pySigma library is required for Mantissa Log. "
+                "Install with: pip install pysigma pysigma-backend-athena"
+            )
+
+        # Initialize Sigma converter
+        try:
+            self.sigma_converter = SigmaRuleConverter(backend_type)
+        except (ImportError, ValueError) as e:
+            raise ImportError(f"Failed to initialize Sigma converter: {e}")
 
     def load_all_rules(self) -> List[DetectionRule]:
-        """Load all rules from the rules directory.
+        """Load all Sigma rules from the rules directory.
 
         Returns:
             List of valid detection rules
@@ -364,87 +389,43 @@ class RuleLoader:
             try:
                 rule = self.load_rule(str(yaml_file))
                 rules.append(rule)
+                logger.debug(f"Loaded rule: {rule.id} from {yaml_file}")
             except Exception as e:
-                print(f"Warning: Failed to load rule {yaml_file}: {e}")
+                logger.warning(f"Failed to load rule {yaml_file}: {e}")
 
         # Cache rules
         self.rules_cache = {rule.id: rule for rule in rules}
+        logger.info(f"Loaded {len(rules)} Sigma rules from {self.rules_path}")
 
         return rules
 
     def load_rule(self, rule_path: str) -> DetectionRule:
-        """Load a single rule file.
-
-        Supports both Sigma format and legacy custom format.
+        """Load a single Sigma rule file.
 
         Args:
-            rule_path: Path to rule YAML file
-
-        Returns:
-            DetectionRule object
-        """
-        with open(rule_path, 'r') as f:
-            rule_dict = yaml.safe_load(f)
-
-        # Detect rule format
-        is_sigma = self._is_sigma_format(rule_dict)
-
-        if is_sigma:
-            # Sigma format rule
-            return self._load_sigma_rule(rule_path, rule_dict)
-        else:
-            # Legacy format rule
-            return self._load_legacy_rule(rule_dict)
-
-    def _is_sigma_format(self, rule_dict: Dict[str, Any]) -> bool:
-        """Detect if a rule is in Sigma format.
-
-        Args:
-            rule_dict: Rule dictionary
-
-        Returns:
-            True if Sigma format, False if legacy format
-        """
-        # Sigma rules have 'logsource' and 'detection' fields
-        # Legacy rules have 'query' field with 'sql'
-        sigma_fields = {'logsource', 'detection'}
-        legacy_fields = {'query'}
-
-        has_sigma_fields = any(field in rule_dict for field in sigma_fields)
-        has_legacy_fields = any(field in rule_dict for field in legacy_fields)
-
-        if has_sigma_fields and not has_legacy_fields:
-            return True
-        elif has_legacy_fields and not has_sigma_fields:
-            return False
-        elif has_sigma_fields and has_legacy_fields:
-            # Ambiguous - prefer Sigma
-            return True
-        else:
-            # Neither format detected - default to legacy
-            return False
-
-    def _load_sigma_rule(
-        self,
-        rule_path: str,
-        rule_dict: Dict[str, Any]
-    ) -> DetectionRule:
-        """Load a Sigma format rule.
-
-        Args:
-            rule_path: Path to rule file
-            rule_dict: Parsed rule dictionary
+            rule_path: Path to Sigma YAML file
 
         Returns:
             DetectionRule object
 
         Raises:
-            ValueError: If Sigma conversion fails
+            ValueError: If rule is not valid Sigma format or conversion fails
         """
-        if not self.sigma_converter:
+        with open(rule_path, 'r') as f:
+            rule_dict = yaml.safe_load(f)
+
+        # Validate Sigma format
+        if not self._is_sigma_format(rule_dict):
             raise ValueError(
-                "Sigma converter not available. Install pySigma to use Sigma rules."
+                f"Rule {rule_path} is not in Sigma format. "
+                "Legacy SQL rules are no longer supported. "
+                "Please convert to Sigma format."
             )
+
+        # Validate rule structure
+        is_valid, errors = self.validator.validate_rule(rule_dict)
+        if not is_valid:
+            raise ValueError(f"Invalid Sigma rule: {', '.join(errors)}")
 
         # Convert Sigma to SQL
         try:
@@ -452,94 +433,41 @@ class RuleLoader:
         except SigmaConversionError as e:
             raise ValueError(f"Failed to convert Sigma rule: {str(e)}")
 
-        # Map Sigma fields to legacy format
-        legacy_rule = {
-            "id": rule_dict.get("id", ""),
-            "name": rule_dict.get("title", ""),
-            "description": rule_dict.get("description", ""),
-            "author": rule_dict.get("author", ""),
-            "created": rule_dict.get("date", ""),
-            "modified": rule_dict.get("modified", rule_dict.get("date", "")),
-            "version": "1.0.0",  # Sigma doesn't have version field
-            "severity": self._map_sigma_level(rule_dict.get("level", "medium")),
-            "enabled": rule_dict.get("status", "stable") != "disabled",
-            "query": {
-                "type": "sql",
-                "sql": sql_query,
-                "parameters": {}
-            },
-            "schedule": {
-                "interval": "15m"  # Default, can be overridden
-            },
-            "threshold": {
-                "field": "count",
-                "operator": ">=",
-                "value": 1
-            }
-        }
+        # Validate generated SQL
+        is_valid_sql, sql_errors = self.validator.validate_sql(sql_query)
+        if not is_valid_sql:
+            raise ValueError(f"Invalid generated SQL: {', '.join(sql_errors)}")
 
-        # Add alert configuration
-        if "title" in rule_dict or "description" in rule_dict:
-            legacy_rule["alert"] = {
-                "destinations": [],
-                "title_template": rule_dict.get("title", ""),
-                "body_template": rule_dict.get("description", "")
-            }
+        # Build DetectionRule from Sigma fields
+        return self._build_detection_rule(rule_dict, sql_query)
 
-        # Add tags
-        if "tags" in rule_dict:
-            legacy_rule["tags"] = rule_dict["tags"]
-
-        # Add metadata
-        legacy_rule["metadata"] = {}
-        if "falsepositives" in rule_dict:
-            legacy_rule["metadata"]["false_positives"] = rule_dict["falsepositives"]
-        if "references" in rule_dict:
-            legacy_rule["metadata"]["references"] = rule_dict["references"]
-
-        # Extract MITRE ATT&CK tags
-        mitre_tags = [tag for tag in rule_dict.get("tags", []) if tag.startswith("attack.")]
-        if mitre_tags:
-            legacy_rule["metadata"]["mitre_attack"] = [
-                tag.replace("attack.", "").upper().replace("_", "-")
-                for tag in mitre_tags
-            ]
-
-        # Parse as legacy rule
-        return self._parse_rule(legacy_rule)
-
-    def _load_legacy_rule(self, rule_dict: Dict[str, Any]) -> DetectionRule:
-        """Load a legacy format rule.
+    def _is_sigma_format(self, rule_dict: Dict[str, Any]) -> bool:
+        """Check if a rule is in Sigma format.
 
         Args:
-            rule_dict: Parsed rule dictionary
+            rule_dict: Rule dictionary
+
+        Returns:
+            True if Sigma format
+        """
+        # Sigma rules must have 'logsource' and 'detection' fields
+        return "logsource" in rule_dict and "detection" in rule_dict
+
+    def _build_detection_rule(
+        self,
+        rule_dict: Dict[str, Any],
+        sql_query: str
+    ) -> DetectionRule:
+        """Build DetectionRule from Sigma rule dictionary.
+
+        Args:
+            rule_dict: Parsed Sigma rule dictionary
+            sql_query: Generated SQL query
 
         Returns:
             DetectionRule object
         """
-        # Validate rule
-        is_valid, errors = self.validator.validate_rule(rule_dict)
-        if not is_valid:
-            raise ValueError(f"Invalid rule: {', '.join(errors)}")
-
-        # Validate SQL
-        if "query" in rule_dict and "sql" in rule_dict["query"]:
-            is_valid_sql, sql_errors = self.validator.validate_sql(rule_dict["query"]["sql"])
-            if not is_valid_sql:
-                raise ValueError(f"Invalid SQL: {', '.join(sql_errors)}")
-
-        # Parse rule into DetectionRule object
-        return self._parse_rule(rule_dict)
-
-    def _map_sigma_level(self, sigma_level: str) -> str:
-        """Map Sigma level to Mantissa severity.
-
-        Args:
-            sigma_level: Sigma level (critical, high, medium, low, informational)
-
-        Returns:
-            Mantissa severity string
-        """
+        # Map Sigma level to severity
         level_map = {
             "critical": "critical",
             "high": "high",
@@ -547,87 +475,55 @@ class RuleLoader:
             "low": "low",
             "informational": "info"
         }
-        return level_map.get(sigma_level.lower(), "medium")
+        severity = level_map.get(rule_dict.get("level", "medium"), "medium")
 
-    def _parse_rule(self, rule_dict: Dict[str, Any]) -> DetectionRule:
-        """Parse rule dictionary into DetectionRule object.
-
-        Args:
-            rule_dict: Rule as dictionary
-
-        Returns:
-            DetectionRule object
-        """
-        # Parse query config
-        query_dict = rule_dict.get("query", {})
-        query = QueryConfig(
-            type=query_dict.get("type", "sql"),
-            sql=query_dict.get("sql", ""),
-            parameters=query_dict.get("parameters", {})
-        )
-
-        # Parse schedule config
-        schedule_dict = rule_dict.get("schedule", {})
-        schedule = ScheduleConfig(
-            interval=schedule_dict.get("interval", "5m"),
-            cron=schedule_dict.get("cron")
-        )
-
-        # Parse threshold config
-        threshold_dict = rule_dict.get("threshold", {})
-        threshold = ThresholdConfig(
-            field=threshold_dict.get("field", "count"),
-            operator=threshold_dict.get("operator", ">="),
-            value=threshold_dict.get("value", 0)
-        )
-
-        # Parse alert config
-        alert_dict = rule_dict.get("alert", {})
-        alert = AlertConfig(
-            destinations=alert_dict.get("destinations", []),
-            title_template=alert_dict.get("title_template", ""),
-            body_template=alert_dict.get("body_template", "")
-        )
-
-        # Parse suppression config
-        suppression = None
-        if "suppression" in rule_dict:
-            supp_dict = rule_dict["suppression"]
-            suppression = SuppressionConfig(
-                key=supp_dict.get("key", ""),
-                duration=supp_dict.get("duration", "1h")
-            )
-
-        # Parse MITRE ATT&CK mapping
+        # Extract MITRE ATT&CK mapping from tags
         mitre_attack = None
-        if "mitre_attack" in rule_dict:
-            mitre_dict = rule_dict["mitre_attack"]
-            mitre_attack = MitreAttackMapping(
-                tactic=mitre_dict.get("tactic", ""),
-                technique=mitre_dict.get("technique", ""),
-                subtechnique=mitre_dict.get("subtechnique")
-            )
+        tags = rule_dict.get("tags", [])
+        attack_tags = [t for t in tags if t.startswith("attack.")]
+        if attack_tags:
+            # Find technique (e.g., attack.t1078)
+            technique_tags = [t for t in attack_tags if t.startswith("attack.t")]
+            if technique_tags:
+                technique = technique_tags[0].replace("attack.", "").upper()
+                mitre_attack = MitreAttackMapping(
+                    tactic="",  # Could be extracted from non-technique tags
+                    technique=technique,
+                    subtechnique=None
+                )
 
-        # Create DetectionRule
+        # Build DetectionRule
         return DetectionRule(
-            id=rule_dict["id"],
-            name=rule_dict["name"],
-            description=rule_dict["description"],
-            author=rule_dict["author"],
-            created=rule_dict["created"],
-            modified=rule_dict["modified"],
-            version=rule_dict["version"],
-            severity=rule_dict["severity"],
-            query=query,
-            schedule=schedule,
-            threshold=threshold,
-            enabled=rule_dict.get("enabled", True),
-            alert=alert,
-            suppression=suppression,
-            tags=rule_dict.get("tags", []),
+            id=rule_dict.get("id", ""),
+            name=rule_dict.get("title", ""),
+            description=rule_dict.get("description", ""),
+            author=rule_dict.get("author", ""),
+            created=rule_dict.get("date", ""),
+            modified=rule_dict.get("modified", rule_dict.get("date", "")),
+            severity=severity,
+            enabled=rule_dict.get("status", "stable") != "disabled",
+            query=QueryConfig(
+                sql=sql_query,
+                parameters={}
+            ),
+            schedule=ScheduleConfig(
+                interval="15m"  # Default, can be overridden in Mantissa config
+            ),
+            threshold=ThresholdConfig(
+                field="count",
+                operator=">=",
+                value=1
+            ),
+            alert=AlertConfig(
+                destinations=[],
+                title_template=rule_dict.get("title", ""),
+                body_template=rule_dict.get("description", "")
+            ),
+            tags=tags,
             references=rule_dict.get("references", []),
             mitre_attack=mitre_attack,
-            metadata=rule_dict.get("metadata", {})
+            false_positives=rule_dict.get("falsepositives", []),
+            fields=rule_dict.get("fields", [])
         )
 
     def _load_rules_from_s3(self) -> List[DetectionRule]:
@@ -637,7 +533,6 @@ class RuleLoader:
             List of detection rules
         """
         # TODO: Implement S3 loading using boto3
-        # This will be implemented when AWS integration is added
         raise NotImplementedError("S3 rule loading not yet implemented")
 
     def reload_rules(self) -> None:
@@ -663,3 +558,31 @@ class RuleLoader:
             List of enabled detection rules
         """
         return [rule for rule in self.rules_cache.values() if rule.enabled]
+
+    def get_rules_by_tag(self, tag: str) -> List[DetectionRule]:
+        """Get rules matching a specific tag.
+
+        Args:
+            tag: Tag to filter by (e.g., "attack.t1078")
+
+        Returns:
+            List of matching detection rules
+        """
+        return [
+            rule for rule in self.rules_cache.values()
+            if tag in rule.tags
+        ]
+
+    def get_rules_by_severity(self, severity: str) -> List[DetectionRule]:
+        """Get rules matching a specific severity level.
+
+        Args:
+            severity: Severity level (critical, high, medium, low, info)
+
+        Returns:
+            List of matching detection rules
+        """
+        return [
+            rule for rule in self.rules_cache.values()
+            if rule.severity == severity
+        ]

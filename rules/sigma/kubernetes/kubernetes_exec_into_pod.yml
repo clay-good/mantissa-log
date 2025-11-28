@@ -1,0 +1,40 @@
+title: Kubernetes Pod Exec Command Execution
+id: c3d4e5f6-a7b8-9012-3456-789012cdefgh
+status: stable
+description: Detects execution of commands inside pods using kubectl exec, which could indicate lateral movement or privilege escalation
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    event.action: 'create'
+    kubernetes.object_ref.resource: 'pods'
+    kubernetes.object_ref.subresource: 'exec'
+    event.outcome: 'success'
+  condition: selection
+
+fields:
+  - user.name
+  - kubernetes.object_ref.namespace
+  - kubernetes.object_ref.name
+  - '@timestamp'
+  - source.ip
+  - user_agent.original
+  - kubernetes.request_object
+
+falsepositives:
+  - Legitimate administrative debugging
+  - CI/CD deployment processes
+  - Automated health checks
+
+level: medium
+
+tags:
+  - attack.execution
+  - attack.t1609  # Container Administration Command
+  - attack.t1610  # Deploy Container

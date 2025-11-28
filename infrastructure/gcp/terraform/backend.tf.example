@@ -1,0 +1,17 @@
+# Terraform Backend Configuration for GCS
+#
+# Copy this file to backend.tf and configure with your GCS bucket details
+# The bucket must be created before running terraform init
+
+terraform {
+  backend "gcs" {
+    bucket = "your-terraform-state-bucket"
+    prefix = "mantissa-log/state"
+
+    # Optional: Enable versioning for state recovery
+    # versioning = true
+
+    # Optional: Encryption key
+    # encryption_key = "projects/your-project/locations/global/keyRings/terraform/cryptoKeys/state"
+  }
+}

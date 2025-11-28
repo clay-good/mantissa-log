@@ -12,10 +12,10 @@ tags:
     - attack.persistence
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        eventtype: system.api_token.create
+        event.action: system.api_token.create
     condition: selection
 falsepositives:
     - Legitimate creation of an API token by authorized users

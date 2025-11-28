@@ -12,10 +12,10 @@ tags:
     - attack.impact
 logsource:
     product: okta
-    service: okta
+    service: system
 detection:
     selection:
-        displaymessage: User attempted unauthorized access to app
+        message: User attempted unauthorized access to app
     condition: selection
 falsepositives:
     - User might of believe that they had access.

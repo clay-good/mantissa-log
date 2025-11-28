@@ -1,0 +1,40 @@
+title: Kubernetes Privileged Pod Created
+id: a1b2c3d4-e5f6-7890-1234-567890abcdef
+status: stable
+description: Detects creation of privileged pods in Kubernetes which have full access to the host system
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: kubernetes
+  service: audit
+
+detection:
+  selection:
+    event.action: 'create'
+    kubernetes.object_ref.resource: 'pods'
+    event.outcome: 'success'
+  filter_privileged:
+    kubernetes.request_object|contains: '"privileged":true'
+  condition: selection and filter_privileged
+
+fields:
+  - user.name
+  - kubernetes.object_ref.namespace
+  - kubernetes.object_ref.name
+  - '@timestamp'
+  - source.ip
+  - user_agent.original
+
+falsepositives:
+  - Legitimate system pods requiring host access
+  - Security scanning tools
+  - Infrastructure management tools
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.t1611  # Escape to Host
+  - attack.t1610  # Deploy Container

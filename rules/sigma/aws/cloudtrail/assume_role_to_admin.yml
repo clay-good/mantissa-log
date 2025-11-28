@@ -1,0 +1,67 @@
+title: AWS AssumeRole to Privileged Role
+id: aws-cloudtrail-assume-role-admin-001
+status: stable
+description: |
+  Detects successful AssumeRole operations to privileged or administrative roles
+  that could indicate privilege escalation attempts. Monitors for role assumptions
+  to roles with names containing admin, root, poweruser, security, or elevated.
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection_assume_role:
+    eventName: AssumeRole
+    eventSource: sts.amazonaws.com
+  filter_errors:
+    errorCode|exists: true
+  selection_privileged_role:
+    requestParameters.roleArn|contains:
+      - admin
+      - Admin
+      - ADMIN
+      - root
+      - Root
+      - ROOT
+      - poweruser
+      - PowerUser
+      - security
+      - Security
+      - elevated
+      - Elevated
+      - OrganizationAccountAccessRole
+  condition: selection_assume_role and not filter_errors and selection_privileged_role
+
+fields:
+  - userIdentity.principalId
+  - userIdentity.arn
+  - requestParameters.roleArn
+  - requestParameters.roleSessionName
+  - sourceIPAddress
+  - eventTime
+  - userAgent
+
+falsepositives:
+  - Legitimate administrative actions by authorized personnel
+  - Automated processes using service roles with admin naming
+  - CI/CD pipelines with elevated permissions for deployments
+  - Scheduled tasks requiring administrative access
+  - Break-glass emergency access procedures
+
+level: medium
+
+tags:
+  - attack.privilege_escalation
+  - attack.t1078
+  - attack.t1078.004
+  - attack.t1548
+
+references:
+  - https://attack.mitre.org/techniques/T1548/
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html
+  - https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/

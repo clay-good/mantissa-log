@@ -1,0 +1,44 @@
+title: GitHub Personal Access Token Created
+id: f6a7b8c9-d0e1-2345-6789-012345fghijk
+status: stable
+description: Detects creation of personal access tokens which could be used for persistence or data access
+author: Mantissa Security Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: github
+  service: audit
+
+detection:
+  selection:
+    event.action:
+      - 'personal_access_token.create'
+      - 'oauth_access.create'
+  filter_programmatic:
+    github.programmatic_access_type:
+      - 'OAuth access token'
+      - 'Fine-grained personal access token'
+      - 'Personal access token'
+  condition: selection and filter_programmatic
+
+fields:
+  - user.name
+  - '@timestamp'
+  - source.geo.country_iso_code
+  - github.action
+  - github.org
+  - github.programmatic_access_type
+  - github.token_scopes
+
+falsepositives:
+  - Legitimate API integrations
+  - CI/CD pipeline setup
+  - Approved automation tools
+
+level: low
+
+tags:
+  - attack.persistence
+  - attack.credential_access
+  - attack.t1098.001  # Account Manipulation: Additional Cloud Credentials
