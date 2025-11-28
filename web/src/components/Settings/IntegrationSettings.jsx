@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, GitBranch, Bell, Mail, Webhook, Check, AlertTriangle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { MessageSquare, GitBranch, Bell, Mail, Webhook, Check, AlertTriangle, Loader2, Eye, EyeOff, Wand2 } from 'lucide-react';
+import IntegrationWizardModal from '../Integrations/IntegrationWizardModal';
 
 const INTEGRATION_TYPES = {
   slack: {
@@ -62,6 +63,7 @@ export default function IntegrationSettings({ userId }) {
   const [testResults, setTestResults] = useState({});
   const [showSecrets, setShowSecrets] = useState({});
   const [error, setError] = useState(null);
+  const [wizardType, setWizardType] = useState(null);
 
   useEffect(() => {
     loadIntegrations();
@@ -228,20 +230,31 @@ export default function IntegrationSettings({ userId }) {
                     </div>
                   </div>
                 </label>
-                {config.enabled && (
-                  <button
-                    onClick={() => testIntegration(type)}
-                    disabled={testing === type}
-                    className="btn-secondary text-sm"
-                  >
-                    {testing === type ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4 mr-2" />
-                    )}
-                    Test Integration
-                  </button>
-                )}
+                <div className="flex items-center space-x-2">
+                  {config.enabled && (
+                    <button
+                      onClick={() => testIntegration(type)}
+                      disabled={testing === type}
+                      className="btn-secondary text-sm"
+                    >
+                      {testing === type ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-2" />
+                      )}
+                      Test Integration
+                    </button>
+                  )}
+                  {!config.enabled && (
+                    <button
+                      onClick={() => setWizardType(type)}
+                      className="btn-secondary text-sm"
+                    >
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      Setup Wizard
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Integration Configuration */}
@@ -350,6 +363,25 @@ export default function IntegrationSettings({ userId }) {
           )}
         </button>
       </div>
+
+      {/* Integration Wizard Modal */}
+      {wizardType && (
+        <IntegrationWizardModal
+          integrationType={wizardType}
+          onComplete={(config) => {
+            setIntegrations(prev => ({
+              ...prev,
+              [config.type]: {
+                enabled: true,
+                config: config.config
+              }
+            }));
+            setWizardType(null);
+            loadIntegrations(); // Reload to get saved state
+          }}
+          onCancel={() => setWizardType(null)}
+        />
+      )}
     </div>
   );
 }
