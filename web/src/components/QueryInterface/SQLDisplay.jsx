@@ -26,13 +26,13 @@ export default function SQLDisplay({ sql, warnings = [], onEdit }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700">Generated SQL</h3>
+        <h3 className="text-sm font-medium text-mono-900 dark:text-mono-100">Generated SQL</h3>
         <div className="flex gap-2">
           {!isEditing && (
             <>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                className="flex items-center gap-1 text-sm text-mono-600 dark:text-mono-400 hover:text-mono-950 dark:hover:text-mono-50 transition-colors"
               >
                 {copied ? (
                   <>
@@ -49,7 +49,7 @@ export default function SQLDisplay({ sql, warnings = [], onEdit }) {
               {onEdit && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                  className="flex items-center gap-1 text-sm text-mono-600 dark:text-mono-400 hover:text-mono-950 dark:hover:text-mono-50 transition-colors"
                 >
                   <PencilIcon className="h-4 w-4" />
                   Edit
@@ -61,9 +61,9 @@ export default function SQLDisplay({ sql, warnings = [], onEdit }) {
       </div>
 
       {warnings.length > 0 && (
-        <div className="rounded-lg bg-yellow-50 p-3">
+        <div className="rounded-lg bg-mono-100 dark:bg-mono-850 border border-mono-300 dark:border-mono-700 p-3">
           {warnings.map((warning, index) => (
-            <p key={index} className="text-sm text-yellow-800">
+            <p key={index} className="text-sm text-mono-800 dark:text-mono-200">
               {warning}
             </p>
           ))}
@@ -88,8 +88,8 @@ export default function SQLDisplay({ sql, warnings = [], onEdit }) {
           </div>
         </div>
       ) : (
-        <pre className="overflow-x-auto rounded-lg bg-gray-900 p-4">
-          <code className="font-mono text-sm text-green-400">{sql}</code>
+        <pre className="overflow-x-auto rounded-lg bg-mono-950 dark:bg-mono-900 border border-mono-800 dark:border-mono-850 p-4">
+          <code className="font-mono text-sm text-mono-50">{sql}</code>
         </pre>
       )}
     </div>

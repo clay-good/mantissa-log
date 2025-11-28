@@ -53,10 +53,10 @@ export default function QueryInterface() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div>
-        <h1 className="mb-2">Natural Language Query</h1>
-        <p className="text-gray-600">
+        <h1 className="mb-2 text-2xl font-bold text-mono-950 dark:text-mono-50">Natural Language Query</h1>
+        <p className="text-mono-600 dark:text-mono-400">
           Ask questions about your logs in plain English
         </p>
       </div>
@@ -72,8 +72,8 @@ export default function QueryInterface() {
       {isGenerating && (
         <div className="card">
           <div className="flex items-center gap-3">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-600 border-t-transparent"></div>
-            <p className="text-gray-600">Generating SQL query...</p>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-mono-950 dark:border-mono-50 border-t-transparent"></div>
+            <p className="text-mono-600 dark:text-mono-400">Generating SQL query...</p>
           </div>
         </div>
       )}
@@ -87,9 +87,9 @@ export default function QueryInterface() {
           />
 
           {queryData?.explanation && (
-            <div className="mt-4 rounded-lg bg-blue-50 p-4">
-              <h4 className="text-sm font-medium text-blue-900">Explanation</h4>
-              <p className="mt-1 text-sm text-blue-800">{queryData.explanation}</p>
+            <div className="mt-4 rounded-lg bg-mono-100 dark:bg-mono-850 border border-mono-200 dark:border-mono-800 p-4">
+              <h4 className="text-sm font-medium text-mono-950 dark:text-mono-50">Explanation</h4>
+              <p className="mt-1 text-sm text-mono-700 dark:text-mono-300">{queryData.explanation}</p>
             </div>
           )}
         </div>
@@ -99,20 +99,20 @@ export default function QueryInterface() {
         <div className="card">
           {resultsData?.status === 'RUNNING' || resultsData?.status === 'QUEUED' ? (
             <div className="flex items-center gap-3 py-8">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-600 border-t-transparent"></div>
-              <p className="text-gray-600">Executing query...</p>
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-mono-950 dark:border-mono-50 border-t-transparent"></div>
+              <p className="text-mono-600 dark:text-mono-400">Executing query...</p>
             </div>
           ) : resultsData?.status === 'FAILED' ? (
-            <div className="rounded-lg bg-red-50 p-4">
-              <h4 className="text-sm font-medium text-red-900">Query Failed</h4>
-              <p className="mt-1 text-sm text-red-800">
+            <div className="rounded-lg bg-mono-100 dark:bg-mono-850 border border-mono-300 dark:border-mono-700 p-4">
+              <h4 className="text-sm font-medium text-mono-950 dark:text-mono-50">Query Failed</h4>
+              <p className="mt-1 text-sm text-mono-700 dark:text-mono-300">
                 {resultsData.error || 'An error occurred while executing the query'}
               </p>
             </div>
           ) : resultsData?.status === 'SUCCEEDED' ? (
             <>
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-medium">Results</h3>
+                <h3 className="text-lg font-medium text-mono-950 dark:text-mono-50">Results</h3>
                 <button
                   onClick={handleSaveAsRule}
                   className="btn btn-secondary text-sm"
@@ -124,7 +124,7 @@ export default function QueryInterface() {
               <ResultsTable results={resultsData.results} isLoading={false} />
 
               {resultsData.results && (
-                <div className="mt-4 flex gap-4 text-xs text-gray-500">
+                <div className="mt-4 flex gap-4 text-xs text-mono-600 dark:text-mono-400">
                   <span>
                     Data scanned:{' '}
                     {(resultsData.results.data_scanned_bytes / 1024 / 1024).toFixed(2)} MB

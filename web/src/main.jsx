@@ -6,6 +6,7 @@ import { Amplify } from 'aws-amplify'
 import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { awsConfig } from './config/aws-config'
+import { ThemeProvider } from './context/ThemeContext'
 import './styles/globals.css'
 
 Amplify.configure(awsConfig)
@@ -22,11 +23,19 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <App />
-        <Toaster position="top-right" />
-      </QueryClientProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <App />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className: 'bg-white dark:bg-mono-900 text-mono-950 dark:text-mono-50 border border-mono-200 dark:border-mono-800',
+              duration: 4000,
+            }}
+          />
+        </QueryClientProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>
 )

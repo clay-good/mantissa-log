@@ -10,14 +10,14 @@ export default function ResultsTable({ results, isLoading }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-mono-950 dark:border-mono-50 border-t-transparent"></div>
       </div>
     )
   }
 
   if (!results || !results.rows || results.rows.length === 0) {
     return (
-      <div className="py-12 text-center text-gray-500">
+      <div className="py-12 text-center text-mono-600 dark:text-mono-400">
         No results found
       </div>
     )
@@ -90,20 +90,20 @@ export default function ResultsTable({ results, isLoading }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-mono-600 dark:text-mono-400">
           {results.row_count} {results.row_count === 1 ? 'result' : 'results'}
         </p>
         <div className="flex gap-2">
           <button
             onClick={exportCSV}
-            className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-850 transition-colors"
           >
             <ArrowDownTrayIcon className="h-4 w-4" />
             CSV
           </button>
           <button
             onClick={exportJSON}
-            className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center gap-1 rounded-lg px-3 py-1 text-sm text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-850 transition-colors"
           >
             <ArrowDownTrayIcon className="h-4 w-4" />
             JSON
@@ -111,16 +111,16 @@ export default function ResultsTable({ results, isLoading }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto rounded-lg border border-mono-200 dark:border-mono-800">
+        <table className="min-w-full divide-y divide-mono-200 dark:divide-mono-800">
+          <thead className="bg-mono-100 dark:bg-mono-850">
             <tr>
               <th className="w-8"></th>
               {columns.map((column) => (
                 <th
                   key={column.name}
                   onClick={() => handleSort(column.name)}
-                  className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+                  className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-mono-600 dark:text-mono-400 hover:bg-mono-150 dark:hover:bg-mono-800 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {column.name}
@@ -136,16 +136,16 @@ export default function ResultsTable({ results, isLoading }) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-mono-200 dark:divide-mono-800 bg-white dark:bg-mono-950">
             {rows.map((row, rowIndex) => (
               <>
                 <tr
                   key={rowIndex}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className="hover:bg-mono-50 dark:hover:bg-mono-900 cursor-pointer transition-colors"
                   onClick={() => toggleRow(rowIndex)}
                 >
                   <td className="px-2 py-4">
-                    <button className="text-gray-400 hover:text-gray-600">
+                    <button className="text-mono-400 dark:text-mono-600 hover:text-mono-600 dark:hover:text-mono-400 transition-colors">
                       {expandedRows.has(rowIndex) ? (
                         <ChevronUpIcon className="h-4 w-4" />
                       ) : (
@@ -159,8 +159,8 @@ export default function ResultsTable({ results, isLoading }) {
                       className={clsx(
                         'px-6 py-4 text-sm',
                         isIPAddress(cell)
-                          ? 'font-mono text-blue-600'
-                          : 'text-gray-900'
+                          ? 'font-mono text-mono-800 dark:text-mono-200'
+                          : 'text-mono-900 dark:text-mono-100'
                       )}
                     >
                       {truncateValue(cell)}
@@ -169,8 +169,8 @@ export default function ResultsTable({ results, isLoading }) {
                 </tr>
                 {expandedRows.has(rowIndex) && (
                   <tr>
-                    <td colSpan={columns.length + 1} className="bg-gray-50 px-6 py-4">
-                      <pre className="overflow-x-auto text-sm">
+                    <td colSpan={columns.length + 1} className="bg-mono-100 dark:bg-mono-850 px-6 py-4">
+                      <pre className="overflow-x-auto text-sm text-mono-900 dark:text-mono-100 font-mono">
                         {JSON.stringify(
                           columns.reduce((obj, col, idx) => {
                             obj[col.name] = row[idx]

@@ -33,22 +33,22 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-mono-50 dark:bg-mono-950 px-4 transition-colors">
       <div className="w-full max-w-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Mantissa Log</h1>
-          <p className="mt-2 text-sm text-gray-600">
+        <div className="text-center animate-fade-in">
+          <h1 className="text-3xl font-bold text-mono-950 dark:text-mono-50">Mantissa Log</h1>
+          <p className="mt-2 text-sm text-mono-600 dark:text-mono-400">
             Separate the Signal from the Noise
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="card">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6 animate-slide-up">
+          <div className="bg-white dark:bg-mono-900 rounded-lg p-6 border border-mono-200 dark:border-mono-800 shadow-lg">
             <div className="space-y-4">
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-mono-900 dark:text-mono-100"
                 >
                   Email address
                 </label>
@@ -58,7 +58,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input mt-1"
+                  className="mt-1 w-full px-3 py-2 bg-white dark:bg-mono-950 border border-mono-300 dark:border-mono-700 rounded-lg text-mono-900 dark:text-mono-50 placeholder-mono-500 focus:outline-none focus:ring-2 focus:ring-mono-900 dark:focus:ring-mono-100 transition-all"
                   placeholder="you@example.com"
                 />
               </div>
@@ -66,7 +66,7 @@ export default function Login() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-mono-900 dark:text-mono-100"
                 >
                   Password
                 </label>
@@ -76,7 +76,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input mt-1"
+                  className="mt-1 w-full px-3 py-2 bg-white dark:bg-mono-950 border border-mono-300 dark:border-mono-700 rounded-lg text-mono-900 dark:text-mono-50 placeholder-mono-500 focus:outline-none focus:ring-2 focus:ring-mono-900 dark:focus:ring-mono-100 transition-all"
                   placeholder="••••••••"
                 />
               </div>
@@ -85,7 +85,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn btn-primary mt-6 w-full"
+              className="mt-6 w-full px-4 py-2 bg-mono-950 dark:bg-mono-50 text-mono-50 dark:text-mono-950 rounded-lg font-medium hover:bg-mono-800 dark:hover:bg-mono-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>

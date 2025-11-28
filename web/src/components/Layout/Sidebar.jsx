@@ -18,9 +18,9 @@ const navigation = [
 
 export default function Sidebar() {
   return (
-    <div className="flex w-64 flex-col bg-gray-900">
-      <div className="flex h-16 items-center px-6">
-        <h1 className="text-xl font-bold text-white">Mantissa Log</h1>
+    <div className="flex w-64 flex-col bg-white dark:bg-mono-950 border-r border-mono-200 dark:border-mono-800 transition-colors">
+      <div className="flex h-16 items-center px-6 border-b border-mono-200 dark:border-mono-800">
+        <h1 className="text-xl font-bold text-mono-950 dark:text-mono-50">Mantissa Log</h1>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => (
@@ -30,10 +30,10 @@ export default function Sidebar() {
             end={item.to === '/'}
             className={({ isActive }) =>
               clsx(
-                'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-mono-950 dark:bg-mono-100 text-mono-50 dark:text-mono-950'
+                  : 'text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-850 hover:text-mono-950 dark:hover:text-mono-50'
               )
             }
           >
@@ -42,8 +42,8 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="border-t border-gray-800 p-4">
-        <p className="text-xs text-gray-400">
+      <div className="border-t border-mono-200 dark:border-mono-800 p-4">
+        <p className="text-xs text-mono-600 dark:text-mono-400">
           Separate the Signal from the Noise
         </p>
       </div>
