@@ -2,10 +2,6 @@
 
 **"Separate the Signal from the Noise"**
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)]()
-
 ## Overview
 
 Mantissa Log is an open source SIEM toolkit that democratizes enterprise security monitoring. Built on cloud-native primitives, it provides powerful log analysis, detection engineering, and alerting capabilities at a fraction of the cost of commercial SIEM solutions.
@@ -82,54 +78,3 @@ For detailed deployment instructions, see [docs/getting-started.md](docs/getting
 - [API Reference](docs/api/api-reference.md)
 - [Development Guide](docs/development/local-setup.md)
 
-## Project Status
-
-Mantissa Log is currently in active development. The initial release targets AWS infrastructure with plans for GCP and Azure support in future releases.
-
-**Current Phase**: Foundation and Infrastructure Setup
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-
-- Reporting bugs and security vulnerabilities
-- Suggesting features and enhancements
-- Submitting pull requests
-- Code style and commit message conventions
-
-## Security
-
-Security is paramount for a security tool. Please review our [SECURITY.md](SECURITY.md) for:
-
-- Reporting security vulnerabilities (please do NOT open public issues)
-- Security design principles
-- Supported versions and update policy
-
-## License
-
-Mantissa Log is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for full license text.
-
-This license allows commercial use, modification, and distribution while requiring attribution. We chose Apache 2.0 to maximize adoption while protecting contributors.
-
-## Community
-
-- GitHub Issues: Bug reports and feature requests
-- GitHub Discussions: Questions and community support
-- Security Issues: See [SECURITY.md](SECURITY.md) for responsible disclosure
-
-## Roadmap
-
-- **Phase 1**: Foundation and AWS infrastructure
-- **Phase 2**: Log ingestion pipeline and schema management
-- **Phase 3**: Detection engine and rule library
-- **Phase 4**: LLM query abstraction layer
-- **Phase 5**: Web interface and API
-- **Future**: GCP and Azure support
-
-## Acknowledgments
-
-Mantissa Log builds on the shoulders of giants, leveraging battle-tested cloud services and open source tools to provide enterprise security capabilities to everyone.
-
----
-
-**Mantissa Log** - Enterprise SIEM for everyone.
