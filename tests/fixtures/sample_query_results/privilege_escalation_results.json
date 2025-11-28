@@ -1,0 +1,16 @@
+[
+  {
+    "eventname": "AttachUserPolicy",
+    "useridentity_arn": "arn:aws:iam::123456789012:user/attacker",
+    "requestparameters_username": "admin",
+    "requestparameters_policyarn": "arn:aws:iam::aws:policy/AdministratorAccess",
+    "eventtime": "2024-01-15T14:32:18Z"
+  },
+  {
+    "eventname": "PutUserPolicy",
+    "useridentity_arn": "arn:aws:iam::123456789012:user/compromised-account",
+    "requestparameters_username": "service-account",
+    "requestparameters_policyname": "ElevatedAccess",
+    "eventtime": "2024-01-15T14:35:22Z"
+  }
+]

@@ -119,3 +119,54 @@ def mock_llm_response():
         'explanation': 'This query retrieves console login events from CloudTrail',
         'warnings': []
     }
+
+
+@pytest.fixture
+def sample_executor_configs():
+    """Load sample executor configurations"""
+    configs = {}
+
+    config_files = {
+        'aws': FIXTURES_DIR / 'sample_configs' / 'aws_executor_config.json',
+        'gcp': FIXTURES_DIR / 'sample_configs' / 'gcp_executor_config.json',
+        'azure': FIXTURES_DIR / 'sample_configs' / 'azure_executor_config.json'
+    }
+
+    for provider, config_path in config_files.items():
+        if config_path.exists():
+            with open(config_path) as f:
+                configs[provider] = json.load(f)
+
+    return configs
+
+
+@pytest.fixture
+def sample_sigma_rules_path():
+    """Get path to sample Sigma rules"""
+    return FIXTURES_DIR / 'sample_sigma_rules'
+
+
+@pytest.fixture
+def sample_query_results():
+    """Load sample query result fixtures"""
+    results = {}
+
+    result_files = {
+        'brute_force': FIXTURES_DIR / 'sample_query_results' / 'athena_brute_force_results.json',
+        'privilege_escalation': FIXTURES_DIR / 'sample_query_results' / 'privilege_escalation_results.json'
+    }
+
+    for result_type, result_path in result_files.items():
+        if result_path.exists():
+            with open(result_path) as f:
+                results[result_type] = json.load(f)
+
+    return results
+
+
+@pytest.fixture
+def temp_rules_directory(tmp_path):
+    """Create temporary directory for test rules"""
+    rules_dir = tmp_path / "test_rules"
+    rules_dir.mkdir()
+    return rules_dir

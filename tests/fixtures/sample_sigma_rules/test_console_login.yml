@@ -1,0 +1,32 @@
+title: AWS Console Login From Unknown IP
+id: test-001
+status: test
+description: Detects AWS console login from an IP address not in the known list
+author: Mantissa Security Team
+date: 2024-01-01
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName: ConsoleLogin
+    responseElements.ConsoleLogin: Success
+  condition: selection
+
+fields:
+  - sourceIPAddress
+  - userIdentity.userName
+  - eventTime
+  - userAgent
+
+falsepositives:
+  - Legitimate users traveling
+  - VPN connections
+
+level: medium
+
+tags:
+  - attack.initial_access
+  - attack.t1078

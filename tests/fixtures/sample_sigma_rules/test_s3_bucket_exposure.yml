@@ -1,0 +1,37 @@
+title: AWS S3 Bucket Made Public
+id: test-003
+status: test
+description: Detects when an S3 bucket is made publicly accessible
+author: Mantissa Security Team
+date: 2024-01-01
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName:
+      - PutBucketAcl
+      - PutBucketPolicy
+      - PutBucketPublicAccessBlock
+    requestParameters.AccessControlPolicy.AccessControlList.Grant.Grantee.URI|contains:
+      - 'http://acs.amazonaws.com/groups/global/AllUsers'
+      - 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'
+  condition: selection
+
+fields:
+  - eventName
+  - requestParameters.bucketName
+  - userIdentity.arn
+  - sourceIPAddress
+
+falsepositives:
+  - Legitimate public bucket configuration
+  - Website hosting
+
+level: critical
+
+tags:
+  - attack.exfiltration
+  - attack.t1537

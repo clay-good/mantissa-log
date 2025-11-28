@@ -4,8 +4,18 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import re
+import warnings
 
 from .rule import DetectionRule, RuleLoader
+
+try:
+    from .executors.base import QueryExecutor as NewQueryExecutor
+    from .executors.athena import AthenaQueryExecutor as NewAthenaQueryExecutor
+    EXECUTORS_AVAILABLE = True
+except ImportError:
+    EXECUTORS_AVAILABLE = False
+    NewQueryExecutor = None
+    NewAthenaQueryExecutor = None
 
 
 @dataclass
@@ -44,7 +54,18 @@ class DetectionResult:
 
 
 class QueryExecutor:
-    """Base class for query execution against data stores."""
+    """DEPRECATED: Base class for query execution against data stores.
+
+    This class is deprecated. Use executors.base.QueryExecutor instead.
+    """
+
+    def __init__(self):
+        warnings.warn(
+            "QueryExecutor in engine.py is deprecated. "
+            "Use executors.base.QueryExecutor instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
         """Execute a query and return results.
@@ -85,7 +106,10 @@ class QueryExecutor:
 
 
 class AthenaQueryExecutor(QueryExecutor):
-    """Query executor for AWS Athena."""
+    """DEPRECATED: Query executor for AWS Athena.
+
+    This class is deprecated. Use executors.athena.AthenaQueryExecutor instead.
+    """
 
     def __init__(self, database: str, output_location: str, region: str = "us-east-1"):
         """Initialize Athena executor.

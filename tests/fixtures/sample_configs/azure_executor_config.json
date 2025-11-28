@@ -1,0 +1,10 @@
+{
+  "provider": "azure",
+  "azure": {
+    "server": "mantissa-log-synapse.sql.azuresynapse.net",
+    "database": "security_logs",
+    "username": null,
+    "password": null,
+    "use_managed_identity": true
+  }
+}

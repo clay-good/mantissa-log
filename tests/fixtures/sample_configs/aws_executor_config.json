@@ -1,0 +1,9 @@
+{
+  "provider": "aws",
+  "aws": {
+    "database": "mantissa_log_db",
+    "output_location": "s3://mantissa-log-athena-results/",
+    "region": "us-east-1",
+    "workgroup": "primary"
+  }
+}

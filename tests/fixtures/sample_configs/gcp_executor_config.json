@@ -1,0 +1,8 @@
+{
+  "provider": "gcp",
+  "gcp": {
+    "project_id": "mantissa-log-project",
+    "dataset": "security_logs",
+    "location": "US"
+  }
+}

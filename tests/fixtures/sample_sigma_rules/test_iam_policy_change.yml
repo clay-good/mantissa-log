@@ -1,0 +1,38 @@
+title: AWS IAM Policy Change
+id: test-002
+status: test
+description: Detects changes to IAM policies which could indicate privilege escalation
+author: Mantissa Security Team
+date: 2024-01-01
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    eventName:
+      - PutUserPolicy
+      - PutRolePolicy
+      - PutGroupPolicy
+      - AttachUserPolicy
+      - AttachRolePolicy
+      - AttachGroupPolicy
+  condition: selection
+
+fields:
+  - eventName
+  - userIdentity.arn
+  - requestParameters.userName
+  - requestParameters.roleName
+  - requestParameters.policyArn
+
+falsepositives:
+  - Legitimate administrative changes
+  - Automated infrastructure as code
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.t1098

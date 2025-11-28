@@ -1,0 +1,23 @@
+[
+  {
+    "eventname": "ConsoleLogin",
+    "sourceipaddress": "203.0.113.45",
+    "useridentity_username": "admin",
+    "eventtime": "2024-01-15T10:23:45Z",
+    "count": "8"
+  },
+  {
+    "eventname": "ConsoleLogin",
+    "sourceipaddress": "198.51.100.23",
+    "useridentity_username": "service-account",
+    "eventtime": "2024-01-15T10:25:12Z",
+    "count": "12"
+  },
+  {
+    "eventname": "ConsoleLogin",
+    "sourceipaddress": "192.0.2.100",
+    "useridentity_username": "developer",
+    "eventtime": "2024-01-15T10:28:33Z",
+    "count": "6"
+  }
+]
