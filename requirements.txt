@@ -29,3 +29,19 @@ user-agents>=2.2.0
 # Sigma detection rules
 pysigma>=0.10.0
 pysigma-backend-athena>=0.2.0
+
+# SaaS API clients for collectors
+google-api-python-client>=2.110.0  # Google Workspace
+google-auth>=2.25.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+msal>=1.26.0  # Microsoft 365
+snowflake-connector-python>=3.6.0  # Snowflake
+docker>=7.0.0  # Docker
+kubernetes>=28.1.0  # Kubernetes
+PyGithub>=2.1.1  # GitHub
+slackclient>=2.9.4  # Slack
+duo-client>=5.2.0  # Duo Security
+azure-identity>=1.15.0  # Azure
+azure-mgmt-monitor>=6.0.2  # Azure Monitor
+google-cloud-logging>=3.9.0  # GCP Cloud Logging

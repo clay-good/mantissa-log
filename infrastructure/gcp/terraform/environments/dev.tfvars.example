@@ -1,0 +1,61 @@
+# Mantissa Log GCP Terraform Configuration - Development Environment
+# Copy this file to dev.tfvars and customize for your deployment
+
+# GCP Configuration
+project_id  = "your-gcp-project-id"
+region      = "us-central1"     # Primary GCP region for deployment
+environment = "development"      # Environment name (development/staging/production)
+
+# BigQuery Configuration
+bigquery_location = "US"  # BigQuery dataset location (can differ from region)
+
+# Log Retention
+log_retention_days = 365  # Days to retain logs before deletion
+
+# Cloud Functions Configuration
+function_memory_mb      = 512   # Memory allocation for Cloud Functions (MB)
+function_timeout_seconds = 540  # Timeout for Cloud Functions (seconds, max 540)
+min_function_instances  = 0     # Minimum number of function instances
+max_function_instances  = 100   # Maximum number of function instances
+
+# VPC Configuration
+enable_vpc_connector = false  # Enable VPC connector for Cloud Functions
+# Uncomment if enable_vpc_connector = true:
+# vpc_connector_name = "projects/your-project/locations/us-central1/connectors/your-connector"
+
+# Monitoring and Logging
+enable_monitoring     = true
+enable_audit_logs     = true
+enable_vpc_flow_logs  = true
+alert_email           = ""  # Optional: email for critical alerts
+
+# SaaS/Cloud Collector Configuration
+collection_schedule = "0 * * * *"  # Cron: Every hour at minute 0
+
+# Enable/Disable Individual Collectors
+# Set to true to enable collection from each source
+enable_collectors = {
+  okta             = false  # Okta System Logs
+  google_workspace = false  # Google Workspace Admin/Drive/Login logs
+  microsoft365     = false  # M365 Audit Logs
+  github           = false  # GitHub Enterprise Audit Logs
+  slack            = false  # Slack Audit Logs (Enterprise Grid only)
+  duo              = false  # Duo Security MFA logs
+  crowdstrike      = false  # CrowdStrike Falcon EDR
+  salesforce       = false  # Salesforce EventLogFile
+  snowflake        = false  # Snowflake Query/Access logs
+  docker           = false  # Docker container events
+  kubernetes       = false  # Kubernetes audit logs
+  jamf             = false  # Jamf Pro device management
+  onepassword      = false  # 1Password Events API
+  azure_monitor    = false  # Azure Monitor Logs
+  gcp_logging      = false  # GCP Cloud Logging
+}
+
+# Resource Labels
+# Applied to all GCP resources
+tags = {
+  owner       = "security-team"
+  cost-center = "security"
+  terraform   = "true"
+}

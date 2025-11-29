@@ -108,3 +108,67 @@ output "name_suffix" {
   description = "Random suffix for resource names"
   value       = random_id.suffix.hex
 }
+
+# Collector Function App outputs
+output "collector_function_names" {
+  description = "Names of all collector Function Apps"
+  value = {
+    okta             = try(azurerm_linux_function_app.okta_collector[0].name, null)
+    google_workspace = try(azurerm_linux_function_app.google_workspace_collector[0].name, null)
+    microsoft365     = try(azurerm_linux_function_app.microsoft365_collector[0].name, null)
+    github           = try(azurerm_linux_function_app.github_collector[0].name, null)
+    slack            = try(azurerm_linux_function_app.slack_collector[0].name, null)
+    duo              = try(azurerm_linux_function_app.duo_collector[0].name, null)
+    crowdstrike      = try(azurerm_linux_function_app.crowdstrike_collector[0].name, null)
+    salesforce       = try(azurerm_linux_function_app.salesforce_collector[0].name, null)
+    snowflake        = try(azurerm_linux_function_app.snowflake_collector[0].name, null)
+    docker           = try(azurerm_linux_function_app.docker_collector[0].name, null)
+    kubernetes       = try(azurerm_linux_function_app.kubernetes_collector[0].name, null)
+    jamf             = try(azurerm_linux_function_app.jamf_collector[0].name, null)
+    onepassword      = try(azurerm_linux_function_app.onepassword_collector[0].name, null)
+    azure_monitor    = try(azurerm_linux_function_app.azure_monitor_collector[0].name, null)
+    gcp_logging      = try(azurerm_linux_function_app.gcp_logging_collector[0].name, null)
+  }
+}
+
+output "collector_function_ids" {
+  description = "IDs of all collector Function Apps"
+  value = {
+    okta             = try(azurerm_linux_function_app.okta_collector[0].id, null)
+    google_workspace = try(azurerm_linux_function_app.google_workspace_collector[0].id, null)
+    microsoft365     = try(azurerm_linux_function_app.microsoft365_collector[0].id, null)
+    github           = try(azurerm_linux_function_app.github_collector[0].id, null)
+    slack            = try(azurerm_linux_function_app.slack_collector[0].id, null)
+    duo              = try(azurerm_linux_function_app.duo_collector[0].id, null)
+    crowdstrike      = try(azurerm_linux_function_app.crowdstrike_collector[0].id, null)
+    salesforce       = try(azurerm_linux_function_app.salesforce_collector[0].id, null)
+    snowflake        = try(azurerm_linux_function_app.snowflake_collector[0].id, null)
+    docker           = try(azurerm_linux_function_app.docker_collector[0].id, null)
+    kubernetes       = try(azurerm_linux_function_app.kubernetes_collector[0].id, null)
+    jamf             = try(azurerm_linux_function_app.jamf_collector[0].id, null)
+    onepassword      = try(azurerm_linux_function_app.onepassword_collector[0].id, null)
+    azure_monitor    = try(azurerm_linux_function_app.azure_monitor_collector[0].id, null)
+    gcp_logging      = try(azurerm_linux_function_app.gcp_logging_collector[0].id, null)
+  }
+}
+
+output "collector_function_urls" {
+  description = "Default hostnames of all collector Function Apps"
+  value = {
+    okta             = try(azurerm_linux_function_app.okta_collector[0].default_hostname, null)
+    google_workspace = try(azurerm_linux_function_app.google_workspace_collector[0].default_hostname, null)
+    microsoft365     = try(azurerm_linux_function_app.microsoft365_collector[0].default_hostname, null)
+    github           = try(azurerm_linux_function_app.github_collector[0].default_hostname, null)
+    slack            = try(azurerm_linux_function_app.slack_collector[0].default_hostname, null)
+    duo              = try(azurerm_linux_function_app.duo_collector[0].default_hostname, null)
+    crowdstrike      = try(azurerm_linux_function_app.crowdstrike_collector[0].default_hostname, null)
+    salesforce       = try(azurerm_linux_function_app.salesforce_collector[0].default_hostname, null)
+    snowflake        = try(azurerm_linux_function_app.snowflake_collector[0].default_hostname, null)
+    docker           = try(azurerm_linux_function_app.docker_collector[0].default_hostname, null)
+    kubernetes       = try(azurerm_linux_function_app.kubernetes_collector[0].default_hostname, null)
+    jamf             = try(azurerm_linux_function_app.jamf_collector[0].default_hostname, null)
+    onepassword      = try(azurerm_linux_function_app.onepassword_collector[0].default_hostname, null)
+    azure_monitor    = try(azurerm_linux_function_app.azure_monitor_collector[0].default_hostname, null)
+    gcp_logging      = try(azurerm_linux_function_app.gcp_logging_collector[0].default_hostname, null)
+  }
+}

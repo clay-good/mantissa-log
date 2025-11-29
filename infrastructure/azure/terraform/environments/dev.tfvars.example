@@ -1,0 +1,67 @@
+# Mantissa Log Azure Terraform Configuration - Development Environment
+# Copy this file to dev.tfvars and customize for your deployment
+
+# Azure Configuration
+location    = "eastus"        # Primary Azure region for deployment
+environment = "development"   # Environment name (development/staging/production)
+
+# Storage Configuration
+storage_replication_type = "LRS"  # Storage replication (LRS/GRS/RAGRS/ZRS)
+log_retention_days       = 365    # Days to retain logs before deletion
+
+# Synapse Configuration
+synapse_admin_username = "sqladmin"
+# Set synapse_admin_password in terraform.tfvars (not committed to git)
+# synapse_admin_password = "YourSecurePassword123!"
+
+# Azure AD Admin for Synapse
+# Set these to your Azure AD admin credentials
+aad_admin_login     = "admin@yourdomain.com"
+aad_admin_object_id = "00000000-0000-0000-0000-000000000000"
+
+# Function App Configuration
+function_app_sku = "Y1"  # Y1 = Consumption, EP1/EP2/EP3 = Premium
+
+# Optional: Enable dedicated SQL pool (significant cost increase)
+enable_synapse_dedicated_pool = false
+synapse_pool_sku              = "DW100c"
+
+# Cosmos DB Configuration
+cosmos_consistency_level = "Session"
+
+# Monitoring
+enable_monitoring  = true
+enable_audit_logs  = true
+enable_nsg_flow_logs = true
+alert_email        = ""  # Optional: email for critical alerts
+
+# SaaS/Cloud Collector Configuration
+collection_schedule = "0 0 * * * *"  # NCRONTAB: Every hour at minute 0
+
+# Enable/Disable Individual Collectors
+# Set to true to enable collection from each source
+enable_collectors = {
+  okta             = false  # Okta System Logs
+  google_workspace = false  # Google Workspace Admin/Drive/Login logs
+  microsoft365     = false  # M365 Audit Logs
+  github           = false  # GitHub Enterprise Audit Logs
+  slack            = false  # Slack Audit Logs (Enterprise Grid only)
+  duo              = false  # Duo Security MFA logs
+  crowdstrike      = false  # CrowdStrike Falcon EDR
+  salesforce       = false  # Salesforce EventLogFile
+  snowflake        = false  # Snowflake Query/Access logs
+  docker           = false  # Docker container events
+  kubernetes       = false  # Kubernetes audit logs
+  jamf             = false  # Jamf Pro device management
+  onepassword      = false  # 1Password Events API
+  azure_monitor    = false  # Azure Monitor Logs
+  gcp_logging      = false  # GCP Cloud Logging
+}
+
+# Resource Tags
+# Applied to all Azure resources
+tags = {
+  Owner      = "security-team"
+  CostCenter = "security"
+  Terraform  = "true"
+}
