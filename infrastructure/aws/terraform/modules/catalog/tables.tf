@@ -335,3 +335,10 @@ resource "aws_glue_catalog_table" "guardduty" {
     }
   }
 }
+
+module "glue_tables" {
+  source = "../glue"
+
+  glue_database_name = aws_glue_catalog_database.main.name
+  logs_bucket        = var.logs_bucket_name
+}

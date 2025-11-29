@@ -65,6 +65,83 @@ package_alert_router() {
         "Alert Router"
 }
 
+package_collectors() {
+    package_python_lambda \
+        "okta-collector" \
+        "src/aws/lambda/okta_collector_handler.py" \
+        "Okta Collector"
+
+    package_python_lambda \
+        "google-workspace-collector" \
+        "src/aws/lambda/google_workspace_collector_handler.py" \
+        "Google Workspace Collector"
+
+    package_python_lambda \
+        "microsoft365-collector" \
+        "src/aws/lambda/microsoft365_collector_handler.py" \
+        "Microsoft 365 Collector"
+
+    package_python_lambda \
+        "github-collector" \
+        "src/aws/lambda/github_collector_handler.py" \
+        "GitHub Collector"
+
+    package_python_lambda \
+        "slack-collector" \
+        "src/aws/lambda/slack_collector_handler.py" \
+        "Slack Collector"
+
+    package_python_lambda \
+        "duo-collector" \
+        "src/aws/lambda/duo_collector_handler.py" \
+        "Duo Security Collector"
+
+    package_python_lambda \
+        "crowdstrike-collector" \
+        "src/aws/lambda/crowdstrike_collector_handler.py" \
+        "CrowdStrike Collector"
+
+    package_python_lambda \
+        "salesforce-collector" \
+        "src/aws/lambda/salesforce_collector_handler.py" \
+        "Salesforce Collector"
+
+    package_python_lambda \
+        "snowflake-collector" \
+        "src/aws/lambda/snowflake_collector_handler.py" \
+        "Snowflake Collector"
+
+    package_python_lambda \
+        "docker-collector" \
+        "src/aws/lambda/docker_collector_handler.py" \
+        "Docker Collector"
+
+    package_python_lambda \
+        "kubernetes-collector" \
+        "src/aws/lambda/kubernetes_collector_handler.py" \
+        "Kubernetes Collector"
+
+    package_python_lambda \
+        "jamf-collector" \
+        "src/aws/lambda/jamf_collector_handler.py" \
+        "Jamf Pro Collector"
+
+    package_python_lambda \
+        "onepassword-collector" \
+        "src/aws/lambda/onepassword_collector_handler.py" \
+        "1Password Collector"
+
+    package_python_lambda \
+        "azure-monitor-collector" \
+        "src/aws/lambda/azure_monitor_collector_handler.py" \
+        "Azure Monitor Collector"
+
+    package_python_lambda \
+        "gcp-logging-collector" \
+        "src/aws/lambda/gcp_logging_collector_handler.py" \
+        "GCP Cloud Logging Collector"
+}
+
 create_lambda_layer() {
     echo "Creating shared Lambda layer..."
 
@@ -127,6 +204,7 @@ main() {
     package_detection_engine
     package_llm_query
     package_alert_router
+    package_collectors
 
     validate_packages
 

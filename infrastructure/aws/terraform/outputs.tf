@@ -57,3 +57,23 @@ output "athena_workgroup_name" {
   description = "Athena workgroup name"
   value       = module.catalog.athena_workgroup_name
 }
+
+output "checkpoints_table_name" {
+  description = "DynamoDB checkpoints table name"
+  value       = module.state.checkpoints_table_name
+}
+
+output "user_settings_table_name" {
+  description = "DynamoDB user settings table name"
+  value       = module.state.user_settings_table_name
+}
+
+output "collector_function_names" {
+  description = "Map of collector Lambda function names"
+  value       = module.collectors.collector_function_names
+}
+
+output "collector_schedules" {
+  description = "Map of collector EventBridge schedule ARNs"
+  value       = module.collectors.collector_schedules
+}

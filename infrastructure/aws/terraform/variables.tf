@@ -121,3 +121,41 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "collection_schedule" {
+  description = "EventBridge schedule expression for collector execution"
+  type        = string
+  default     = "rate(1 hour)"
+}
+
+variable "log_level" {
+  description = "Log level for Lambda functions (DEBUG, INFO, WARNING, ERROR)"
+  type        = string
+  default     = "INFO"
+  validation {
+    condition     = contains(["DEBUG", "INFO", "WARNING", "ERROR"], var.log_level)
+    error_message = "Log level must be DEBUG, INFO, WARNING, or ERROR."
+  }
+}
+
+variable "enable_collectors" {
+  description = "Map of collector names to enable/disable"
+  type        = map(bool)
+  default = {
+    okta             = false
+    google_workspace = false
+    microsoft365     = false
+    github           = false
+    slack            = false
+    duo              = false
+    crowdstrike      = false
+    salesforce       = false
+    snowflake        = false
+    docker           = false
+    kubernetes       = false
+    jamf             = false
+    onepassword      = false
+    azure_monitor    = false
+    gcp_logging      = false
+  }
+}

@@ -13,8 +13,14 @@ provider "aws" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
 locals {
-  name_prefix = "${var.project_prefix}-${var.environment}"
+  name_prefix    = "${var.project_prefix}-${var.environment}"
+  aws_account_id = data.aws_caller_identity.current.account_id
+  aws_region     = data.aws_region.current.name
 }
 
 module "storage" {
@@ -105,4 +111,30 @@ module "monitoring" {
   alert_router_function_name   = module.compute.alert_router_function_name
   logs_bucket_name             = module.storage.logs_bucket_name
   state_table_name             = module.compute.state_table_name
+}
+
+module "state" {
+  source = "./modules/state"
+
+  project_name = local.name_prefix
+  environment  = var.environment
+  kms_key_arn  = var.enable_kms_encryption ? var.kms_key_arn : null
+}
+
+module "collectors" {
+  source = "./modules/collectors"
+
+  name_prefix              = local.name_prefix
+  aws_region               = local.aws_region
+  aws_account_id           = local.aws_account_id
+  s3_bucket                = module.storage.logs_bucket_name
+  s3_bucket_arn            = module.storage.logs_bucket_arn
+  checkpoint_table         = module.state.checkpoints_table_name
+  checkpoint_table_arn     = module.state.checkpoints_table_arn
+  kms_key_arn              = var.enable_kms_encryption ? var.kms_key_arn : module.secrets.kms_key_arn
+  cloudwatch_log_retention = var.cloudwatch_log_retention_days
+  collection_schedule      = var.collection_schedule
+  log_level                = var.log_level
+  environment              = var.environment
+  enable_collectors        = var.enable_collectors
 }

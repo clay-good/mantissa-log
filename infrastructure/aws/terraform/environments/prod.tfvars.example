@@ -25,6 +25,27 @@ kms_key_arn           = "arn:aws:kms:us-east-1:123456789012:key/xxxxxxxx-xxxx-xx
 
 cloudwatch_log_retention_days = 30
 
+collection_schedule = "rate(1 hour)"
+log_level           = "INFO"
+
+enable_collectors = {
+  okta             = true
+  google_workspace = true
+  microsoft365     = true
+  github           = true
+  slack            = false
+  duo              = true
+  crowdstrike      = false
+  salesforce       = false
+  snowflake        = false
+  docker           = false
+  kubernetes       = false
+  jamf             = false
+  onepassword      = true
+  azure_monitor    = false
+  gcp_logging      = false
+}
+
 alert_destinations = {
   slack = {
     enabled = true

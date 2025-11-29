@@ -22,6 +22,27 @@ enable_kms_encryption = false
 
 cloudwatch_log_retention_days = 14
 
+collection_schedule = "rate(1 hour)"
+log_level           = "INFO"
+
+enable_collectors = {
+  okta             = false
+  google_workspace = false
+  microsoft365     = false
+  github           = false
+  slack            = false
+  duo              = false
+  crowdstrike      = false
+  salesforce       = false
+  snowflake        = false
+  docker           = false
+  kubernetes       = false
+  jamf             = false
+  onepassword      = false
+  azure_monitor    = false
+  gcp_logging      = false
+}
+
 alert_destinations = {
   slack = {
     enabled = false
