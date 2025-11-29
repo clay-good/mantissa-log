@@ -154,3 +154,11 @@ module "collectors" {
   environment              = var.environment
   enable_collectors        = var.enable_collectors
 }
+
+module "web" {
+  source = "./modules/web"
+
+  name_prefix         = local.name_prefix
+  environment         = var.environment
+  log_retention_days  = var.cloudwatch_log_retention_days
+}

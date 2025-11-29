@@ -303,6 +303,22 @@ run_smoke_tests() {
     echo ""
 }
 
+deploy_web_application() {
+    echo "Web application deployment..."
+    echo ""
+
+    read -p "Deploy web application to CloudFront? (y/n) [y]: " DEPLOY_WEB
+    DEPLOY_WEB=${DEPLOY_WEB:-y}
+
+    if [ "$DEPLOY_WEB" == "y" ]; then
+        bash "$SCRIPT_DIR/deploy-web.sh"
+    else
+        echo "  Skipping web deployment"
+        echo "  You can deploy the web app later by running: ./scripts/deploy-web.sh"
+        echo ""
+    fi
+}
+
 print_deployment_summary() {
     echo "=========================================="
     echo "Deployment Complete!"
@@ -312,6 +328,7 @@ print_deployment_summary() {
     API_URL=$(cat "$PROJECT_ROOT/terraform-outputs.json" | grep -o '"api_endpoint[^:]*:[^"]*"[^"]*"' | cut -d'"' -f4 || echo "")
     USER_POOL_ID=$(cat "$PROJECT_ROOT/terraform-outputs.json" | grep -o '"user_pool_id[^:]*:[^"]*"[^"]*"' | cut -d'"' -f4 || echo "")
     USER_POOL_CLIENT_ID=$(cat "$PROJECT_ROOT/terraform-outputs.json" | grep -o '"user_pool_client_id[^:]*:[^"]*"[^"]*"' | cut -d'"' -f4 || echo "")
+    WEB_URL=$(cat "$PROJECT_ROOT/terraform-outputs.json" | python3 -c "import sys, json; print(json.load(sys.stdin).get('web_url', {}).get('value', ''))" 2>/dev/null || echo "")
 
     echo "Environment: $ENVIRONMENT"
     echo "Region: $AWS_REGION"
@@ -319,6 +336,10 @@ print_deployment_summary() {
 
     if [ -n "$API_URL" ]; then
         echo "API Endpoint: $API_URL"
+    fi
+
+    if [ -n "$WEB_URL" ]; then
+        echo "Web Application: $WEB_URL"
     fi
 
     if [ -n "$USER_POOL_ID" ]; then
@@ -334,7 +355,11 @@ print_deployment_summary() {
     echo "1. Configure alert destinations in AWS Secrets Manager"
     echo "2. Review and enable detection rules"
     echo "3. Configure log sources (CloudTrail, VPC Flow Logs, etc.)"
-    echo "4. Access the web interface (if deployed)"
+    if [ -z "$WEB_URL" ] || [ "$DEPLOY_WEB" != "y" ]; then
+        echo "4. Deploy the web interface: ./scripts/deploy-web.sh"
+    else
+        echo "4. Access the web interface at: $WEB_URL"
+    fi
     echo ""
     echo "For more information, see docs/deployment/aws-deployment.md"
     echo ""
@@ -351,6 +376,7 @@ main() {
     configure_cloudtrail
     create_admin_user
     run_smoke_tests
+    deploy_web_application
     print_deployment_summary
 }
 

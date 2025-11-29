@@ -77,3 +77,18 @@ output "collector_schedules" {
   description = "Map of collector EventBridge schedule ARNs"
   value       = module.collectors.collector_schedules
 }
+
+output "web_url" {
+  description = "URL of the web application"
+  value       = module.web.cloudfront_url
+}
+
+output "web_bucket_name" {
+  description = "Name of the S3 bucket hosting the web application"
+  value       = module.web.bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  value       = module.web.cloudfront_distribution_id
+}

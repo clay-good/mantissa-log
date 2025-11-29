@@ -236,7 +236,84 @@ All smoke tests passed!
 
 If any tests fail, see [Troubleshooting](troubleshooting.md).
 
-### Step 9: Deployment Summary
+### Step 9: Web Application Deployment
+
+After infrastructure deployment, the script will prompt to deploy the web application:
+
+```
+Web application deployment...
+
+Deploy web application to CloudFront? (y/n) [y]: y
+```
+
+Type `y` to deploy the web interface.
+
+**Web Deployment Process:**
+
+The deployment script will:
+
+1. **Load Terraform outputs** - Retrieve S3 bucket and CloudFront details
+2. **Create environment configuration** - Generate `.env.production` with API endpoints
+3. **Install dependencies** - Run npm install for React application
+4. **Build application** - Compile with Vite build tool
+5. **Deploy to S3** - Upload static assets with appropriate cache headers
+6. **Invalidate CloudFront** - Clear CDN cache to serve new version
+
+**Build output:**
+
+```
+Building web application...
+  Running Vite build...
+  vite v5.0.8 building for production...
+  ✓ 1250 modules transformed.
+  dist/index.html                   0.45 kB │ gzip:  0.30 kB
+  dist/assets/index-a1b2c3d4.css   45.21 kB │ gzip: 12.34 kB
+  dist/assets/index-e5f6g7h8.js   234.56 kB │ gzip: 78.90 kB
+  Build completed successfully
+
+Deploying to S3...
+  Syncing files to s3://mantissa-log-prod-web/
+  Uploading index.html with no-cache policy...
+  Files deployed to S3
+
+Invalidating CloudFront cache...
+  Invalidation created: I2ABCDEFGHIJK
+  Waiting for invalidation to complete (this may take 1-2 minutes)...
+  CloudFront cache invalidated
+
+==========================================
+Web Deployment Complete!
+==========================================
+
+Application URL: https://d123abc456xyz.cloudfront.net
+
+Configuration:
+  API Endpoint: https://abc123.execute-api.us-east-1.amazonaws.com/prod
+  User Pool ID: us-east-1_ABC123XYZ
+  Region: us-east-1
+
+Next steps:
+1. Open the application URL in your browser
+2. Log in with your Cognito credentials
+3. Configure LLM settings in Settings > LLM Configuration
+4. Set up alert integrations in Settings > Integrations
+
+Note: It may take a few minutes for CloudFront to serve the updated content globally
+```
+
+**Deployment time:** 2-5 minutes including build and CloudFront invalidation.
+
+**Skip web deployment:**
+
+To skip web deployment and deploy it later:
+
+```
+Deploy web application to CloudFront? (y/n) [y]: n
+  Skipping web deployment
+  You can deploy the web app later by running: ./scripts/deploy-web.sh
+```
+
+### Step 10: Deployment Summary
 
 The script will display a deployment summary:
 
@@ -249,6 +326,7 @@ Environment: prod
 Region: us-east-1
 
 API Endpoint: https://abc123.execute-api.us-east-1.amazonaws.com/prod
+Web Application: https://d123abc456xyz.cloudfront.net
 Cognito User Pool ID: us-east-1_ABC123XYZ
 Cognito Client ID: 1a2b3c4d5e6f7g8h9i0j
 
@@ -256,12 +334,60 @@ Next steps:
 1. Configure alert destinations in AWS Secrets Manager
 2. Review and enable detection rules
 3. Configure log sources (CloudTrail, VPC Flow Logs, etc.)
-4. Access the web interface (if deployed)
+4. Access the web interface at: https://d123abc456xyz.cloudfront.net
 ```
 
 **Save these outputs** - you'll need them for configuration.
 
-### Step 10: Configure Alert Destinations
+### Step 11: Access Web Interface
+
+Open the CloudFront URL in your browser:
+
+```
+https://d123abc456xyz.cloudfront.net
+```
+
+**First-time login:**
+
+1. Enter the admin email address created earlier
+2. Enter the admin password
+3. You may be prompted to change your password
+4. Accept terms and complete profile setup
+
+**Web Interface Features:**
+
+- **Query Interface** - Natural language query with SQL preview
+- **Alerts Dashboard** - View recent alerts and their status
+- **Detection Rules** - Browse, edit, and enable/disable rules
+- **Settings** - Configure LLM providers, integrations, and preferences
+- **Conversations** - Multi-turn query sessions with context
+
+**Troubleshooting web access:**
+
+If the web interface doesn't load:
+
+1. Check CloudFront distribution status:
+   ```bash
+   DIST_ID=$(cat terraform-outputs.json | jq -r '.cloudfront_distribution_id.value')
+   aws cloudfront get-distribution --id $DIST_ID --query 'Distribution.Status'
+   ```
+   Expected: `"Deployed"`
+
+2. Verify S3 bucket has files:
+   ```bash
+   WEB_BUCKET=$(cat terraform-outputs.json | jq -r '.web_bucket_name.value')
+   aws s3 ls s3://$WEB_BUCKET/
+   ```
+   Expected: `index.html` and `assets/` directory
+
+3. Check browser console for errors (F12 Developer Tools)
+
+4. Redeploy web application:
+   ```bash
+   bash scripts/deploy-web.sh
+   ```
+
+### Step 12: Configure Alert Destinations
 
 Configure where alerts should be sent:
 
@@ -335,7 +461,7 @@ aws secretsmanager create-secret \
   --region us-east-1
 ```
 
-### Step 11: Configure Detection Rules
+### Step 13: Configure Detection Rules
 
 Detection rules are stored in the `rules/` directory and automatically uploaded during deployment.
 
@@ -376,7 +502,7 @@ aws s3 sync rules/ s3://$RULES_BUCKET/rules/ \
 3. Upload to S3
 4. Rules are loaded on next detection cycle (5 minutes)
 
-### Step 12: Configure Log Sources
+### Step 14: Configure Log Sources
 
 **CloudTrail (Already configured by deployment script):**
 
@@ -433,7 +559,7 @@ For custom applications or services:
 3. Create Glue table for log schema
 4. Write detection rules targeting the new table
 
-### Step 13: Test the Deployment
+### Step 15: Test the Deployment
 
 **Test Alert Routing:**
 
@@ -516,7 +642,7 @@ aws lambda invoke \
 aws logs tail /aws/lambda/$DETECTION_ENGINE --follow
 ```
 
-### Step 14: Monitor the Deployment
+### Step 16: Monitor the Deployment
 
 **CloudWatch Dashboards:**
 
@@ -708,6 +834,8 @@ To use custom domain for API:
 
 ## Updating the Deployment
 
+### Update Infrastructure and Lambda Functions
+
 To update an existing deployment:
 
 ```bash
@@ -723,6 +851,49 @@ This will:
 6. Update Lambda function code
 7. Update detection rules
 8. Run smoke tests
+
+### Update Web Application Only
+
+To redeploy just the web application after making changes:
+
+```bash
+bash scripts/deploy-web.sh
+```
+
+This is useful when:
+- Updating UI components or styling
+- Fixing bugs in the React application
+- Adding new features to the web interface
+- Changing environment configuration
+
+The script will:
+1. Build the latest React application
+2. Deploy to S3 with optimized caching
+3. Invalidate CloudFront cache
+4. Verify deployment
+
+**Development workflow:**
+
+For active web development:
+
+```bash
+# Make changes to web/src/
+cd web
+npm run dev  # Start development server
+
+# Test locally at http://localhost:5173
+
+# When ready to deploy:
+cd ..
+bash scripts/deploy-web.sh
+```
+
+**Cache busting:**
+
+The deployment script automatically handles cache busting:
+- Static assets (JS, CSS, images) get 1-year cache with content hashes
+- `index.html` gets no-cache policy
+- CloudFront cache is invalidated after each deployment
 
 ## Destroying the Deployment
 

@@ -1,0 +1,87 @@
+# Mantissa Log AWS Terraform Configuration - Development Environment
+# Copy this file to dev.tfvars and customize for your deployment
+
+# AWS Configuration
+aws_region  = "us-east-1"  # Primary AWS region for deployment
+environment = "dev"         # Environment name (dev/staging/prod)
+
+# Project Configuration
+project_prefix = "mantissa-log"  # Prefix for all resource names
+
+# Log Retention
+log_retention_days = 90      # Days to retain raw logs in S3
+enable_glacier     = false   # Move old logs to Glacier (cost optimization)
+
+# Detection Engine
+detection_engine_schedule = "rate(5 minutes)"  # How often to run detection rules
+
+# LLM Provider
+# Options: "bedrock" (AWS), "anthropic", "openai", "google"
+llm_provider = "bedrock"
+
+# VPC Configuration
+enable_vpc = false  # Deploy Lambda functions in VPC (set true for enhanced security)
+# Uncomment and configure if enable_vpc = true:
+# vpc_id     = "vpc-xxxxxxxx"
+# subnet_ids = ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
+
+# AWS Glue Crawlers
+enable_crawlers = false  # Auto-discover log schemas (increases cost)
+
+# Lambda Memory Allocation (MB)
+lambda_memory_detection = 512  # Detection engine
+lambda_memory_llm       = 256  # LLM query handler
+lambda_memory_alert     = 256  # Alert router
+
+# Encryption
+enable_kms_encryption = false  # Use KMS for S3/DynamoDB encryption (recommended for prod)
+# Uncomment if enable_kms_encryption = true:
+# kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# CloudWatch Logs
+cloudwatch_log_retention_days = 14  # Lambda function log retention
+
+# SaaS/Cloud Collector Configuration
+collection_schedule = "rate(1 hour)"  # How often to collect from SaaS APIs
+log_level           = "INFO"          # Collector log level (DEBUG/INFO/WARN/ERROR)
+
+# Enable/Disable Individual Collectors
+# Set to true to enable collection from each source
+enable_collectors = {
+  okta             = false  # Okta System Logs
+  google_workspace = false  # Google Workspace Admin/Drive/Login logs
+  microsoft365     = false  # M365 Audit Logs
+  github           = false  # GitHub Enterprise Audit Logs
+  slack            = false  # Slack Audit Logs (Enterprise Grid only)
+  duo              = false  # Duo Security MFA logs
+  crowdstrike      = false  # CrowdStrike Falcon EDR
+  salesforce       = false  # Salesforce EventLogFile
+  snowflake        = false  # Snowflake Query/Access logs
+  docker           = false  # Docker container events
+  kubernetes       = false  # Kubernetes audit logs
+  jamf             = false  # Jamf Pro device management
+  onepassword      = false  # 1Password Events API
+  azure_monitor    = false  # Azure Monitor Logs
+  gcp_logging      = false  # GCP Cloud Logging
+}
+
+# Alert Destinations
+# Configure where alerts should be sent
+alert_destinations = {
+  slack = {
+    enabled = false  # Set to true to enable Slack alerts
+    config = {
+      # Store webhook URL in AWS Secrets Manager with this name
+      webhook_secret_name = "mantissa-log/dev/slack-webhook"
+    }
+  }
+  # Additional destinations configured in web interface or Secrets Manager
+}
+
+# Resource Tags
+# Applied to all AWS resources
+tags = {
+  Owner      = "security-team"
+  CostCenter = "security"
+  Terraform  = "true"
+}

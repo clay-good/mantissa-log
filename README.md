@@ -153,39 +153,108 @@ Mantissa Log is intentionally focused. It does NOT include:
 ## Quick Start
 
 ### Prerequisites
-- AWS account with appropriate permissions
-- Terraform installed
-- Node.js 18+ for web interface
-- Python 3.9+ for Lambda functions
 
-### Deployment
+**Required:**
+- AWS account with administrator access
+- Terraform >= 1.5
+- Python 3.11+
+- AWS CLI v2
+- Node.js >= 18
+
+**Optional:**
+- LLM API keys (Anthropic, OpenAI, or Google - if not using AWS Bedrock)
+
+### Deployment (Automated)
+
+The fastest way to deploy Mantissa Log:
 
 ```bash
 # Clone the repository
 git clone https://github.com/your-org/mantissa-log.git
 cd mantissa-log
 
-# Deploy AWS infrastructure
+# Run the deployment script
+bash scripts/deploy.sh
+```
+
+The script will:
+1. Check prerequisites
+2. Prompt for configuration (environment, region, LLM provider)
+3. Create Terraform state bucket
+4. Package Lambda functions
+5. Deploy infrastructure with Terraform
+6. Configure CloudTrail logging
+7. Create admin user for web interface
+8. Run smoke tests
+9. Deploy web application to CloudFront
+10. Display deployment summary with URLs
+
+**Deployment time:** 10-15 minutes
+
+### Manual Deployment
+
+For more control over the deployment process:
+
+```bash
+# 1. Deploy infrastructure
 cd infrastructure/aws/terraform
+cp backend.tf.example backend.tf
+# Edit backend.tf with your S3 bucket
+
 cp environments/dev.tfvars.example environments/dev.tfvars
 # Edit dev.tfvars with your configuration
+
 terraform init
 terraform plan -var-file=environments/dev.tfvars
 terraform apply -var-file=environments/dev.tfvars
 
-# Deploy web interface
-cd ../../../web
-npm install
-npm run build
-# Deploy to S3/CloudFront (see docs/deployment/aws-deployment.md)
+# Save outputs
+terraform output -json > ../../../terraform-outputs.json
+
+# 2. Package Lambda functions
+cd ../../..
+bash scripts/package-lambdas.sh
+
+# 3. Deploy web interface
+bash scripts/deploy-web.sh
 ```
+
+See [AWS Deployment Guide](docs/deployment/aws-deployment.md) for detailed instructions.
 
 ### First Steps
 
-1. **Configure LLM Provider**: Settings > LLM Configuration
-2. **Set Up Integrations**: Settings > Integrations (Slack, Jira, etc.)
-3. **Enable Detection Rules**: Rules > Browse pre-built rules > Enable
-4. **Try a Query**: "Show me all root account logins in the last 7 days"
+After deployment completes:
+
+1. **Access Web Interface**: Open the CloudFront URL from deployment output
+2. **Log In**: Use the admin credentials you created during deployment
+3. **Configure LLM Provider**: Settings > LLM Configuration
+   - If using AWS Bedrock: No additional setup needed
+   - If using Anthropic/OpenAI/Google: Add your API key
+4. **Set Up Integrations**: Settings > Integrations
+   - Configure Slack webhook for alerts
+   - Set up Jira for ticketing (optional)
+   - Add PagerDuty integration (optional)
+5. **Enable Detection Rules**: Rules > Browse pre-built rules > Enable
+6. **Try a Natural Language Query**:
+   - "Show me all root account logins in the last 7 days"
+   - "Find failed authentication attempts from outside the US"
+   - "List all S3 buckets created in the past 24 hours"
+
+### Verify Deployment
+
+Run smoke tests to verify everything is working:
+
+```bash
+bash scripts/smoke-test.sh terraform-outputs.json
+```
+
+Expected output:
+```
+Tests Passed: 18
+Tests Failed: 0
+
+All smoke tests passed!
+```
 
 ## Detection Rule Coverage
 
