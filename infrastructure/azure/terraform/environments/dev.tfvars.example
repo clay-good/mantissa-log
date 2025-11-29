@@ -38,25 +38,9 @@ alert_email        = ""  # Optional: email for critical alerts
 # SaaS/Cloud Collector Configuration
 collection_schedule = "0 0 * * * *"  # NCRONTAB: Every hour at minute 0
 
-# Enable/Disable Individual Collectors
-# Set to true to enable collection from each source
-enable_collectors = {
-  okta             = false  # Okta System Logs
-  google_workspace = false  # Google Workspace Admin/Drive/Login logs
-  microsoft365     = false  # M365 Audit Logs
-  github           = false  # GitHub Enterprise Audit Logs
-  slack            = false  # Slack Audit Logs (Enterprise Grid only)
-  duo              = false  # Duo Security MFA logs
-  crowdstrike      = false  # CrowdStrike Falcon EDR
-  salesforce       = false  # Salesforce EventLogFile
-  snowflake        = false  # Snowflake Query/Access logs
-  docker           = false  # Docker container events
-  kubernetes       = false  # Kubernetes audit logs
-  jamf             = false  # Jamf Pro device management
-  onepassword      = false  # 1Password Events API
-  azure_monitor    = false  # Azure Monitor Logs
-  gcp_logging      = false  # GCP Cloud Logging
-}
+# Enable the unified collector Function App
+# Individual collectors enabled via Key Vault secrets configuration
+enable_collector_app = true
 
 # Resource Tags
 # Applied to all Azure resources

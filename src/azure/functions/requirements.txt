@@ -1,0 +1,7 @@
+azure-functions==1.*
+azure-storage-blob==12.*
+azure-cosmos==4.*
+azure-identity==1.*
+azure-keyvault-secrets==4.*
+requests==2.*
+urllib3==2.*
