@@ -40,3 +40,63 @@ variable "allowed_origins" {
   type        = list(string)
   default     = ["*"]
 }
+
+variable "conversation_api_function_arn" {
+  description = "ARN of the conversation API Lambda function"
+  type        = string
+}
+
+variable "conversation_api_function_name" {
+  description = "Name of the conversation API Lambda function"
+  type        = string
+}
+
+variable "cost_api_function_arn" {
+  description = "ARN of the cost API Lambda function"
+  type        = string
+}
+
+variable "cost_api_function_name" {
+  description = "Name of the cost API Lambda function"
+  type        = string
+}
+
+variable "integration_api_function_arn" {
+  description = "ARN of the integration API Lambda function"
+  type        = string
+}
+
+variable "integration_api_function_name" {
+  description = "Name of the integration API Lambda function"
+  type        = string
+}
+
+variable "llm_settings_api_function_arn" {
+  description = "ARN of the LLM settings API Lambda function"
+  type        = string
+}
+
+variable "llm_settings_api_function_name" {
+  description = "Name of the LLM settings API Lambda function"
+  type        = string
+}
+
+variable "redaction_api_function_arn" {
+  description = "ARN of the redaction API Lambda function"
+  type        = string
+}
+
+variable "redaction_api_function_name" {
+  description = "Name of the redaction API Lambda function"
+  type        = string
+}
+
+variable "scheduled_query_function_arn" {
+  description = "ARN of the scheduled query Lambda function"
+  type        = string
+}
+
+variable "scheduled_query_function_name" {
+  description = "Name of the scheduled query Lambda function"
+  type        = string
+}

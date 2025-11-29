@@ -65,6 +65,43 @@ package_alert_router() {
         "Alert Router"
 }
 
+package_api_handlers() {
+    package_python_lambda \
+        "conversation-api" \
+        "src/aws/lambda/conversation_api_handler.py" \
+        "Conversation API"
+
+    package_python_lambda \
+        "cost-api" \
+        "src/aws/lambda/cost_api_handler.py" \
+        "Cost API"
+
+    package_python_lambda \
+        "integration-api" \
+        "src/aws/lambda/integration_api_handler.py" \
+        "Integration API"
+
+    package_python_lambda \
+        "llm-settings-api" \
+        "src/aws/lambda/llm_settings_api_handler.py" \
+        "LLM Settings API"
+
+    package_python_lambda \
+        "redaction-api" \
+        "src/aws/lambda/redaction_api_handler.py" \
+        "Redaction API"
+
+    package_python_lambda \
+        "detection-tuner" \
+        "src/aws/lambda/detection_tuner_handler.py" \
+        "Detection Tuner"
+
+    package_python_lambda \
+        "scheduled-query" \
+        "src/aws/lambda/scheduled_query_handler.py" \
+        "Scheduled Query"
+}
+
 package_collectors() {
     package_python_lambda \
         "okta-collector" \
@@ -204,6 +241,7 @@ main() {
     package_detection_engine
     package_llm_query
     package_alert_router
+    package_api_handlers
     package_collectors
 
     validate_packages

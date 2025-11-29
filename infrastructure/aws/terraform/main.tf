@@ -74,16 +74,32 @@ module "scheduling" {
   detection_engine_arn        = module.compute.detection_engine_function_arn
   detection_engine_name       = module.compute.detection_engine_function_name
   schedule_expression         = var.detection_engine_schedule
+  detection_tuner_arn         = module.compute.detection_tuner_function_arn
+  detection_tuner_name        = module.compute.detection_tuner_function_name
 }
 
 module "api" {
   source = "./modules/api"
 
-  name_prefix              = local.name_prefix
-  environment              = var.environment
-  llm_query_function_arn   = module.compute.llm_query_function_arn
-  llm_query_function_name  = module.compute.llm_query_function_name
-  cognito_user_pool_arn    = module.auth.user_pool_arn
+  name_prefix                      = local.name_prefix
+  environment                      = var.environment
+  llm_query_function_arn           = module.compute.llm_query_function_arn
+  llm_query_function_name          = module.compute.llm_query_function_name
+  conversation_api_function_arn    = module.compute.conversation_api_function_arn
+  conversation_api_function_name   = module.compute.conversation_api_function_name
+  cost_api_function_arn            = module.compute.cost_api_function_arn
+  cost_api_function_name           = module.compute.cost_api_function_name
+  integration_api_function_arn     = module.compute.integration_api_function_arn
+  integration_api_function_name    = module.compute.integration_api_function_name
+  llm_settings_api_function_arn    = module.compute.llm_settings_api_function_arn
+  llm_settings_api_function_name   = module.compute.llm_settings_api_function_name
+  redaction_api_function_arn       = module.compute.redaction_api_function_arn
+  redaction_api_function_name      = module.compute.redaction_api_function_name
+  scheduled_query_function_arn     = module.compute.scheduled_query_function_arn
+  scheduled_query_function_name    = module.compute.scheduled_query_function_name
+  cognito_user_pool_arn            = module.auth.user_pool_arn
+  cognito_user_pool_id             = module.auth.user_pool_id
+  cognito_user_pool_client_id      = module.auth.user_pool_client_id
 }
 
 module "auth" {
