@@ -1,0 +1,30 @@
+title: Docker Container OOM Killed
+id: d5e6f7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a
+status: stable
+description: |
+    Detects when a Docker container is killed due to out-of-memory condition.
+    This could indicate resource exhaustion attacks, memory leaks, or
+    cryptocurrency mining activity.
+references:
+    - https://docs.docker.com/config/containers/resource_constraints/
+    - https://attack.mitre.org/techniques/T1496/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1496
+    - attack.impact
+    - attack.t1499
+    - attack.resource_hijacking
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'oom'
+    condition: selection
+falsepositives:
+    - Containers with memory-intensive legitimate workloads
+    - Development containers with insufficient memory limits
+level: medium

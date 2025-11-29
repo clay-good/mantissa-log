@@ -1,0 +1,25 @@
+title: Azure SQL Server Firewall Rule Modified
+id: azure-activity-sql-firewall-001
+status: stable
+description: |
+    Detects modifications to Azure SQL Server firewall rules.
+    May indicate legitimate changes or attempt to expose database.
+references:
+    - https://docs.microsoft.com/en-us/azure/azure-sql/database/firewall-configure
+    - https://attack.mitre.org/techniques/T1562/007/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.007
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Sql/servers/firewallRules/write
+    condition: selection
+falsepositives:
+    - Legitimate firewall changes
+    - Application deployment
+level: medium

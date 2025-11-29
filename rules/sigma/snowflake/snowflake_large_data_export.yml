@@ -1,0 +1,30 @@
+title: Snowflake Large Data Export
+id: snowflake-large-data-export-001
+status: stable
+description: |
+    Detects queries that scan or return an unusually large amount of data,
+    which may indicate data exfiltration attempts or unauthorized data access.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/query_history
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.t1530
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        event.action: query_execution
+        event.outcome: success
+    filter_large_scan:
+        snowflake.performance.bytes_scanned|gte: 10737418240
+    condition: selection and filter_large_scan
+falsepositives:
+    - Legitimate analytics queries on large datasets
+    - Data warehouse ETL operations
+    - Business intelligence reporting
+level: medium

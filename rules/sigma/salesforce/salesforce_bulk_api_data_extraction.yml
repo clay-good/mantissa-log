@@ -1,0 +1,34 @@
+title: Salesforce Bulk API Data Extraction
+id: sf-bulk-api-extraction-001
+status: stable
+description: |
+    Detects use of the Bulk API for data extraction, which can be used to
+    exfiltrate large amounts of data quickly. While legitimate for data
+    migrations and integrations, unauthorized use indicates potential data theft.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.api_asynch.meta/api_asynch/
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.t1530
+    - attack.t1119
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: BulkApi
+        salesforce.api.type: 'Bulk'
+    filter_query:
+        http.request.method:
+            - 'GET'
+            - 'Query'
+    condition: selection and filter_query
+falsepositives:
+    - Data migration projects
+    - Scheduled data synchronization
+    - Third-party integration tools
+level: medium

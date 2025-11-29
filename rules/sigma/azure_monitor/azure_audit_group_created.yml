@@ -1,0 +1,27 @@
+title: Azure AD Group Created
+id: azure-audit-group-created-001
+status: stable
+description: |
+    Detects creation of new groups in Azure AD.
+    Groups can be used to grant access to resources.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/active-directory-groups-create-azure-portal
+    - https://attack.mitre.org/techniques/T1069/003/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1069.003
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains:
+            - Add group
+            - Create group
+    condition: selection
+falsepositives:
+    - Legitimate group creation
+    - Automated provisioning
+level: low

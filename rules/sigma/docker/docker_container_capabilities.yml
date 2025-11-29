@@ -1,0 +1,43 @@
+title: Docker Container with Dangerous Capabilities
+id: d1e2f3a4-5b6c-7d8e-9f0a-1b2c3d4e5f6a
+status: stable
+description: |
+    Detects Docker containers started with dangerous Linux capabilities
+    such as CAP_SYS_ADMIN, CAP_NET_ADMIN, or CAP_SYS_PTRACE that could
+    be used for privilege escalation or container escape.
+references:
+    - https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+    - https://attack.mitre.org/techniques/T1611/
+    - https://man7.org/linux/man-pages/man7/capabilities.7.html
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1611
+    - attack.privilege_escalation
+    - attack.t1548
+    - attack.abuse_elevation_control_mechanism
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action:
+            - 'start'
+            - 'create'
+    selection_dangerous_caps:
+        docker.actor.attributes.cap_add|contains:
+            - 'SYS_ADMIN'
+            - 'SYS_PTRACE'
+            - 'NET_ADMIN'
+            - 'NET_RAW'
+            - 'DAC_OVERRIDE'
+            - 'SETUID'
+            - 'SETGID'
+    condition: selection and selection_dangerous_caps
+falsepositives:
+    - Containers requiring specific capabilities for legitimate purposes
+    - Network debugging containers
+    - Security scanning tools
+level: high

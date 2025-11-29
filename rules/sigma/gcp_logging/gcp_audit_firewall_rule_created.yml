@@ -1,0 +1,28 @@
+title: GCP Firewall Rule Created
+id: gcp-audit-firewall-rule-001
+status: stable
+description: |
+    Detects creation of VPC firewall rules. New firewall rules could open
+    unauthorized network access paths or expose internal resources to the internet.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1562/007/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.007
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: compute.googleapis.com
+        gcp.audit.method_name|contains:
+            - firewalls.insert
+            - firewalls.create
+    condition: selection
+falsepositives:
+    - Legitimate network configuration
+    - Infrastructure as code deployments
+level: medium

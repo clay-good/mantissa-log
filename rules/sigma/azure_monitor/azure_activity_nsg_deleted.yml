@@ -1,0 +1,25 @@
+title: Azure NSG Deleted
+id: azure-activity-nsg-deleted-001
+status: stable
+description: |
+    Detects deletion of Network Security Groups.
+    May indicate defense evasion or sabotage.
+references:
+    - https://docs.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    - https://attack.mitre.org/techniques/T1562/007/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.007
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Network/networkSecurityGroups/delete
+    condition: selection
+falsepositives:
+    - Infrastructure teardown
+    - Resource cleanup
+level: high

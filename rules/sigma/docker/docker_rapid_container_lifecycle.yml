@@ -1,0 +1,36 @@
+title: Rapid Docker Container Lifecycle Events
+id: b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e
+status: stable
+description: |
+    Detects rapid creation and destruction of Docker containers which could
+    indicate scanning activity, exploitation attempts, or cryptocurrency
+    mining activity trying to evade detection.
+references:
+    - https://attack.mitre.org/techniques/T1496/
+    - https://attack.mitre.org/techniques/T1046/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1496
+    - attack.resource_hijacking
+    - attack.t1046
+    - attack.discovery
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection_create:
+        docker.type: 'container'
+        docker.action: 'create'
+    selection_destroy:
+        docker.type: 'container'
+        docker.action: 'destroy'
+    condition: selection_create or selection_destroy
+    timeframe: 5m
+    count: 20
+falsepositives:
+    - CI/CD pipelines with parallel builds
+    - Container-based testing frameworks
+    - Autoscaling events
+level: medium

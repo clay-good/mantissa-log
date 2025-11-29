@@ -1,0 +1,28 @@
+title: Azure AD External User Invited
+id: azure-audit-external-user-001
+status: stable
+description: |
+    Detects invitation of external (B2B) users to Azure AD.
+    External users can access organizational resources.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/external-identities/what-is-b2b
+    - https://attack.mitre.org/techniques/T1136/003/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136.003
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains:
+            - Invite external user
+            - Add invited user
+            - Redeem external user invite
+    condition: selection
+falsepositives:
+    - Legitimate guest invitations
+    - Partner collaboration
+level: low

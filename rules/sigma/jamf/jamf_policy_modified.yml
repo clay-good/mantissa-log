@@ -1,0 +1,26 @@
+title: Jamf Pro Policy Modified
+id: jamf-policy-modified-001
+status: stable
+description: |
+    Detects modifications to existing policies in Jamf Pro.
+    Unauthorized policy modifications could be used to deploy malicious payloads.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Policies.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1072
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Update
+        jamf.audit.object_type: Policy
+    condition: selection
+falsepositives:
+    - Legitimate policy updates
+    - Policy tuning and optimization
+level: low

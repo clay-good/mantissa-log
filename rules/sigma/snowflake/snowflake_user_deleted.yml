@@ -1,0 +1,26 @@
+title: Snowflake User Account Deleted
+id: snowflake-user-deleted-001
+status: stable
+description: |
+    Detects deletion of user accounts in Snowflake. User deletions should be
+    monitored for potential evidence destruction or unauthorized access removal.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/drop-user
+    - https://attack.mitre.org/techniques/T1531/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)DROP\s+USER'
+    condition: selection
+falsepositives:
+    - Legitimate user offboarding
+    - HR termination workflows
+    - Service account cleanup
+level: medium

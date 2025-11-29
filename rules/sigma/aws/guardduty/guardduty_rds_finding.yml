@@ -1,0 +1,28 @@
+title: AWS GuardDuty RDS Finding
+id: e3f4a5b6-7c8d-9e0f-1a2b-3c4d5e6f7a8b
+status: stable
+description: |
+    Detects GuardDuty RDS Protection findings indicating suspicious
+    login behavior or potential database compromise.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/rds-protection-findings.html
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.t1110
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'RDS'
+            - ':RDS/'
+    condition: selection
+falsepositives:
+    - Legitimate database access from new IPs
+    - Database migration activities
+level: high

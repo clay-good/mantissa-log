@@ -1,0 +1,27 @@
+title: GCP High Volume Data Access
+id: gcp-data-access-highvol-001
+status: stable
+description: |
+    Detects data access operations returning large numbers of items.
+    High volume data access may indicate bulk data exfiltration.
+references:
+    - https://cloud.google.com/logging/docs/audit/understanding-audit-logs
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.t1530
+logsource:
+    product: gcp
+    service: data_access_logs
+detection:
+    selection:
+        gcp.data_access.num_response_items|gt: 1000
+    condition: selection
+falsepositives:
+    - Legitimate bulk operations
+    - Data migrations
+    - Reporting queries
+level: medium

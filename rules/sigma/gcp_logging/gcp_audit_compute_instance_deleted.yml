@@ -1,0 +1,29 @@
+title: GCP Compute Instance Deleted
+id: gcp-audit-compute-instance-del-001
+status: stable
+description: |
+    Detects deletion of Compute Engine instances. Instance deletion could
+    indicate destruction of evidence, denial of service, or cleanup after
+    unauthorized access.
+references:
+    - https://cloud.google.com/compute/docs/instances
+    - https://attack.mitre.org/techniques/T1485/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1485
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: compute.googleapis.com
+        gcp.audit.method_name|contains:
+            - instances.delete
+    condition: selection
+falsepositives:
+    - Legitimate decommissioning
+    - Auto-scaling scale-down
+    - Infrastructure cleanup
+level: medium

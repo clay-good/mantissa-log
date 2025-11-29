@@ -1,0 +1,26 @@
+title: Jamf Pro Gatekeeper Security Reduced
+id: jamf-gatekeeper-disabled-001
+status: stable
+description: |
+    Detects when Gatekeeper is set to allow applications from anywhere,
+    which reduces security by allowing unsigned applications to run.
+references:
+    - https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web
+    - https://attack.mitre.org/techniques/T1553/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1553
+    - attack.t1553.001
+logsource:
+    product: jamf
+    service: computer
+detection:
+    selection:
+        jamf.security.gatekeeper_status: "Anywhere"
+    condition: selection
+falsepositives:
+    - Developer machines during testing
+    - Temporary configuration for specific software installation
+level: high

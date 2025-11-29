@@ -1,0 +1,26 @@
+title: Azure Virtual Machine Created
+id: azure-activity-vm-created-001
+status: stable
+description: |
+    Detects creation of Azure Virtual Machines.
+    May indicate legitimate deployment or resource abuse.
+references:
+    - https://docs.microsoft.com/en-us/azure/virtual-machines/
+    - https://attack.mitre.org/techniques/T1578/002/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1578.002
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Compute/virtualMachines/write
+        event.outcome: success
+    condition: selection
+falsepositives:
+    - Legitimate VM deployments
+    - Auto-scaling operations
+level: low

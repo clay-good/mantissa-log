@@ -1,0 +1,29 @@
+title: Snowflake Login Brute Force Attack
+id: snowflake-login-brute-force-001
+status: stable
+description: |
+    Detects multiple failed login attempts from the same source IP address,
+    which may indicate a brute force or password spraying attack against Snowflake.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/login_history
+    - https://attack.mitre.org/techniques/T1110/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001
+logsource:
+    product: snowflake
+    service: login_history
+detection:
+    selection:
+        event.action: user_login
+        event.outcome: failure
+    timeframe: 15m
+    condition: selection | count(source.ip) by source.ip >= 10
+falsepositives:
+    - Users legitimately forgetting passwords
+    - Automated integrations with incorrect credentials
+    - Service account credential rotation issues
+level: high

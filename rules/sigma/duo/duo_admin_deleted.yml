@@ -1,0 +1,25 @@
+title: Duo Security Administrator Deleted
+id: 3f2a1896-ad9h-4g6d-eh2g-7f1h3i5g6h7f
+status: stable
+description: |
+    Detects when an administrator account is deleted from Duo Security.
+    Could indicate covering tracks after unauthorized access or disruption
+    of security operations.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: admin_delete
+    condition: selection
+falsepositives:
+    - Normal administrator offboarding
+level: medium

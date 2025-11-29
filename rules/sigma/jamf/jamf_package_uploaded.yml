@@ -1,0 +1,27 @@
+title: Jamf Pro Package Uploaded
+id: jamf-package-uploaded-001
+status: stable
+description: |
+    Detects when a new package is uploaded to Jamf Pro.
+    Packages can contain executables deployed to managed devices.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Packages.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1072
+    - attack.t1195
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type: Package
+    condition: selection
+falsepositives:
+    - Legitimate software deployment
+    - Application updates
+level: low

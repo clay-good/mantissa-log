@@ -1,0 +1,41 @@
+title: Docker Container with Sensitive Host Path Mount
+id: c4d5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f
+status: stable
+description: |
+    Detects Docker containers mounting sensitive host paths like /etc, /var/run/docker.sock,
+    /root, or /proc. These mounts can be used for container escape, credential theft,
+    or host manipulation.
+references:
+    - https://attack.mitre.org/techniques/T1611/
+    - https://attack.mitre.org/techniques/T1552/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1611
+    - attack.privilege_escalation
+    - attack.t1552
+    - attack.credential_access
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'volume'
+        docker.action: 'mount'
+    selection_sensitive_paths:
+        docker.actor.attributes.destination|contains:
+            - '/etc/shadow'
+            - '/etc/passwd'
+            - '/var/run/docker.sock'
+            - '/root'
+            - '/proc'
+            - '/sys'
+            - '/.ssh'
+            - '/etc/kubernetes'
+    condition: selection and selection_sensitive_paths
+falsepositives:
+    - Docker-in-Docker setups
+    - Monitoring containers
+    - Backup containers
+level: high

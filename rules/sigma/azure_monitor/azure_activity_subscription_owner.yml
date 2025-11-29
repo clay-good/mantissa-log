@@ -1,0 +1,27 @@
+title: Azure Subscription Owner Role Assigned
+id: azure-activity-sub-owner-001
+status: stable
+description: |
+    Detects assignment of Owner role at subscription level.
+    Owner has full control over all resources in the subscription.
+references:
+    - https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.persistence
+    - attack.t1098
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Authorization/roleAssignments/write
+        azure.is_critical: true
+    condition: selection
+falsepositives:
+    - Legitimate administrative changes
+    - Subscription handoff
+level: critical

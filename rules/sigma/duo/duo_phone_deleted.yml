@@ -1,0 +1,26 @@
+title: Duo Security Phone Deleted from User
+id: 7f6859e2-gj5n-4m2j-kn8m-3l7n9o1m2n3l
+status: stable
+description: |
+    Detects when a phone device is deleted from a user account. Could indicate
+    an attacker removing legitimate devices to prevent the user from receiving
+    MFA prompts, or preparing to add their own device.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1531
+    - attack.impact
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: phone_delete
+    condition: selection
+falsepositives:
+    - User replacing or decommissioning old device
+    - IT cleaning up inactive devices
+level: medium

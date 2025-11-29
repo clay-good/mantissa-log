@@ -1,0 +1,39 @@
+title: Docker Image Pulled from Untrusted Registry
+id: e6f7a8b9-0c1d-2e3f-4a5b-6c7d8e9f0a1b
+status: stable
+description: |
+    Detects Docker images being pulled from registries that are not in the
+    trusted list. This could indicate supply chain attacks or use of
+    malicious container images.
+references:
+    - https://attack.mitre.org/techniques/T1195/
+    - https://attack.mitre.org/techniques/T1204/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1195
+    - attack.initial_access
+    - attack.t1195.002
+    - attack.supply_chain_compromise
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'image'
+        docker.action: 'pull'
+    filter_trusted:
+        docker.actor.attributes.name|startswith:
+            - 'docker.io/'
+            - 'gcr.io/'
+            - 'ghcr.io/'
+            - 'registry.k8s.io/'
+            - 'quay.io/'
+            - 'mcr.microsoft.com/'
+            - 'public.ecr.aws/'
+    condition: selection and not filter_trusted
+falsepositives:
+    - Internal private registries
+    - Approved third-party registries
+level: medium

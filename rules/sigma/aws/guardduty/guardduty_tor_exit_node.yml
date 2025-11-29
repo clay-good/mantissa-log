@@ -1,0 +1,26 @@
+title: AWS GuardDuty Tor Exit Node Access
+id: f4a5b6c7-8d9e-0f1a-2b3c-4d5e6f7a8b9c
+status: stable
+description: |
+    Detects GuardDuty findings indicating access from or to Tor
+    exit nodes, which may indicate anonymization for malicious purposes.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1090.003/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.command_and_control
+    - attack.t1090.003
+    - attack.defense_evasion
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains: 'Tor'
+    condition: selection
+falsepositives:
+    - Legitimate Tor usage for privacy
+    - Research environments
+level: high

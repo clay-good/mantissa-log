@@ -1,0 +1,25 @@
+title: Duo Security User Locked Out
+id: 0e919gj9-nq2u-4t9q-ru5t-0s4u6v8t9u0s
+status: stable
+description: |
+    Detects when a user account is locked out in Duo Security due to too many
+    failed authentication attempts. Could indicate a brute force attack or
+    credential stuffing campaign targeting the user.
+references:
+    - https://duo.com/docs/adminapi#authentication-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        result: LOCKED_OUT
+    condition: selection
+falsepositives:
+    - User forgetting their credentials
+level: medium

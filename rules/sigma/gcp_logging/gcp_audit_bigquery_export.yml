@@ -1,0 +1,30 @@
+title: GCP BigQuery Data Export
+id: gcp-audit-bigquery-export-001
+status: stable
+description: |
+    Detects data export operations from BigQuery. Large data exports could
+    indicate exfiltration of sensitive data from analytics datasets.
+references:
+    - https://cloud.google.com/bigquery/docs/exporting-data
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: bigquery.googleapis.com
+        gcp.audit.method_name|contains:
+            - jobs.insert
+            - tabledata.exportToStorage
+            - extractTable
+    condition: selection
+falsepositives:
+    - Legitimate data exports for reporting
+    - ETL pipelines
+    - Backup operations
+level: medium

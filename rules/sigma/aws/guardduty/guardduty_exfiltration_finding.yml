@@ -1,0 +1,26 @@
+title: AWS GuardDuty Data Exfiltration Finding
+id: a3b4c5d6-7e8f-9a0b-1c2d-3e4f5a6b7c8d
+status: stable
+description: |
+    Detects GuardDuty findings indicating data exfiltration attempts
+    such as unusual S3 access patterns or large data transfers.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-s3.html
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.t1537
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Exfiltration:'
+    condition: selection
+falsepositives:
+    - Legitimate large data transfers
+    - Backup operations
+level: critical

@@ -1,0 +1,27 @@
+title: Salesforce Potential Session Hijacking
+id: sf-session-hijacking-001
+status: stable
+description: |
+    Detects when the same session is used from multiple IP addresses, which
+    may indicate session token theft or session hijacking.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_session_settings.htm
+    - https://attack.mitre.org/techniques/T1539/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1539
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.session_key|exists: true
+    timeframe: 30m
+    condition: selection | count(source.ip) by salesforce.session_key >= 2
+falsepositives:
+    - Users switching between networks (WiFi/VPN)
+    - Load balancer IP changes
+    - Mobile users with changing IPs
+level: high

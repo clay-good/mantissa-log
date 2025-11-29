@@ -1,0 +1,49 @@
+title: Docker Image with Suspicious Tag
+id: a4b5c6d7-8e9f-0a1b-2c3d-4e5f6a7b8c9d
+status: stable
+description: |
+    Detects Docker images being pulled or created with suspicious tags
+    that may indicate cryptocurrency miners, backdoors, or other malicious
+    containers.
+references:
+    - https://attack.mitre.org/techniques/T1496/
+    - https://attack.mitre.org/techniques/T1204/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1496
+    - attack.resource_hijacking
+    - attack.t1204
+    - attack.user_execution
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'image'
+        docker.action:
+            - 'pull'
+            - 'tag'
+    selection_suspicious:
+        docker.actor.attributes.name|contains:
+            - 'xmrig'
+            - 'miner'
+            - 'cryptominer'
+            - 'monero'
+            - 'bitcoin'
+            - 'ethereum'
+            - 'coinhive'
+            - 'cryptonight'
+            - 'backdoor'
+            - 'rootkit'
+            - 'webshell'
+            - 'reverse-shell'
+            - 'pentest'
+            - 'kali'
+            - 'metasploit'
+    condition: selection and selection_suspicious
+falsepositives:
+    - Security research and testing
+    - Authorized penetration testing
+level: high

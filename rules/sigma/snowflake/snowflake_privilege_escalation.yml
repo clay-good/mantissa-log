@@ -1,0 +1,33 @@
+title: Snowflake High-Risk Privilege Grant
+id: snowflake-privilege-escalation-001
+status: stable
+description: |
+    Detects when high-risk privileges are granted in Snowflake, such as ACCOUNTADMIN,
+    SECURITYADMIN, or SYSADMIN roles. These grants should be closely monitored.
+references:
+    - https://docs.snowflake.com/en/user-guide/security-access-control-overview
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098
+    - attack.t1098.001
+logsource:
+    product: snowflake
+    service: grants
+detection:
+    selection:
+        event.action: grant_privilege
+        snowflake.grant.privilege:
+            - ACCOUNTADMIN
+            - SECURITYADMIN
+            - SYSADMIN
+            - ORGADMIN
+    condition: selection
+falsepositives:
+    - Legitimate administrative role assignments
+    - Emergency access procedures
+    - New administrator onboarding
+level: high

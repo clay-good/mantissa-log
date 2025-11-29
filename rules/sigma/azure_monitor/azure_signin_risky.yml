@@ -1,0 +1,28 @@
+title: Azure AD Risky Sign-in Detected
+id: azure-signin-risky-001
+status: stable
+description: |
+    Detects sign-in events flagged as risky by Azure AD Identity Protection.
+    High risk sign-ins may indicate compromised credentials or suspicious activity.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/overview-identity-protection
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.risk.level:
+            - high
+            - medium
+    condition: selection
+falsepositives:
+    - Users traveling
+    - VPN usage from new locations
+    - First-time device usage
+level: high

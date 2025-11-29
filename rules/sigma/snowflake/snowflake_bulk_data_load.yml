@@ -1,0 +1,28 @@
+title: Snowflake Bulk Data Load from External Source
+id: snowflake-bulk-data-load-001
+status: stable
+description: |
+    Detects large data loads from external stages, which may indicate
+    unauthorized data imports or potential supply chain attacks.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/copy_history
+    - https://attack.mitre.org/techniques/T1195/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1195
+logsource:
+    product: snowflake
+    service: copy_history
+detection:
+    selection:
+        event.action: data_load
+    filter_large:
+        snowflake.copy.row_count|gte: 1000000
+    condition: selection and filter_large
+falsepositives:
+    - Legitimate bulk data imports
+    - Data migration projects
+    - Regular ETL processes
+level: low

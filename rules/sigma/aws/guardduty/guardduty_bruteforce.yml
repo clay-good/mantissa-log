@@ -1,0 +1,26 @@
+title: AWS GuardDuty Brute Force Finding
+id: a5b6c7d8-9e0f-1a2b-3c4d-5e6f7a8b9c0d
+status: stable
+description: |
+    Detects GuardDuty findings indicating brute force attacks
+    such as SSH or RDP password guessing attempts.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1110/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains: 'BruteForce'
+    condition: selection
+falsepositives:
+    - Legitimate failed login attempts
+    - Automated scanners
+level: medium

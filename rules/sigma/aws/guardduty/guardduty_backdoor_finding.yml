@@ -1,0 +1,27 @@
+title: AWS GuardDuty Backdoor Finding
+id: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+status: stable
+description: |
+    Detects GuardDuty findings indicating backdoor activity such as
+    C2 communication, cryptocurrency mining, or trojan behavior.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1071/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.command_and_control
+    - attack.t1071
+    - attack.t1572
+    - attack.t1090
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Backdoor:'
+    condition: selection
+falsepositives:
+    - Legitimate security research
+    - Authorized penetration testing
+level: critical

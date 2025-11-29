@@ -1,0 +1,28 @@
+title: Snowflake Warehouse Resource Abuse
+id: snowflake-warehouse-abuse-001
+status: stable
+description: |
+    Detects queries consuming excessive compute credits or running for unusually
+    long periods. This may indicate resource abuse, cryptomining, or denial of service.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/query_history
+    - https://attack.mitre.org/techniques/T1496/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1496
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        event.action: query_execution
+    filter_high_credits:
+        snowflake.performance.credits_used|gte: 10.0
+    condition: selection and filter_high_credits
+falsepositives:
+    - Legitimate large-scale data processing
+    - End of quarter analytics jobs
+    - Machine learning training workloads
+level: medium

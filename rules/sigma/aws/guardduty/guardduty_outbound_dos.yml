@@ -1,0 +1,27 @@
+title: AWS GuardDuty Outbound DoS Finding
+id: c7d8e9f0-1a2b-3c4d-5e6f-7a8b9c0d1e2f
+status: stable
+description: |
+    Detects GuardDuty findings indicating an EC2 instance is
+    participating in a denial of service attack.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1498/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1498
+    - attack.t1499
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'DenialOfService'
+            - 'DoS'
+    condition: selection
+falsepositives:
+    - High-traffic legitimate services
+level: critical

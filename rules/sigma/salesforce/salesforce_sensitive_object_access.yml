@@ -1,0 +1,40 @@
+title: Salesforce Sensitive Object Access
+id: sf-sensitive-object-access-001
+status: stable
+description: |
+    Detects API access to sensitive Salesforce objects that contain
+    personally identifiable information (PII) or financial data.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1530
+    - attack.t1213
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type:
+            - 'API'
+            - 'RestApi'
+        salesforce.entity_name|contains:
+            - 'Contact'
+            - 'Lead'
+            - 'Account'
+            - 'Opportunity'
+            - 'User'
+            - 'CreditCard'
+            - 'Payment'
+            - 'Bank'
+    filter_large_query:
+        salesforce.performance.rows_processed|gte: 100
+    condition: selection and filter_large_query
+falsepositives:
+    - Legitimate data exports
+    - Business intelligence queries
+    - CRM operations
+level: medium

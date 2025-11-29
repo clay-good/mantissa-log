@@ -1,0 +1,26 @@
+title: Duo Security User Deleted
+id: 5b4c3a74-8b7f-4e4b-cf0e-5d9f1g3e4f5d
+status: stable
+description: |
+    Detects when a user is deleted from Duo Security. Unauthorized deletion of users
+    could indicate an attacker attempting to disable MFA protection for specific
+    accounts or covering their tracks.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.impact
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: user_delete
+    condition: selection
+falsepositives:
+    - Normal user offboarding by IT administrators
+    - Automated cleanup of inactive users
+level: medium

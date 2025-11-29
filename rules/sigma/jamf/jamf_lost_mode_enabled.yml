@@ -1,0 +1,25 @@
+title: Jamf Pro Lost Mode Enabled
+id: jamf-lost-mode-enabled-001
+status: stable
+description: |
+    Detects when Lost Mode is enabled on a mobile device.
+    May indicate a stolen or missing device.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Lost_Mode.html
+    - https://attack.mitre.org/techniques/T1531/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: jamf
+    service: mobile_device
+detection:
+    selection:
+        jamf.security.lost_mode_enabled: true
+    condition: selection
+falsepositives:
+    - Legitimate device loss reporting
+    - Security team testing
+level: medium

@@ -1,0 +1,28 @@
+title: Snowflake Session Hijacking Indicator
+id: snowflake-session-hijacking-001
+status: stable
+description: |
+    Detects potential session hijacking by identifying sessions where the
+    source IP address changes during an active session.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/sessions
+    - https://attack.mitre.org/techniques/T1563/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.lateral_movement
+    - attack.t1563
+    - attack.t1550
+logsource:
+    product: snowflake
+    service: sessions
+detection:
+    selection:
+        event.action: session_activity
+    condition: selection
+falsepositives:
+    - VPN reconnections
+    - Mobile users changing networks
+    - Load balancer IP changes
+level: medium

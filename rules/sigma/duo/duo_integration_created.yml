@@ -1,0 +1,25 @@
+title: Duo Security Integration Created
+id: 2e1b0907-be0i-4h7e-fi3h-8g2i4j6h7i8g
+status: stable
+description: |
+    Detects when a new integration (application) is created in Duo Security.
+    Unauthorized integrations could allow attackers to intercept authentication
+    flows or bypass MFA controls.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098
+    - attack.defense_evasion
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: integration_create
+    condition: selection
+falsepositives:
+    - Legitimate application onboarding
+level: medium

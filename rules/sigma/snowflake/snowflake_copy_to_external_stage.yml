@@ -1,0 +1,33 @@
+title: Snowflake Data Copy to External Stage
+id: snowflake-copy-to-external-stage-001
+status: stable
+description: |
+    Detects COPY commands that export data to external stages (S3, Azure, GCS).
+    This may indicate data exfiltration if not part of normal operations.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/copy-into-location
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.t1537
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.type: COPY
+        snowflake.query.text|contains:
+            - "COPY INTO '@"
+            - "copy into '@"
+            - "s3://"
+            - "azure://"
+            - "gcs://"
+    condition: selection
+falsepositives:
+    - Legitimate data export for backup
+    - Approved data sharing workflows
+    - ETL processes to external systems
+level: medium

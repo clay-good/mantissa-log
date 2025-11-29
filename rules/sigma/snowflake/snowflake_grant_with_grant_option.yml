@@ -1,0 +1,27 @@
+title: Snowflake Grant with Grant Option
+id: snowflake-grant-with-grant-option-001
+status: stable
+description: |
+    Detects when privileges are granted with the GRANT OPTION, which allows
+    the recipient to further grant those privileges to others. This can lead
+    to privilege sprawl and should be monitored.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/grant-privilege
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098
+logsource:
+    product: snowflake
+    service: grants
+detection:
+    selection:
+        event.action: grant_privilege
+        snowflake.grant.grant_option: true
+    condition: selection
+falsepositives:
+    - Legitimate delegation of administrative duties
+    - Role hierarchy setup
+level: medium

@@ -1,0 +1,30 @@
+title: GCP Project Owner Role Added
+id: gcp-audit-project-owner-001
+status: stable
+description: |
+    Detects when the Owner role is granted at the project level. Owner
+    role provides full administrative access and should be closely monitored.
+references:
+    - https://cloud.google.com/iam/docs/understanding-roles
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.method_name|endswith:
+            - SetIamPolicy
+            - setIamPolicy
+    owner_role:
+        gcp.request|contains: roles/owner
+    condition: selection and owner_role
+falsepositives:
+    - Legitimate administrator onboarding
+    - Emergency access provisioning
+level: high

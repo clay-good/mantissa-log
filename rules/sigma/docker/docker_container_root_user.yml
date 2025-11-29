@@ -1,0 +1,34 @@
+title: Docker Container Running as Root
+id: e2f3a4b5-6c7d-8e9f-0a1b-2c3d4e5f6a7b
+status: stable
+description: |
+    Detects Docker containers running as the root user inside the container.
+    Running containers as root increases the risk of privilege escalation
+    and container escape vulnerabilities.
+references:
+    - https://docs.docker.com/engine/reference/run/#user
+    - https://attack.mitre.org/techniques/T1611/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1611
+    - attack.privilege_escalation
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'start'
+    selection_root:
+        docker.actor.attributes.user|startswith:
+            - 'root'
+            - '0:'
+    filter_no_user:
+        docker.actor.attributes.user: ''
+    condition: selection and (selection_root or filter_no_user)
+falsepositives:
+    - System containers requiring root
+    - Legacy applications without non-root support
+level: low

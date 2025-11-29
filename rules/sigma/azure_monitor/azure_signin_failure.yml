@@ -1,0 +1,27 @@
+title: Azure AD Sign-in Failure
+id: azure-signin-failure-001
+status: stable
+description: |
+    Detects failed Azure AD sign-in attempts. Multiple failures may indicate
+    a brute force attack or credential stuffing attempt.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+    - https://attack.mitre.org/techniques/T1110/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        event.action: sign-in
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Users forgetting passwords
+    - Expired passwords
+    - Account lockouts from legitimate use
+level: medium

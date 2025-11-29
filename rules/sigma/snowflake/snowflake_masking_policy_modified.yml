@@ -1,0 +1,27 @@
+title: Snowflake Data Masking Policy Modified
+id: snowflake-masking-policy-modified-001
+status: stable
+description: |
+    Detects modifications to data masking policies in Snowflake. Masking policies
+    protect sensitive data and changes may indicate attempts to access protected data.
+references:
+    - https://docs.snowflake.com/en/user-guide/security-column-ddm-intro
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)(CREATE|ALTER|DROP)\s+MASKING\s+POLICY'
+    condition: selection
+falsepositives:
+    - Legitimate masking policy updates
+    - Compliance requirement changes
+    - Data classification changes
+level: high

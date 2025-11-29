@@ -1,0 +1,34 @@
+title: Salesforce IP Restriction Removed
+id: sf-ip-restriction-removed-001
+status: stable
+description: |
+    Detects when IP address restrictions are removed from a profile or user,
+    which allows access from any location and may indicate preparation for
+    unauthorized access.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_networkaccess.htm
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.action|contains:
+            - 'IP'
+            - 'Network'
+            - 'Login IP'
+        salesforce.audit_trail.action|contains:
+            - 'removed'
+            - 'deleted'
+            - 'disabled'
+    condition: selection
+falsepositives:
+    - Legitimate network access policy changes
+    - User mobility requirements
+level: high

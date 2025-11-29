@@ -1,0 +1,26 @@
+title: Jamf Pro Mobile Device Passcode Not Compliant
+id: jamf-passcode-not-compliant-001
+status: stable
+description: |
+    Detects when a mobile device passcode does not meet compliance requirements.
+    Non-compliant passcodes may indicate weak security configurations.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Mobile_Device_Configuration_Profiles.html
+    - https://attack.mitre.org/techniques/T1556/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1556
+logsource:
+    product: jamf
+    service: mobile_device
+detection:
+    selection:
+        jamf.security.passcode_compliant: false
+        jamf.security.passcode_present: true
+    condition: selection
+falsepositives:
+    - Recent passcode policy changes before device compliance
+    - BYOD devices with different compliance requirements
+level: medium

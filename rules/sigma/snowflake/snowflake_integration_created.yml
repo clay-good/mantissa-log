@@ -1,0 +1,27 @@
+title: Snowflake External Integration Created
+id: snowflake-integration-created-001
+status: stable
+description: |
+    Detects creation of storage or API integrations in Snowflake. Integrations
+    connect Snowflake to external services and may be used for data exfiltration.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.t1537
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+(STORAGE|API|NOTIFICATION)\s+INTEGRATION'
+    condition: selection
+falsepositives:
+    - Legitimate integration setup for ETL
+    - Approved cloud storage connections
+    - API gateway configurations
+level: medium

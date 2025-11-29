@@ -1,0 +1,32 @@
+title: Salesforce Excessive API Usage
+id: sf-high-api-usage-001
+status: stable
+description: |
+    Detects unusually high API call volumes from a single user, which may
+    indicate automated data harvesting, enumeration, or DoS attempts.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.salesforce_app_limits_cheatsheet.meta/
+    - https://attack.mitre.org/techniques/T1119/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1119
+    - attack.t1018
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type:
+            - 'API'
+            - 'RestApi'
+            - 'ApexSoap'
+            - 'ApexRest'
+    timeframe: 1h
+    condition: selection | count(user.id) by user.id >= 1000
+falsepositives:
+    - Data migration activities
+    - Legitimate high-volume integrations
+    - Batch processing operations
+level: medium

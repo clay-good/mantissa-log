@@ -1,0 +1,25 @@
+title: Duo Security Integration Deleted
+id: 1d0a9018-cf1j-4i8f-gj4i-9h3j5k7i8j9h
+status: stable
+description: |
+    Detects when an integration (application) is deleted from Duo Security.
+    Deleting integrations removes MFA protection from applications, potentially
+    allowing unauthorized access.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.impact
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: integration_delete
+    condition: selection
+falsepositives:
+    - Legitimate application decommissioning
+level: high

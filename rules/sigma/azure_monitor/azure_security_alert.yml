@@ -1,0 +1,25 @@
+title: Azure Security Center Alert
+id: azure-security-alert-001
+status: stable
+description: |
+    Detects security alerts from Azure Security Center/Defender.
+    These alerts indicate potential threats detected by Azure's security services.
+references:
+    - https://docs.microsoft.com/en-us/azure/defender-for-cloud/alerts-overview
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: azure
+    service: security_alerts
+detection:
+    selection:
+        event.kind: alert
+    condition: selection
+falsepositives:
+    - False positives from Security Center
+    - Testing activities
+level: high

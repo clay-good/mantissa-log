@@ -1,0 +1,28 @@
+title: Jamf Pro Device Unenrolled
+id: jamf-device-unenrolled-001
+status: stable
+description: |
+    Detects when a device is unenrolled from Jamf Pro management.
+    Unexpected unenrollments may indicate unauthorized device access or data theft attempts.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Unenrolling_Computers.html
+    - https://attack.mitre.org/techniques/T1070/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1070
+logsource:
+    product: jamf
+    service: webhook
+detection:
+    selection:
+        jamf.event_type:
+            - ComputerUnenrolled
+            - MobileDeviceUnenrolled
+    condition: selection
+falsepositives:
+    - Legitimate device decommissioning
+    - Device transfers between users
+    - Device retirement process
+level: high

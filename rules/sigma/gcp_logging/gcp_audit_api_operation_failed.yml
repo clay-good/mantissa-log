@@ -1,0 +1,27 @@
+title: GCP API Operation Failed
+id: gcp-audit-api-failed-001
+status: stable
+description: |
+    Detects failed API operations in GCP. Multiple failures may indicate
+    reconnaissance, misconfigured access, or attempted unauthorized access.
+references:
+    - https://cloud.google.com/logging/docs/audit
+    - https://attack.mitre.org/techniques/T1580/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        event.outcome: failure
+        gcp.status.code|gt: 0
+    condition: selection
+falsepositives:
+    - Permission denied for legitimate operations
+    - Misconfigured applications
+    - Network issues
+level: low

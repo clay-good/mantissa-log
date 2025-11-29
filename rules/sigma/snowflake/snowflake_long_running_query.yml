@@ -1,0 +1,28 @@
+title: Snowflake Long Running Query
+id: snowflake-long-running-query-001
+status: stable
+description: |
+    Detects queries that run for an unusually long time, which may indicate
+    resource abuse, inefficient queries, or potential denial of service.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/query_history
+    - https://attack.mitre.org/techniques/T1499/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1499
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        event.action: query_execution
+    filter_long_duration:
+        event.duration|gte: 3600000
+    condition: selection and filter_long_duration
+falsepositives:
+    - Legitimate long-running ETL jobs
+    - Data migration operations
+    - Complex analytical queries
+level: low

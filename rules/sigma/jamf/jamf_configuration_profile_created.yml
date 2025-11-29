@@ -1,0 +1,31 @@
+title: Jamf Pro Configuration Profile Created
+id: jamf-configuration-profile-created-001
+status: stable
+description: |
+    Detects creation of new configuration profiles in Jamf Pro.
+    Configuration profiles control device settings and security configurations.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Configuration_Profiles.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.t1072
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type:
+            - ConfigurationProfile
+            - Configuration Profile
+            - OSX Configuration Profile
+            - macOS Configuration Profile
+    condition: selection
+falsepositives:
+    - Legitimate profile deployment
+    - Security policy rollouts
+level: low

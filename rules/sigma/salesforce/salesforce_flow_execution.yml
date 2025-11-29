@@ -1,0 +1,26 @@
+title: Salesforce Flow Execution
+id: sf-flow-execution-001
+status: stable
+description: |
+    Detects Flow execution events. Flows are automation tools that can perform
+    powerful actions. Monitor for unauthorized or suspicious flow executions.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.flow.htm
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: FlowExecution
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Flow bugs or misconfigurations
+    - Data validation failures
+level: low

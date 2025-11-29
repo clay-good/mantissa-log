@@ -1,0 +1,26 @@
+title: Jamf Pro Script Created
+id: jamf-script-created-001
+status: stable
+description: |
+    Detects creation of new scripts in Jamf Pro.
+    Scripts can execute arbitrary code on managed devices.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Scripts.html
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type: Script
+    condition: selection
+falsepositives:
+    - Legitimate script development
+    - IT automation creation
+level: medium

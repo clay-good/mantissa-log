@@ -1,0 +1,26 @@
+title: Jamf Pro System Integrity Protection Disabled
+id: jamf-sip-disabled-001
+status: stable
+description: |
+    Detects when System Integrity Protection (SIP) is disabled on a managed device.
+    SIP protects system files and processes and should not be disabled in production.
+references:
+    - https://support.apple.com/en-us/HT204899
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: jamf
+    service: computer
+detection:
+    selection:
+        jamf.hardware.sip_status: "Disabled"
+    condition: selection
+falsepositives:
+    - Developer machines requiring kernel extensions
+    - Legacy software compatibility requirements
+level: critical

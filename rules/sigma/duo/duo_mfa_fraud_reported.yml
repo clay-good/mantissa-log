@@ -1,0 +1,27 @@
+title: Duo Security MFA Fraud Reported
+id: 7d4e3c52-6b5d-4e29-af8c-3b7d9e0f1c2b
+status: stable
+description: |
+    Detects when a user reports fraud during Duo authentication. This is a critical
+    security indicator that the user received an unexpected MFA prompt, potentially
+    indicating their credentials have been compromised.
+references:
+    - https://duo.com/docs/adminapi#authentication-logs
+    - https://duo.com/docs/policy#fraud-report
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1078
+    - attack.initial_access
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        event_type: authentication
+        result: FRAUD
+    condition: selection
+falsepositives:
+    - User accidentally pressing fraud button
+level: high

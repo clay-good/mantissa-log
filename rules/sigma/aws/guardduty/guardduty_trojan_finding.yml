@@ -1,0 +1,25 @@
+title: AWS GuardDuty Trojan Finding
+id: c3d4e5f6-7a8b-9c0d-1e2f-3a4b5c6d7e8f
+status: stable
+description: |
+    Detects GuardDuty findings indicating trojan malware activity
+    such as data exfiltration, remote access, or dropper behavior.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1105/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1204
+    - attack.t1105
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Trojan:'
+    condition: selection
+falsepositives:
+    - Very unlikely in production environments
+level: critical

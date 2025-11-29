@@ -1,0 +1,25 @@
+title: GCP Permission Denied
+id: gcp-audit-permission-denied-001
+status: stable
+description: |
+    Detects permission denied errors in GCP. Repeated permission denied
+    events may indicate attempted privilege escalation or enumeration.
+references:
+    - https://cloud.google.com/logging/docs/audit
+    - https://attack.mitre.org/techniques/T1069/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1069
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.status.code: 7
+    condition: selection
+falsepositives:
+    - Normal access control enforcement
+    - Misconfigured service accounts
+level: low

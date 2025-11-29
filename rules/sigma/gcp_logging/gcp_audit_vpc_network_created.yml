@@ -1,0 +1,28 @@
+title: GCP VPC Network Created
+id: gcp-audit-vpc-network-001
+status: stable
+description: |
+    Detects creation of VPC networks. Unauthorized network creation could
+    be used to establish isolated environments for malicious activity.
+references:
+    - https://cloud.google.com/vpc/docs/vpc
+    - https://attack.mitre.org/techniques/T1578/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1578
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: compute.googleapis.com
+        gcp.audit.method_name|contains:
+            - networks.insert
+            - networks.create
+    condition: selection
+falsepositives:
+    - Legitimate network provisioning
+    - Infrastructure as code deployments
+level: low

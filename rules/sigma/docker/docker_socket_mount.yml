@@ -1,0 +1,34 @@
+title: Docker Socket Mounted in Container
+id: c6d7e8f9-0a1b-2c3d-4e5f-6a7b8c9d0e1f
+status: stable
+description: |
+    Detects when the Docker socket is mounted inside a container.
+    This is a critical security risk as it allows the container to
+    control the Docker daemon, create privileged containers, and
+    escape to the host system.
+references:
+    - https://attack.mitre.org/techniques/T1611/
+    - https://blog.securitum.pl/dockersocket/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1611
+    - attack.privilege_escalation
+    - attack.t1610
+    - attack.deploy_container
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'volume'
+        docker.action: 'mount'
+    selection_socket:
+        docker.actor.attributes.destination|endswith: 'docker.sock'
+    condition: selection and selection_socket
+falsepositives:
+    - Docker-in-Docker for CI/CD pipelines
+    - Container management tools
+    - Monitoring solutions
+level: critical

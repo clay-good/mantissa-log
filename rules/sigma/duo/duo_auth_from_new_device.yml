@@ -1,0 +1,27 @@
+title: Duo Security Authentication from New Device
+id: 3b241dg6-kn9r-4q6n-or2q-7p1r3s5q6r7p
+status: stable
+description: |
+    Detects authentication attempts where the user is using a device that
+    hasn't been seen before. Could indicate credential theft where an attacker
+    is authenticating from their own device.
+references:
+    - https://duo.com/docs/adminapi#authentication-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+    - attack.credential_access
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        event_type: authentication
+        new_enrollment: true
+    condition: selection
+falsepositives:
+    - User logging in with new device for the first time
+    - Device replacement
+level: low

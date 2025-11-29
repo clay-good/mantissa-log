@@ -1,0 +1,26 @@
+title: GCP Firewall RDP Access Allowed
+id: gcp-firewall-rdp-001
+status: stable
+description: |
+    Detects RDP traffic (port 3389) allowed through firewall. RDP access
+    should be monitored for unauthorized remote access attempts.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1021/001/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.lateral_movement
+    - attack.t1021.001
+logsource:
+    product: gcp
+    service: firewall_logs
+detection:
+    selection:
+        gcp.firewall.disposition: ALLOWED
+        destination.port: 3389
+    condition: selection
+falsepositives:
+    - Legitimate Windows administration
+    - Bastion host access
+level: medium

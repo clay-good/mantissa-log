@@ -1,0 +1,27 @@
+title: Azure Security Alert - Brute Force Attack
+id: azure-security-alert-brute-force-001
+status: stable
+description: |
+    Detects Azure Defender alerts for brute force attacks against VMs or services.
+references:
+    - https://docs.microsoft.com/en-us/azure/defender-for-cloud/alerts-reference
+    - https://attack.mitre.org/techniques/T1110/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+logsource:
+    product: azure
+    service: security_alerts
+detection:
+    selection:
+        event.kind: alert
+        azure.security_alert.alert_type|contains:
+            - BruteForce
+            - PasswordSpray
+            - CredentialAccess
+    condition: selection
+falsepositives:
+    - Rarely false positive
+level: high

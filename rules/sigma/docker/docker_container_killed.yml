@@ -1,0 +1,31 @@
+title: Docker Container Forcefully Killed
+id: a8b9c0d1-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+status: stable
+description: |
+    Detects when a Docker container is forcefully killed (SIGKILL).
+    This could indicate incident response activity, failed deployments,
+    or attempts to stop security monitoring containers.
+references:
+    - https://docs.docker.com/engine/reference/commandline/kill/
+    - https://attack.mitre.org/techniques/T1489/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1489
+    - attack.impact
+    - attack.t1562
+    - attack.defense_evasion
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'kill'
+    condition: selection
+falsepositives:
+    - Container orchestration during deployments
+    - Graceful shutdown procedures
+    - Resource cleanup
+level: low

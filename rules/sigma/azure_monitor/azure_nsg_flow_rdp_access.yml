@@ -1,0 +1,27 @@
+title: Azure NSG RDP Access Detected
+id: azure-nsg-flow-rdp-001
+status: stable
+description: |
+    Detects RDP (port 3389) traffic allowed through NSG.
+    RDP is a common target for attackers.
+references:
+    - https://docs.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+    - https://attack.mitre.org/techniques/T1021/001/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.lateral_movement
+    - attack.t1021.001
+logsource:
+    product: azure
+    service: nsg_flow_logs
+detection:
+    selection:
+        event.action: nsg_allow
+        destination.port: 3389
+        network.direction: inbound
+    condition: selection
+falsepositives:
+    - Legitimate RDP access
+    - Azure Bastion
+level: medium

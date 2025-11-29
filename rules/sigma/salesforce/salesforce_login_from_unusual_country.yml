@@ -1,0 +1,35 @@
+title: Salesforce Login From Unusual Country
+id: sf-login-unusual-country-001
+status: stable
+description: |
+    Detects successful logins from countries that are unusual for the organization,
+    which may indicate compromised credentials or unauthorized access.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_overview_login_history.htm
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+    - attack.t1078.004
+logsource:
+    product: salesforce
+    service: login
+detection:
+    selection:
+        event.action: user_login
+        event.outcome: success
+    filter_known_countries:
+        salesforce.login.country_iso:
+            - US
+            - CA
+            - GB
+            - DE
+            - FR
+    condition: selection and not filter_known_countries
+falsepositives:
+    - Remote workers traveling internationally
+    - VPN egress in different countries
+    - Legitimate business operations in other countries
+level: medium

@@ -1,0 +1,27 @@
+title: Salesforce Package Installed
+id: sf-package-installed-001
+status: stable
+description: |
+    Detects when a managed or unmanaged package is installed in the Salesforce
+    org. Packages can introduce code and functionality that may be malicious
+    or introduce vulnerabilities.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.distribution_installing_packages.htm
+    - https://attack.mitre.org/techniques/T1195/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1195
+    - attack.t1195.002
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: PackageInstall
+    condition: selection
+falsepositives:
+    - Legitimate AppExchange installations
+    - Partner solution deployments
+level: medium

@@ -1,0 +1,26 @@
+title: Jamf Pro Policy Created
+id: jamf-policy-created-001
+status: stable
+description: |
+    Detects creation of new policies in Jamf Pro.
+    Policies can execute scripts and install software on managed devices.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Policies.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1072
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type: Policy
+    condition: selection
+falsepositives:
+    - Legitimate policy deployment
+    - IT operations activities
+level: low

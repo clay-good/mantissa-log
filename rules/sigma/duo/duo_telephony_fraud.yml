@@ -1,0 +1,27 @@
+title: Duo Security Telephony Fraud Detection
+id: 4e353mp5-tw8a-4z5w-xa1z-6y0a2b4z5a6y
+status: stable
+description: |
+    Detects telephony events that may indicate fraud, such as unusual SMS or
+    phone call patterns. Could indicate toll fraud or abuse of Duo's telephony
+    services.
+references:
+    - https://duo.com/docs/adminapi#telephony-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.resource_hijacking
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        context|contains:
+            - fraud
+            - suspicious
+            - blocked
+    condition: selection
+falsepositives:
+    - False positive from fraud detection system
+level: medium

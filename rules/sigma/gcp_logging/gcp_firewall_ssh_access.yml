@@ -1,0 +1,26 @@
+title: GCP Firewall SSH Access Allowed
+id: gcp-firewall-ssh-001
+status: stable
+description: |
+    Detects SSH traffic (port 22) allowed through firewall. SSH access
+    should be monitored for unauthorized remote access attempts.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1021/004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.lateral_movement
+    - attack.t1021.004
+logsource:
+    product: gcp
+    service: firewall_logs
+detection:
+    selection:
+        gcp.firewall.disposition: ALLOWED
+        destination.port: 22
+    condition: selection
+falsepositives:
+    - Legitimate SSH administration
+    - Bastion host access
+level: low

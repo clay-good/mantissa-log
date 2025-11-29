@@ -1,0 +1,30 @@
+title: Jamf Pro Administrator Account Created
+id: jamf-admin-created-001
+status: stable
+description: |
+    Detects creation of new administrator accounts in Jamf Pro.
+    Unauthorized admin account creation may indicate privilege escalation.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Jamf_Pro_User_Accounts.html
+    - https://attack.mitre.org/techniques/T1136/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136
+    - attack.t1136.003
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type:
+            - Account
+            - User
+            - Administrator
+    condition: selection
+falsepositives:
+    - Legitimate administrator onboarding
+    - Service account creation
+level: medium

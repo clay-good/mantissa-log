@@ -1,0 +1,27 @@
+title: Snowflake User Account Created
+id: snowflake-user-created-001
+status: stable
+description: |
+    Detects creation of new user accounts in Snowflake. New accounts should be
+    monitored to ensure they are created through proper provisioning channels.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/create-user
+    - https://attack.mitre.org/techniques/T1136/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136
+    - attack.t1136.003
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+USER'
+    condition: selection
+falsepositives:
+    - Legitimate user provisioning
+    - HR onboarding workflows
+    - Service account creation
+level: medium

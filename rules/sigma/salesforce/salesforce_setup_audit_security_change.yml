@@ -1,0 +1,30 @@
+title: Salesforce Security Settings Changed
+id: sf-security-settings-changed-001
+status: stable
+description: |
+    Detects changes to security settings in Salesforce Setup, which may
+    indicate attempts to weaken security controls or establish persistence.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_overview.htm
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.section|contains:
+            - 'Security'
+            - 'Session Settings'
+            - 'Password Policies'
+            - 'Login Access'
+    condition: selection
+falsepositives:
+    - Legitimate security configuration changes
+    - Compliance-driven policy updates
+level: medium

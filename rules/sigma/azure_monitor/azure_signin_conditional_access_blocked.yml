@@ -1,0 +1,26 @@
+title: Azure AD Conditional Access Policy Blocked Sign-in
+id: azure-signin-ca-blocked-001
+status: stable
+description: |
+    Detects sign-in attempts blocked by Azure AD conditional access policies.
+    May indicate unauthorized access attempts or policy misconfiguration.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/overview
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.conditional_access.status: failure
+    condition: selection
+falsepositives:
+    - New devices not yet enrolled
+    - Users accessing from untrusted networks
+    - Application misconfiguration
+level: medium

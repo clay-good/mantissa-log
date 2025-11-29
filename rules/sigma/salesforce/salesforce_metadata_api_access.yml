@@ -1,0 +1,29 @@
+title: Salesforce Metadata API Access
+id: sf-metadata-api-access-001
+status: stable
+description: |
+    Detects access to the Metadata API, which can retrieve organization
+    configuration, custom objects, and code. Unauthorized access may indicate
+    reconnaissance or data theft.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/
+    - https://attack.mitre.org/techniques/T1083/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1083
+    - attack.collection
+    - attack.t1213
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: MetadataApiOperation
+    condition: selection
+falsepositives:
+    - Legitimate deployment operations
+    - CI/CD pipelines
+    - Admin configuration backups
+level: low

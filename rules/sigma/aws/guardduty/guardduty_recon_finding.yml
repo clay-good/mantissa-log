@@ -1,0 +1,26 @@
+title: AWS GuardDuty Reconnaissance Finding
+id: e5f6a7b8-9c0d-1e2f-3a4b-5c6d7e8f9a0b
+status: stable
+description: |
+    Detects GuardDuty findings indicating reconnaissance activity
+    such as port scanning, API enumeration, or resource discovery.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1046/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1046
+    - attack.t1592
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Recon:'
+    condition: selection
+falsepositives:
+    - Authorized vulnerability scanning
+    - Security assessments
+level: medium

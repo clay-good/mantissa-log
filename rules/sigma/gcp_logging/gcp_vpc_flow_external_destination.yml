@@ -1,0 +1,46 @@
+title: GCP VPC Flow to External IP
+id: gcp-vpc-flow-external-001
+status: stable
+description: |
+    Detects outbound traffic to external IP addresses from VPC resources.
+    External traffic should be monitored for potential data exfiltration.
+references:
+    - https://cloud.google.com/vpc/docs/flow-logs
+    - https://attack.mitre.org/techniques/T1048/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1048
+logsource:
+    product: gcp
+    service: vpc_flow_logs
+detection:
+    selection:
+        gcp.vpc_flow.reporter: SRC
+    filter_internal:
+        destination.ip|startswith:
+            - '10.'
+            - '172.16.'
+            - '172.17.'
+            - '172.18.'
+            - '172.19.'
+            - '172.20.'
+            - '172.21.'
+            - '172.22.'
+            - '172.23.'
+            - '172.24.'
+            - '172.25.'
+            - '172.26.'
+            - '172.27.'
+            - '172.28.'
+            - '172.29.'
+            - '172.30.'
+            - '172.31.'
+            - '192.168.'
+    condition: selection and not filter_internal
+falsepositives:
+    - Normal internet traffic
+    - External API calls
+    - Software updates
+level: low

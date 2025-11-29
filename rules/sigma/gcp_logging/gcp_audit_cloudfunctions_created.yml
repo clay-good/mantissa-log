@@ -1,0 +1,28 @@
+title: GCP Cloud Function Created
+id: gcp-audit-cloudfunctions-001
+status: stable
+description: |
+    Detects creation of Cloud Functions. Malicious functions could be
+    used for persistent access, data exfiltration, or cryptomining.
+references:
+    - https://cloud.google.com/functions/docs
+    - https://attack.mitre.org/techniques/T1584/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.resource_development
+    - attack.t1584
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: cloudfunctions.googleapis.com
+        gcp.audit.method_name|contains:
+            - CreateFunction
+            - createFunction
+    condition: selection
+falsepositives:
+    - Legitimate serverless deployments
+    - CI/CD pipelines
+level: low

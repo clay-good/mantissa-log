@@ -1,0 +1,29 @@
+title: AWS GuardDuty S3 Compromise Finding
+id: b0c1d2e3-4f5a-6b7c-8d9e-0f1a2b3c4d5e
+status: stable
+description: |
+    Detects GuardDuty findings specific to S3 bucket compromise
+    such as unauthorized access, unusual data access patterns,
+    or Tor network access to S3.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-s3.html
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1530
+    - attack.exfiltration
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - ':S3/'
+            - 'S3Bucket'
+    condition: selection
+falsepositives:
+    - Legitimate anonymous bucket access
+    - Public data sharing
+level: high

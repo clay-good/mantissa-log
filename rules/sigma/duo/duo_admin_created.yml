@@ -1,0 +1,26 @@
+title: Duo Security Administrator Created
+id: 4a3b2985-9c8g-4f5c-dg1f-6e0g2h4f5g6e
+status: stable
+description: |
+    Detects when a new administrator account is created in Duo Security.
+    Unauthorized admin creation is a critical security event that could indicate
+    privilege escalation or persistent access by an attacker.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136.003
+    - attack.privilege_escalation
+    - attack.t1078.004
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: admin_create
+    condition: selection
+falsepositives:
+    - Legitimate administrator onboarding
+level: high

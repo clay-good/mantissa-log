@@ -1,0 +1,27 @@
+title: Jamf Pro Policy Execution Failed
+id: jamf-policy-failed-001
+status: stable
+description: |
+    Detects when a policy execution fails on a device.
+    Multiple failures may indicate configuration issues or tampering.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Policy_Logs.html
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+logsource:
+    product: jamf
+    service: policy
+detection:
+    selection:
+        jamf.event_type: PolicyFailed
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Network connectivity issues
+    - Package download failures
+    - Script errors
+level: low

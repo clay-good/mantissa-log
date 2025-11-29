@@ -1,0 +1,30 @@
+title: Docker Container Exited with Non-Zero Code
+id: b9c0d1e2-3f4a-5b6c-7d8e-9f0a1b2c3d4e
+status: stable
+description: |
+    Detects when a Docker container exits with a non-zero exit code,
+    indicating an error or crash. Multiple occurrences may indicate
+    system instability or attack attempts.
+references:
+    - https://docs.docker.com/engine/reference/run/#exit-status
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1499
+    - attack.impact
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'die'
+    filter_success:
+        docker.actor.attributes.exitCode: '0'
+    condition: selection and not filter_success
+falsepositives:
+    - Application bugs
+    - Configuration errors
+    - Expected short-lived containers
+level: low

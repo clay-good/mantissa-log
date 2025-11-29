@@ -1,0 +1,27 @@
+title: Azure VM Run Command Executed
+id: azure-activity-vm-run-command-001
+status: stable
+description: |
+    Detects execution of Run Command on Azure VMs.
+    This can be used for legitimate management or malicious execution.
+references:
+    - https://docs.microsoft.com/en-us/azure/virtual-machines/run-command-overview
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains:
+            - Microsoft.Compute/virtualMachines/runCommand/action
+            - Microsoft.Compute/virtualMachines/runCommands/write
+    condition: selection
+falsepositives:
+    - Legitimate automation
+    - Configuration management
+level: high

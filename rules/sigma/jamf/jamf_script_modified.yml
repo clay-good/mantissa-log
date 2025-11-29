@@ -1,0 +1,26 @@
+title: Jamf Pro Script Modified
+id: jamf-script-modified-001
+status: stable
+description: |
+    Detects modifications to existing scripts in Jamf Pro.
+    Modified scripts could contain malicious payloads.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Scripts.html
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Update
+        jamf.audit.object_type: Script
+    condition: selection
+falsepositives:
+    - Legitimate script updates
+    - Bug fixes and improvements
+level: medium

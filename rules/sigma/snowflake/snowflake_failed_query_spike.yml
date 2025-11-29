@@ -1,0 +1,28 @@
+title: Snowflake Failed Query Spike
+id: snowflake-failed-query-spike-001
+status: stable
+description: |
+    Detects a spike in failed queries from a single user, which may indicate
+    SQL injection attempts, reconnaissance, or misconfigured applications.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/query_history
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        event.action: query_execution
+        event.outcome: failure
+    timeframe: 15m
+    condition: selection | count(user.name) by user.name >= 20
+falsepositives:
+    - Application bugs
+    - Schema migration failures
+    - Development testing
+level: medium

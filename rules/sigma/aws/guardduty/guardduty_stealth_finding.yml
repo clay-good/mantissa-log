@@ -1,0 +1,26 @@
+title: AWS GuardDuty Stealth Finding
+id: f6a7b8c9-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+status: stable
+description: |
+    Detects GuardDuty findings indicating stealth or defense evasion
+    activity such as log tampering, CloudTrail disabling, or DNS
+    exfiltration attempts.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1070
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Stealth:'
+    condition: selection
+falsepositives:
+    - Legitimate logging configuration changes
+level: high

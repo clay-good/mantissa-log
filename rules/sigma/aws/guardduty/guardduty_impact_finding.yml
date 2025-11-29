@@ -1,0 +1,26 @@
+title: AWS GuardDuty Impact Finding
+id: b8c9d0e1-2f3a-4b5c-6d7e-8f9a0b1c2d3e
+status: stable
+description: |
+    Detects GuardDuty findings indicating impact activities such as
+    data destruction, resource manipulation, or service disruption.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-s3.html
+    - https://attack.mitre.org/techniques/T1485/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1485
+    - attack.t1489
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Impact:'
+    condition: selection
+falsepositives:
+    - Legitimate resource cleanup
+    - Authorized data deletion
+level: critical

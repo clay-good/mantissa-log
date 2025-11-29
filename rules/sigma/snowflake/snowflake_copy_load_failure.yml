@@ -1,0 +1,27 @@
+title: Snowflake COPY Command Load Failure
+id: snowflake-copy-load-failure-001
+status: stable
+description: |
+    Detects failed COPY operations, which may indicate data corruption,
+    format issues, or potential injection attempts through malformed data.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/copy_history
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+logsource:
+    product: snowflake
+    service: copy_history
+detection:
+    selection:
+        event.action: data_load
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Data format issues from upstream systems
+    - Schema changes during migration
+    - Network issues during transfer
+level: low

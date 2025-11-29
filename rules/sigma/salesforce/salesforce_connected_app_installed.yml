@@ -1,0 +1,32 @@
+title: Salesforce Connected App Installed
+id: sf-connected-app-installed-001
+status: stable
+description: |
+    Detects when a new connected app is installed or authorized. Connected apps
+    can access Salesforce data via APIs and may be used for data exfiltration
+    or maintaining persistent access.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.connected_app_overview.htm
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098
+    - attack.t1098.001
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.section|contains: 'Connected Apps'
+        salesforce.audit_trail.action|contains:
+            - 'Installed'
+            - 'Created'
+            - 'Authorized'
+    condition: selection
+falsepositives:
+    - Legitimate app integrations
+    - Third-party tool installations
+    - Developer sandbox testing
+level: medium

@@ -1,0 +1,29 @@
+title: GKE Privileged Container Created
+id: gcp-gke-privileged-001
+status: stable
+description: |
+    Detects creation of privileged containers in GKE. Privileged containers
+    have full access to the host and can be used for container escape attacks.
+references:
+    - https://cloud.google.com/kubernetes-engine/docs/how-to/pod-security-standards
+    - https://attack.mitre.org/techniques/T1611/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.t1611
+logsource:
+    product: gcp
+    service: gke_audit_logs
+detection:
+    selection:
+        gcp.gke.method_name|contains:
+            - pods.create
+            - deployments.create
+    privileged:
+        gcp.request|contains: '"privileged":true'
+    condition: selection and privileged
+falsepositives:
+    - Legitimate system pods
+    - Container runtime operations
+level: high

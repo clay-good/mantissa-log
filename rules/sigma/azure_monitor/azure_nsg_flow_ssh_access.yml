@@ -1,0 +1,27 @@
+title: Azure NSG SSH Access Detected
+id: azure-nsg-flow-ssh-001
+status: stable
+description: |
+    Detects SSH (port 22) traffic allowed through NSG.
+    SSH should be monitored for unauthorized access.
+references:
+    - https://docs.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+    - https://attack.mitre.org/techniques/T1021/004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.lateral_movement
+    - attack.t1021.004
+logsource:
+    product: azure
+    service: nsg_flow_logs
+detection:
+    selection:
+        event.action: nsg_allow
+        destination.port: 22
+        network.direction: inbound
+    condition: selection
+falsepositives:
+    - Legitimate SSH access
+    - Bastion connections
+level: low

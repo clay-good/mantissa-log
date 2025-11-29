@@ -1,0 +1,26 @@
+title: Jamf Pro Firewall Disabled on Device
+id: jamf-firewall-disabled-001
+status: stable
+description: |
+    Detects when the macOS firewall is reported as disabled on a managed device.
+    The firewall should be enabled to protect against unauthorized network access.
+references:
+    - https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh11783/mac
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.004
+logsource:
+    product: jamf
+    service: computer
+detection:
+    selection:
+        jamf.security.firewall_enabled: false
+    condition: selection
+falsepositives:
+    - Devices with custom network configurations
+    - Server devices that require specific firewall rules
+level: medium

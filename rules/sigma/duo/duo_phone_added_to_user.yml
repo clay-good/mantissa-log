@@ -1,0 +1,26 @@
+title: Duo Security Phone Added to User
+id: 8a7960f1-fi4m-4l1i-jm7l-2k6m8n0l1m2k
+status: stable
+description: |
+    Detects when a new phone device is added to a user account. An attacker
+    with access to a user's account could add their own device to receive
+    MFA prompts and maintain persistent access.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098.005
+    - attack.credential_access
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: phone_create
+    condition: selection
+falsepositives:
+    - User enrolling new device after upgrade
+    - IT provisioning devices for new users
+level: low

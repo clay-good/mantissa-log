@@ -1,0 +1,32 @@
+title: Azure AD Legacy Authentication Protocol Used
+id: azure-signin-legacy-auth-001
+status: stable
+description: |
+    Detects use of legacy authentication protocols which may indicate
+    an attempt to bypass modern security controls like MFA.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/block-legacy-authentication
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.signin.client_app_used|contains:
+            - 'Exchange ActiveSync'
+            - 'IMAP'
+            - 'POP'
+            - 'SMTP'
+            - 'MAPI'
+            - 'Authenticated SMTP'
+    condition: selection
+falsepositives:
+    - Legacy mail clients
+    - Older mobile devices
+    - Automated mail systems
+level: medium

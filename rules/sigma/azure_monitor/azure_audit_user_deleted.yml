@@ -1,0 +1,27 @@
+title: Azure AD User Account Deleted
+id: azure-audit-user-deleted-001
+status: stable
+description: |
+    Detects deletion of user accounts in Azure AD.
+    Unauthorized deletions may indicate sabotage or covering tracks.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-audit-logs
+    - https://attack.mitre.org/techniques/T1531/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name:
+            - Delete user
+            - Hard delete user
+    condition: selection
+falsepositives:
+    - Legitimate user offboarding
+    - HR-driven deprovisioning
+level: medium

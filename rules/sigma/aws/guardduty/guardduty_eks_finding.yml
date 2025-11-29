@@ -1,0 +1,28 @@
+title: AWS GuardDuty EKS Finding
+id: c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+status: stable
+description: |
+    Detects GuardDuty findings related to Amazon EKS clusters
+    including Kubernetes audit log anomalies and container threats.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-kubernetes.html
+    - https://attack.mitre.org/techniques/T1610/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1610
+    - attack.t1609
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'Kubernetes'
+            - ':EKS/'
+    condition: selection
+falsepositives:
+    - Legitimate Kubernetes operations
+    - Development clusters
+level: high

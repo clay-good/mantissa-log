@@ -1,0 +1,27 @@
+title: Duo Security Bypass Code Created
+id: 9b8a7230-eh3l-4k0h-il6k-1j5l7m9k0l1j
+status: stable
+description: |
+    Detects when a bypass code is created for a user. Bypass codes allow
+    MFA bypass and should be created sparingly. Excessive creation could
+    indicate an attacker preparing to bypass MFA.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+    - https://help.duo.com/s/article/6327
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.defense_evasion
+    - attack.t1556
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: bypass_create
+    condition: selection
+falsepositives:
+    - Legitimate bypass code creation for users who lost their device
+    - IT support assisting users with device issues
+level: medium

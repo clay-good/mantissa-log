@@ -1,0 +1,31 @@
+title: GCP KMS Crypto Key Created
+id: gcp-audit-kms-key-001
+status: stable
+description: |
+    Detects creation of Cloud KMS cryptographic keys. Unauthorized key
+    creation could be used for encrypting data for ransomware or establishing
+    persistent encryption capabilities.
+references:
+    - https://cloud.google.com/kms/docs
+    - https://attack.mitre.org/techniques/T1486/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1486
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: cloudkms.googleapis.com
+        gcp.audit.method_name|contains:
+            - CreateCryptoKey
+            - createCryptoKey
+            - CreateKeyRing
+            - createKeyRing
+    condition: selection
+falsepositives:
+    - Legitimate key provisioning for encryption
+    - Infrastructure setup
+level: medium

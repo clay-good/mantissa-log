@@ -1,0 +1,28 @@
+title: Duo Security Policy Modified
+id: 0c9b8129-dg2k-4j9g-hk5j-0i4k6l8j9k0i
+status: stable
+description: |
+    Detects modifications to Duo Security policies. Policy changes could weaken
+    MFA requirements, allow bypasses, or change trusted networks/devices.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+    - https://duo.com/docs/policy
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.persistence
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action|contains:
+            - policy_update
+            - policy_create
+            - policy_delete
+    condition: selection
+falsepositives:
+    - Legitimate policy adjustments by security team
+level: medium

@@ -1,0 +1,35 @@
+title: Docker Container Started with Host Network
+id: a2b3c4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d
+status: stable
+description: |
+    Detects when a Docker container is started with host network mode.
+    Containers with host networking share the network namespace with the host,
+    allowing them to see all network traffic and potentially intercept sensitive data.
+references:
+    - https://docs.docker.com/network/host/
+    - https://attack.mitre.org/techniques/T1557/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1557
+    - attack.credential_access
+    - attack.t1040
+    - attack.discovery
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action:
+            - 'start'
+            - 'create'
+    selection_hostnet:
+        docker.actor.attributes.network_mode: 'host'
+    condition: selection and selection_hostnet
+falsepositives:
+    - Network monitoring containers
+    - Service mesh sidecars
+    - Infrastructure containers requiring host network access
+level: medium

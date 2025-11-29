@@ -1,0 +1,26 @@
+title: Salesforce Lightning Component Error
+id: sf-lightning-error-001
+status: stable
+description: |
+    Detects errors in Lightning components which may indicate exploitation
+    attempts, input validation bypasses, or application vulnerabilities.
+references:
+    - https://developer.salesforce.com/docs/component-library/documentation/en/lwc
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: LightningError
+    condition: selection
+falsepositives:
+    - Application bugs
+    - Browser compatibility issues
+    - Network connectivity problems
+level: low

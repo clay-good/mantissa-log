@@ -1,0 +1,30 @@
+title: Salesforce External Callout to Unknown Host
+id: sf-external-callout-001
+status: stable
+description: |
+    Detects Apex callouts to external systems, which may be used for data
+    exfiltration or command and control communication.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_callouts.htm
+    - https://attack.mitre.org/techniques/T1071/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.command_and_control
+    - attack.t1071
+    - attack.t1071.001
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type:
+            - 'ApexCallout'
+            - 'ExternalCrossOrgCallout'
+            - 'ExternalODataCallout'
+    condition: selection
+falsepositives:
+    - Legitimate external integrations
+    - Third-party service calls
+level: low

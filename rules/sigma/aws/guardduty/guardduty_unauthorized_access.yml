@@ -1,0 +1,27 @@
+title: AWS GuardDuty Unauthorized Access Finding
+id: d4e5f6a7-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+status: stable
+description: |
+    Detects GuardDuty findings indicating unauthorized access attempts
+    such as unusual API calls, console logins from unusual locations,
+    or access from known malicious IPs.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-iam.html
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+    - attack.t1190
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'UnauthorizedAccess:'
+    condition: selection
+falsepositives:
+    - Legitimate access from new locations
+    - VPN or proxy usage
+level: high

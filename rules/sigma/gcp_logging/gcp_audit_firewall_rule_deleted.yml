@@ -1,0 +1,27 @@
+title: GCP Firewall Rule Deleted
+id: gcp-audit-firewall-rule-del-001
+status: stable
+description: |
+    Detects deletion of VPC firewall rules. Firewall rule deletion could
+    be used to disable security controls or enable unauthorized access.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1562/007/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.007
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: compute.googleapis.com
+        gcp.audit.method_name|contains:
+            - firewalls.delete
+    condition: selection
+falsepositives:
+    - Legitimate firewall rule cleanup
+    - Infrastructure as code updates
+level: medium

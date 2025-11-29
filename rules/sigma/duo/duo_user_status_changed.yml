@@ -1,0 +1,29 @@
+title: Duo Security User Status Changed
+id: 6a575kn3-ru6y-4x3u-vy9x-4w8y0z2x3y4w
+status: stable
+description: |
+    Detects when a user's status is changed in Duo Security (enabled, disabled,
+    bypass). Changing a user to bypass status would allow them to skip MFA,
+    which could be exploited by attackers.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.persistence
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action|contains:
+            - user_update
+            - user_status
+            - status_change
+    condition: selection
+falsepositives:
+    - Legitimate user account management
+    - Temporary bypass for troubleshooting
+level: low

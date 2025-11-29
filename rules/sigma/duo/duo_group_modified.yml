@@ -1,0 +1,31 @@
+title: Duo Security Group Modified
+id: 4c352cf5-jm8q-4p5m-nq1p-6o0q2r4p5q6o
+status: stable
+description: |
+    Detects modifications to Duo Security groups. Groups control policy
+    application and modifying group membership could be used to exempt
+    users from MFA requirements.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.t1098
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action|contains:
+            - group_create
+            - group_update
+            - group_delete
+            - group_add_user
+            - group_remove_user
+    condition: selection
+falsepositives:
+    - Normal group management by IT
+    - User role changes
+level: low

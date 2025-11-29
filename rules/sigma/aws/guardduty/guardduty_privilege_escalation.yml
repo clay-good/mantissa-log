@@ -1,0 +1,25 @@
+title: AWS GuardDuty Privilege Escalation Finding
+id: e1f2a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b
+status: stable
+description: |
+    Detects GuardDuty findings indicating privilege escalation attempts
+    such as anomalous IAM role assumptions or policy modifications.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-iam.html
+    - https://attack.mitre.org/techniques/T1548/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.t1548
+    - attack.t1078
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'PrivilegeEscalation:'
+    condition: selection
+falsepositives:
+    - Legitimate role assumption changes
+level: high

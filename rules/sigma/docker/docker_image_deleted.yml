@@ -1,0 +1,33 @@
+title: Docker Image Deleted
+id: e8f9a0b1-2c3d-4e5f-6a7b-8c9d0e1f2a3b
+status: stable
+description: |
+    Detects when a Docker image is deleted. While routine for cleanup,
+    this could indicate an attacker covering their tracks after using
+    a malicious image.
+references:
+    - https://docs.docker.com/engine/reference/commandline/rmi/
+    - https://attack.mitre.org/techniques/T1070/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1070
+    - attack.defense_evasion
+    - attack.t1070.004
+    - attack.indicator_removal
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'image'
+        docker.action:
+            - 'delete'
+            - 'untag'
+    condition: selection
+falsepositives:
+    - Routine image cleanup
+    - CI/CD pipeline cleanup
+    - Disk space management
+level: low

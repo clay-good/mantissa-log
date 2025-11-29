@@ -1,0 +1,27 @@
+title: Snowflake Data Share Created
+id: snowflake-share-created-001
+status: stable
+description: |
+    Detects creation of data shares in Snowflake. Shares allow data to be accessed
+    by external accounts and should be monitored for potential data leakage.
+references:
+    - https://docs.snowflake.com/en/user-guide/data-sharing-intro
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.t1537
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+SHARE'
+    condition: selection
+falsepositives:
+    - Legitimate data sharing with partners
+    - Approved data marketplace listings
+    - Internal organization data sharing
+level: medium

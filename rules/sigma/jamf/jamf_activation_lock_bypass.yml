@@ -1,0 +1,28 @@
+title: Jamf Pro Activation Lock Bypass
+id: jamf-activation-lock-bypass-001
+status: stable
+description: |
+    Detects when an Activation Lock bypass code is requested or used.
+    This is a sensitive operation that should be monitored.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Activation_Lock_Bypass.html
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.details|contains:
+            - "Activation Lock"
+            - "activation_lock"
+            - "BypassCode"
+    condition: selection
+falsepositives:
+    - Legitimate device redeployment
+    - Device reassignment to new user
+level: high

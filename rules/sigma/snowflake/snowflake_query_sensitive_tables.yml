@@ -1,0 +1,38 @@
+title: Snowflake Query on Sensitive Tables
+id: snowflake-query-sensitive-tables-001
+status: stable
+description: |
+    Detects queries accessing tables commonly containing sensitive data such as
+    PII, credentials, or financial information. Requires customization for your environment.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/access_history
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1530
+    - attack.t1213
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        event.action: query_execution
+    filter_sensitive:
+        snowflake.query.text|contains:
+            - CUSTOMERS
+            - USERS
+            - PASSWORDS
+            - CREDENTIALS
+            - CREDIT_CARD
+            - SSN
+            - PII
+            - SECRETS
+            - API_KEYS
+    condition: selection and filter_sensitive
+falsepositives:
+    - Legitimate access to sensitive data by authorized personnel
+    - Application queries for normal operations
+    - Compliance audits
+level: low

@@ -1,0 +1,27 @@
+title: Jamf Pro Jailbreak Detected on Mobile Device
+id: jamf-jailbreak-detected-001
+status: stable
+description: |
+    Detects when a jailbreak is detected on a managed iOS/iPadOS device.
+    Jailbroken devices have compromised security and can pose a risk to corporate data.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Security_Settings.html
+    - https://attack.mitre.org/techniques/T1398/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1398
+logsource:
+    product: jamf
+    service: mobile_device
+detection:
+    selection:
+        jamf.security.jailbreak_detected:
+            - "Yes"
+            - "Detected"
+            - "true"
+    condition: selection
+falsepositives:
+    - False positive detections (rare with modern MDM)
+level: critical

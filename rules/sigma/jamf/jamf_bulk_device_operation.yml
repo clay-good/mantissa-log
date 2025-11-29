@@ -1,0 +1,30 @@
+title: Jamf Pro Bulk Device Operation
+id: jamf-bulk-operation-001
+status: stable
+description: |
+    Detects bulk operations performed on multiple devices.
+    Mass actions could indicate malicious activity.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Mass_Actions.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1072
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.details|contains:
+            - "Mass"
+            - "Bulk"
+            - "All Computers"
+            - "All Mobile Devices"
+    condition: selection
+falsepositives:
+    - Legitimate mass deployments
+    - OS upgrade rollouts
+    - Compliance enforcement
+level: medium

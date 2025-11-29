@@ -1,0 +1,28 @@
+title: Snowflake Network Policy Modified
+id: snowflake-network-policy-modified-001
+status: stable
+description: |
+    Detects modifications to network policies in Snowflake. Network policies
+    control which IP addresses can access the account and changes may indicate
+    attempts to bypass security controls.
+references:
+    - https://docs.snowflake.com/en/user-guide/network-policies
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.007
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)(CREATE|ALTER|DROP)\s+NETWORK\s+POLICY'
+    condition: selection
+falsepositives:
+    - Legitimate network policy updates
+    - IP allowlist maintenance
+    - Cloud migration activities
+level: high

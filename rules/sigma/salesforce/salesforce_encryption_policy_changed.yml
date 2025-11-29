@@ -1,0 +1,26 @@
+title: Salesforce Platform Encryption Policy Changed
+id: sf-encryption-policy-changed-001
+status: stable
+description: |
+    Detects changes to platform encryption policies, which may indicate
+    attempts to weaken data protection or access encrypted data.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_pe_overview.htm
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: PlatformEncryption
+    condition: selection
+falsepositives:
+    - Legitimate encryption policy updates
+    - Key rotation activities
+level: high

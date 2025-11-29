@@ -1,0 +1,29 @@
+title: Salesforce Admin Login As Another User
+id: sf-admin-login-as-001
+status: stable
+description: |
+    Detects when an administrator uses the "Login As" feature to impersonate
+    another user. While this is a legitimate admin function, it should be
+    monitored for potential abuse or unauthorized access.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_loginas.htm
+    - https://attack.mitre.org/techniques/T1134/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.defense_evasion
+    - attack.t1134
+    - attack.t1134.001
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: LoginAs
+    condition: selection
+falsepositives:
+    - Legitimate admin troubleshooting user issues
+    - Support staff assisting users
+    - Training and onboarding activities
+level: medium

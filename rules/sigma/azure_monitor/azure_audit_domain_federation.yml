@@ -1,0 +1,29 @@
+title: Azure AD Domain Federation Modified
+id: azure-audit-domain-federation-001
+status: stable
+description: |
+    Detects changes to domain federation settings in Azure AD.
+    Federation changes can be used to create backdoor access.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/hybrid/how-to-connect-fed-management
+    - https://attack.mitre.org/techniques/T1484/002/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1484.002
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains:
+            - Set domain authentication
+            - Set federation settings
+            - Add unverified domain
+            - Verify domain
+    condition: selection
+falsepositives:
+    - Legitimate domain configuration
+    - Federation setup
+level: high

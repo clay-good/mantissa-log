@@ -1,0 +1,28 @@
+title: GCP Firewall Rule Allows All Ingress
+id: gcp-firewall-allow-all-001
+status: stable
+description: |
+    Detects firewall logs showing traffic allowed from all sources (0.0.0.0/0).
+    Overly permissive firewall rules expose resources to potential attacks.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1562/007/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.007
+logsource:
+    product: gcp
+    service: firewall_logs
+detection:
+    selection:
+        gcp.firewall.disposition: ALLOWED
+        gcp.firewall.rule_direction: INGRESS
+    wide_open:
+        gcp.firewall.rule_source_ranges|contains: '0.0.0.0/0'
+    condition: selection and wide_open
+falsepositives:
+    - Public-facing services
+    - Load balancer health checks
+level: medium

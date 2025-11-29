@@ -1,0 +1,25 @@
+title: Azure NSG Flow Denied
+id: azure-nsg-flow-deny-001
+status: stable
+description: |
+    Detects network traffic denied by Azure NSG rules.
+    May indicate blocked attacks or misconfigurations.
+references:
+    - https://docs.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+    - https://attack.mitre.org/techniques/T1046/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1046
+logsource:
+    product: azure
+    service: nsg_flow_logs
+detection:
+    selection:
+        event.action: nsg_deny
+    condition: selection
+falsepositives:
+    - Normal denied traffic
+    - Misconfigured applications
+level: low

@@ -1,0 +1,28 @@
+title: Duo Security Authentication from Untrusted Device
+id: 2a130eh7-lo0s-4r7o-ps3r-8q2s4t6r7s8q
+status: stable
+description: |
+    Detects authentication attempts from devices that are not trusted.
+    Untrusted devices may not meet security requirements and could indicate
+    a compromised or attacker-controlled device.
+references:
+    - https://duo.com/docs/adminapi#authentication-logs
+    - https://duo.com/docs/trusted-endpoints
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+    - attack.defense_evasion
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        event_type: authentication
+        trusted_endpoint_status: not trusted
+    condition: selection
+falsepositives:
+    - Users with personal devices that haven't been enrolled in MDM
+    - Contractors or vendors accessing systems
+level: medium

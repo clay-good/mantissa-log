@@ -1,0 +1,31 @@
+title: Docker Container Exported
+id: f9a0b1c2-3d4e-5f6a-7b8c-9d0e1f2a3b4c
+status: stable
+description: |
+    Detects when a Docker container is exported to a tar archive.
+    This could be used for data exfiltration or to preserve a
+    compromised container state.
+references:
+    - https://docs.docker.com/engine/reference/commandline/export/
+    - https://attack.mitre.org/techniques/T1560/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1560
+    - attack.collection
+    - attack.t1020
+    - attack.exfiltration
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'export'
+    condition: selection
+falsepositives:
+    - Legitimate backup operations
+    - Container migration
+    - Debugging and forensics
+level: medium

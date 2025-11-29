@@ -1,0 +1,29 @@
+title: Jamf Pro Remote Wipe Command Sent
+id: jamf-remote-wipe-001
+status: stable
+description: |
+    Detects when a remote wipe command is sent to a device.
+    Remote wipes are security-critical actions.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Remote_Commands.html
+    - https://attack.mitre.org/techniques/T1485/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1485
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: SendCommand
+        jamf.audit.details|contains:
+            - "Wipe"
+            - "EraseDevice"
+            - "erase_device"
+    condition: selection
+falsepositives:
+    - Legitimate device decommissioning
+    - Security response to stolen device
+level: high

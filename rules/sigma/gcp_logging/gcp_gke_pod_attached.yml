@@ -1,0 +1,27 @@
+title: GKE Pod Attach
+id: gcp-gke-attach-001
+status: stable
+description: |
+    Detects kubectl attach commands to running pods. Pod attach provides
+    interactive access to containers and could be used for unauthorized access.
+references:
+    - https://cloud.google.com/kubernetes-engine/docs/how-to/audit-logging
+    - https://attack.mitre.org/techniques/T1609/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1609
+logsource:
+    product: gcp
+    service: gke_audit_logs
+detection:
+    selection:
+        gcp.gke.method_name|contains:
+            - pods.attach
+            - pods/attach
+    condition: selection
+falsepositives:
+    - Legitimate debugging
+    - Interactive troubleshooting
+level: medium

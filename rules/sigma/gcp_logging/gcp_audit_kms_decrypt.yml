@@ -1,0 +1,29 @@
+title: GCP KMS Decrypt Operation
+id: gcp-audit-kms-decrypt-001
+status: stable
+description: |
+    Detects decrypt operations using Cloud KMS. High volume or unusual
+    decrypt operations could indicate data exfiltration or unauthorized
+    access to encrypted data.
+references:
+    - https://cloud.google.com/kms/docs
+    - https://attack.mitre.org/techniques/T1552/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1552
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: cloudkms.googleapis.com
+        gcp.audit.method_name|contains:
+            - Decrypt
+            - decrypt
+    condition: selection
+falsepositives:
+    - Normal application decryption operations
+    - Batch processing jobs
+level: low

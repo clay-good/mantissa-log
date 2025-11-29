@@ -1,0 +1,28 @@
+title: Duo Security Admin Login Failure
+id: 6e574ad3-hk6o-4n3k-lo9n-4m8o0p2n3o4m
+status: stable
+description: |
+    Detects failed administrator login attempts to the Duo Admin Panel.
+    Multiple failures may indicate brute force attempts against admin accounts.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.initial_access
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: admin_login
+        result|contains:
+            - failure
+            - failed
+            - denied
+    condition: selection
+falsepositives:
+    - Administrator mistyping password
+level: medium

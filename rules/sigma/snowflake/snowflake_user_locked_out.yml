@@ -1,0 +1,25 @@
+title: Snowflake User Account Locked Out
+id: snowflake-user-locked-out-001
+status: stable
+description: |
+    Detects when a user account is locked out due to too many failed login attempts.
+    This may indicate an ongoing brute force attack or a compromised credential being tested.
+references:
+    - https://docs.snowflake.com/en/user-guide/admin-user-management
+    - https://attack.mitre.org/techniques/T1110/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110
+logsource:
+    product: snowflake
+    service: login_history
+detection:
+    selection:
+        snowflake.login.error_code: USER_LOCKED_OUT
+    condition: selection
+falsepositives:
+    - Users who forgot passwords after vacation
+    - Credential rotation issues
+level: high

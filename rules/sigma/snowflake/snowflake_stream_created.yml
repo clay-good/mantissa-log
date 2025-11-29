@@ -1,0 +1,26 @@
+title: Snowflake Stream Created
+id: snowflake-stream-created-001
+status: stable
+description: |
+    Detects creation of streams in Snowflake. Streams track changes to tables
+    and can be used for data capture or potential exfiltration monitoring.
+references:
+    - https://docs.snowflake.com/en/user-guide/streams-intro
+    - https://attack.mitre.org/techniques/T1565/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1565
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+(OR\s+REPLACE\s+)?STREAM'
+    condition: selection
+falsepositives:
+    - Legitimate change data capture setup
+    - Real-time analytics pipelines
+    - Data synchronization processes
+level: low

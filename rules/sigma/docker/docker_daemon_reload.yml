@@ -1,0 +1,29 @@
+title: Docker Daemon Configuration Reload
+id: f3a4b5c6-7d8e-9f0a-1b2c-3d4e5f6a7b8c
+status: stable
+description: |
+    Detects when the Docker daemon configuration is reloaded.
+    This could indicate an attempt to modify Docker security settings,
+    disable security features, or add insecure registries.
+references:
+    - https://docs.docker.com/config/daemon/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1562
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.disable_or_modify_tools
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'daemon'
+        docker.action: 'reload'
+    condition: selection
+falsepositives:
+    - Legitimate Docker configuration changes
+    - System updates
+level: medium

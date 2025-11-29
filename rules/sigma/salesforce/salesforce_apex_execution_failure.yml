@@ -1,0 +1,30 @@
+title: Salesforce Apex Execution Failure
+id: sf-apex-execution-failure-001
+status: stable
+description: |
+    Detects failed Apex code execution, which may indicate bugs, misconfigurations,
+    or potential exploitation attempts. Repeated failures from the same user or
+    endpoint warrant investigation.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type:
+            - 'ApexExecution'
+            - 'ApexTrigger'
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Development and testing environments
+    - Legitimate code bugs
+    - Governor limit violations
+level: low

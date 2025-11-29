@@ -1,0 +1,32 @@
+title: Jamf Pro Smart Group Modified
+id: jamf-smart-group-modified-001
+status: stable
+description: |
+    Detects modifications to smart groups in Jamf Pro.
+    Smart groups determine which devices receive policies and profiles.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Smart_Computer_Groups.html
+    - https://attack.mitre.org/techniques/T1072/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1072
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action:
+            - Create
+            - Update
+            - Delete
+        jamf.audit.object_type:
+            - Smart Computer Group
+            - Smart Mobile Device Group
+            - SmartGroup
+    condition: selection
+falsepositives:
+    - Legitimate group management
+    - IT operations activities
+level: low

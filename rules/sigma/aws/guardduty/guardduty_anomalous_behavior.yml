@@ -1,0 +1,27 @@
+title: AWS GuardDuty Anomalous Behavior Finding
+id: a9b0c1d2-3e4f-5a6b-7c8d-9e0f1a2b3c4d
+status: stable
+description: |
+    Detects GuardDuty findings based on anomalous behavior detection
+    using machine learning, including unusual API activity patterns.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-iam.html
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1087
+    - attack.t1526
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'Anomalous'
+            - 'Discovery:'
+    condition: selection
+falsepositives:
+    - New applications or services
+    - Changes in normal operational patterns
+level: medium

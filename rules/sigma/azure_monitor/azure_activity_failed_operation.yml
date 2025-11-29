@@ -1,0 +1,26 @@
+title: Azure Activity Log Failed Operation
+id: azure-activity-failed-001
+status: stable
+description: |
+    Detects failed operations in Azure Activity Log.
+    Multiple failures may indicate reconnaissance or privilege escalation attempts.
+references:
+    - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log
+    - https://attack.mitre.org/techniques/T1580/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        event.outcome: failure
+    condition: selection
+falsepositives:
+    - Permission issues
+    - Resource constraints
+    - Misconfigurations
+level: low

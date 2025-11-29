@@ -1,0 +1,25 @@
+title: GCP Sensitive Data Access
+id: gcp-data-access-sensitive-001
+status: stable
+description: |
+    Detects access to potentially sensitive GCP resources including secrets,
+    keys, and credentials through Data Access audit logs.
+references:
+    - https://cloud.google.com/logging/docs/audit/understanding-audit-logs
+    - https://attack.mitre.org/techniques/T1552/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1552
+logsource:
+    product: gcp
+    service: data_access_logs
+detection:
+    selection:
+        gcp.data_access.is_sensitive: true
+    condition: selection
+falsepositives:
+    - Legitimate application access to secrets
+    - Configuration management
+level: medium

@@ -1,0 +1,28 @@
+title: Salesforce Sandbox Created
+id: sf-sandbox-created-001
+status: stable
+description: |
+    Detects when a new sandbox is created. Sandboxes can contain copies of
+    production data and may be used to exfiltrate data or test attacks
+    without detection.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.data_sandbox_create.htm
+    - https://attack.mitre.org/techniques/T1020/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1020
+    - attack.collection
+    - attack.t1530
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: Sandbox
+    condition: selection
+falsepositives:
+    - Legitimate development environments
+    - UAT environment creation
+level: low

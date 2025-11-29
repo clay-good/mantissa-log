@@ -1,0 +1,36 @@
+title: Salesforce MFA Disabled for User
+id: sf-mfa-disabled-001
+status: stable
+description: |
+    Detects when multi-factor authentication is disabled for a user account.
+    This weakens account security and may indicate preparation for account
+    takeover or persistence.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_mfa_overview.htm
+    - https://attack.mitre.org/techniques/T1556/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.t1556
+    - attack.t1556.006
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.action|contains:
+            - 'Disabled'
+            - 'disabled'
+            - 'Deactivated'
+        salesforce.audit_trail.display|contains:
+            - 'MFA'
+            - 'multi-factor'
+            - 'two-factor'
+            - '2FA'
+    condition: selection
+falsepositives:
+    - User device replacement
+    - Legitimate admin action during troubleshooting
+level: high

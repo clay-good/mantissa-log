@@ -1,0 +1,28 @@
+title: AWS GuardDuty Runtime Monitoring Finding
+id: e7f8a9b0-1c2d-3e4f-5a6b-7c8d9e0f1a2b
+status: stable
+description: |
+    Detects GuardDuty Runtime Monitoring findings for EKS, ECS, or EC2
+    indicating suspicious process execution, file access, or network activity.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/runtime-monitoring.html
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.t1106
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'Execution:'
+            - 'Runtime'
+    condition: selection
+falsepositives:
+    - Legitimate administrative scripts
+    - Application startup behaviors
+level: high

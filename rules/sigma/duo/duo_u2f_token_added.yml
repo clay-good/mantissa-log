@@ -1,0 +1,29 @@
+title: Duo Security U2F/WebAuthn Token Added
+id: 5f464lo4-sv7z-4y4v-wz0y-5x9z1a3y4z5x
+status: stable
+description: |
+    Detects when a U2F or WebAuthn security token is added to a user account.
+    While this improves security, an attacker with account access could add
+    their own hardware token to maintain persistent access.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098.005
+    - attack.credential_access
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action|contains:
+            - u2f_register
+            - webauthn_register
+            - token_create
+    condition: selection
+falsepositives:
+    - User enrolling new security key
+    - IT provisioning security keys
+level: low

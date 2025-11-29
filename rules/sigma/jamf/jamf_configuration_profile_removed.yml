@@ -1,0 +1,25 @@
+title: Jamf Pro Configuration Profile Removed from Device
+id: jamf-configuration-profile-removed-001
+status: stable
+description: |
+    Detects when a configuration profile is removed from a device.
+    Unauthorized profile removal may indicate tampering with security settings.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Configuration_Profiles.html
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+logsource:
+    product: jamf
+    service: webhook
+detection:
+    selection:
+        jamf.event_type: ConfigurationProfileRemoved
+    condition: selection
+falsepositives:
+    - Legitimate profile updates (remove and re-add)
+    - Device decommissioning
+level: medium

@@ -1,0 +1,30 @@
+title: Docker Container Renamed
+id: d7e8f9a0-1b2c-3d4e-5f6a-7b8c9d0e1f2a
+status: stable
+description: |
+    Detects when a Docker container is renamed. While often benign,
+    this could be used to hide malicious containers by giving them
+    legitimate-sounding names.
+references:
+    - https://docs.docker.com/engine/reference/commandline/rename/
+    - https://attack.mitre.org/techniques/T1036/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1036
+    - attack.defense_evasion
+    - attack.t1036.005
+    - attack.masquerading
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'rename'
+    condition: selection
+falsepositives:
+    - Legitimate container management
+    - Orchestration activities
+level: low

@@ -1,0 +1,31 @@
+title: Salesforce User Account Created
+id: sf-user-created-001
+status: stable
+description: |
+    Detects when a new user account is created in Salesforce. While this is
+    normal business activity, unexpected account creation may indicate
+    persistence mechanisms or unauthorized access.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.adding_new_users.htm
+    - https://attack.mitre.org/techniques/T1136/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136
+    - attack.t1136.003
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.section: Manage Users
+        salesforce.audit_trail.action|contains:
+            - 'Created'
+            - 'added'
+    condition: selection
+falsepositives:
+    - Normal employee onboarding
+    - Contractor provisioning
+    - Partner user creation
+level: low

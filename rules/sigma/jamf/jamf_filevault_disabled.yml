@@ -1,0 +1,27 @@
+title: Jamf Pro FileVault Disabled on Device
+id: jamf-filevault-disabled-001
+status: stable
+description: |
+    Detects when FileVault (disk encryption) is reported as disabled on a managed device.
+    FileVault should be enabled on all managed macOS devices for data protection.
+references:
+    - https://support.apple.com/guide/mac-help/encrypt-mac-data-with-filevault-mh11785/mac
+    - https://attack.mitre.org/techniques/T1486/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: jamf
+    service: computer
+detection:
+    selection:
+        jamf.security.filevault_enabled: false
+    condition: selection
+falsepositives:
+    - New devices during initial setup
+    - Test devices in lab environments
+    - Devices pending encryption
+level: high

@@ -1,0 +1,29 @@
+title: Docker Container Error Log
+id: b5c6d7e8-9f0a-1b2c-3d4e-5f6a7b8c9d0e
+status: stable
+description: |
+    Detects error-level messages in Docker container logs.
+    High volumes of errors may indicate application issues,
+    attack attempts, or system compromise.
+references:
+    - https://docs.docker.com/config/containers/logging/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1499
+    - attack.impact
+logsource:
+    category: application
+    product: docker
+    service: container_logs
+detection:
+    selection:
+        event.action: 'container_log'
+        log.level:
+            - 'error'
+            - 'critical'
+    condition: selection
+falsepositives:
+    - Application errors during normal operation
+    - Startup transient errors
+level: low

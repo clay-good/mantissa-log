@@ -1,0 +1,28 @@
+title: GCP Cloud SQL Instance Created
+id: gcp-audit-sql-instance-001
+status: stable
+description: |
+    Detects creation of Cloud SQL database instances. Unauthorized database
+    instances could be used for data staging or persistent storage.
+references:
+    - https://cloud.google.com/sql/docs
+    - https://attack.mitre.org/techniques/T1583/006/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.resource_development
+    - attack.t1583.006
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: sqladmin.googleapis.com
+        gcp.audit.method_name|contains:
+            - instances.insert
+            - instances.create
+    condition: selection
+falsepositives:
+    - Legitimate database provisioning
+    - Development environments
+level: low

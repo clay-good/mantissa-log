@@ -1,0 +1,29 @@
+title: Snowflake Cross-Region Data Transfer
+id: snowflake-cross-region-transfer-001
+status: stable
+description: |
+    Detects data transfers between different cloud regions or providers in Snowflake.
+    Cross-region transfers may indicate data exfiltration or compliance violations.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/data_transfer_history
+    - https://attack.mitre.org/techniques/T1537/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1537
+logsource:
+    product: snowflake
+    service: data_transfer
+detection:
+    selection:
+        event.action: data_transfer
+    filter_cross_region:
+        source.cloud.region: '*'
+        destination.cloud.region: '*'
+    condition: selection and filter_cross_region
+falsepositives:
+    - Legitimate data replication for disaster recovery
+    - Multi-region data sharing agreements
+    - Cloud provider migration
+level: medium

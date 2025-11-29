@@ -1,0 +1,30 @@
+title: Salesforce User Account Deactivated
+id: sf-user-deactivated-001
+status: stable
+description: |
+    Detects when a user account is deactivated. While this is normal for
+    offboarding, unauthorized deactivation could indicate malicious activity
+    or covering tracks.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.admin_deactivate.htm
+    - https://attack.mitre.org/techniques/T1531/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.section: Manage Users
+        salesforce.audit_trail.action|contains:
+            - 'Deactivated'
+            - 'Disabled'
+            - 'Frozen'
+    condition: selection
+falsepositives:
+    - Normal employee offboarding
+    - Temporary account suspension
+level: low

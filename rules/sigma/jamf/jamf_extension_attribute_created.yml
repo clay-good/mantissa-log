@@ -1,0 +1,28 @@
+title: Jamf Pro Extension Attribute Created
+id: jamf-extension-attribute-created-001
+status: stable
+description: |
+    Detects creation of new extension attributes in Jamf Pro.
+    Extension attributes can execute scripts to collect data from devices.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Extension_Attributes.html
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1059
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type:
+            - Extension Attribute
+            - ExtensionAttribute
+    condition: selection
+falsepositives:
+    - Legitimate inventory extension creation
+    - Compliance reporting setup
+level: low

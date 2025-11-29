@@ -1,0 +1,33 @@
+title: GCP Firewall Database Port Access
+id: gcp-firewall-database-001
+status: stable
+description: |
+    Detects traffic to common database ports allowed through firewall.
+    Database access should be tightly controlled and monitored.
+references:
+    - https://cloud.google.com/vpc/docs/firewalls
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+logsource:
+    product: gcp
+    service: firewall_logs
+detection:
+    selection:
+        gcp.firewall.disposition: ALLOWED
+    database_ports:
+        destination.port:
+            - 3306
+            - 5432
+            - 1433
+            - 27017
+            - 6379
+            - 9200
+    condition: selection and database_ports
+falsepositives:
+    - Legitimate database connections
+    - Application server to database traffic
+level: medium

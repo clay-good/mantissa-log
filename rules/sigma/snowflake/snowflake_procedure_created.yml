@@ -1,0 +1,27 @@
+title: Snowflake Stored Procedure Created
+id: snowflake-procedure-created-001
+status: stable
+description: |
+    Detects creation of stored procedures in Snowflake. Stored procedures
+    can contain complex logic and should be reviewed for potential security issues.
+references:
+    - https://docs.snowflake.com/en/sql-reference/stored-procedures
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.t1059
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE'
+    condition: selection
+falsepositives:
+    - Legitimate stored procedure development
+    - ETL pipeline creation
+    - Application deployment
+level: low

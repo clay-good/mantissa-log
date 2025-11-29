@@ -1,0 +1,25 @@
+title: Azure Role Assignment Created
+id: azure-activity-role-assignment-001
+status: stable
+description: |
+    Detects creation of Azure RBAC role assignments.
+    Role assignments grant access to Azure resources.
+references:
+    - https://docs.microsoft.com/en-us/azure/role-based-access-control/overview
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.t1098
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Authorization/roleAssignments/write
+    condition: selection
+falsepositives:
+    - Legitimate role assignments
+    - Infrastructure as Code deployments
+level: medium

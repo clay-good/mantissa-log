@@ -1,0 +1,26 @@
+title: Azure AD Service Principal Sign-in
+id: azure-signin-service-principal-001
+status: stable
+description: |
+    Detects sign-in activity by service principals (applications).
+    Monitor for unusual application authentication patterns.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+    - https://attack.mitre.org/techniques/T1078/004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078.004
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.signin.is_interactive: false
+        azure.signin.token_issuer_type|contains: AzureAD
+    condition: selection
+falsepositives:
+    - Normal application authentication
+    - Automation pipelines
+level: low

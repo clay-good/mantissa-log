@@ -1,0 +1,27 @@
+title: Azure AD Brute Force Attack
+id: azure-signin-brute-force-001
+status: stable
+description: |
+    Detects potential brute force attacks against Azure AD by identifying
+    multiple failed sign-in attempts from the same IP address.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+    - https://attack.mitre.org/techniques/T1110/001/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1110.001
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        event.action: sign-in
+        event.outcome: failure
+    timeframe: 10m
+    condition: selection | count(source.ip) by source.ip > 10
+falsepositives:
+    - Misconfigured applications
+    - Users with multiple accounts
+level: high

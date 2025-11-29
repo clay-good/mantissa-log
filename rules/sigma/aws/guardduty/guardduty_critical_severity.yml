@@ -1,0 +1,23 @@
+title: AWS GuardDuty Critical Severity Finding
+id: c5d6e7f8-9a0b-1c2d-3e4f-5a6b7c8d9e0f
+status: stable
+description: |
+    Detects any GuardDuty finding with critical severity (9.0+).
+    Critical severity findings indicate active compromise requiring
+    immediate incident response.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_findings.html
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        severity|gte: 9.0
+    condition: selection
+falsepositives:
+    - Very rare at critical severity
+level: critical

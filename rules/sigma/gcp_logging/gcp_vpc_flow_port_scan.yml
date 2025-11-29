@@ -1,0 +1,26 @@
+title: GCP VPC Potential Port Scan
+id: gcp-vpc-flow-portscan-001
+status: stable
+description: |
+    Detects potential port scanning activity based on multiple connections
+    to different ports from the same source. Port scanning is a common
+    reconnaissance technique.
+references:
+    - https://cloud.google.com/vpc/docs/flow-logs
+    - https://attack.mitre.org/techniques/T1046/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1046
+logsource:
+    product: gcp
+    service: vpc_flow_logs
+detection:
+    selection:
+        network.packets: 1
+    condition: selection
+falsepositives:
+    - Network monitoring tools
+    - Legitimate security scanning
+level: low

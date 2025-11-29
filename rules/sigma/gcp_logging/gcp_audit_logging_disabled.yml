@@ -1,0 +1,33 @@
+title: GCP Audit Logging Disabled
+id: gcp-audit-logging-disabled-001
+status: stable
+description: |
+    Detects when audit logging is disabled or excluded. Disabling audit
+    logs is a common technique to hide malicious activity and evade detection.
+references:
+    - https://cloud.google.com/logging/docs/audit
+    - https://attack.mitre.org/techniques/T1562/008/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.008
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: logging.googleapis.com
+        gcp.audit.method_name|contains:
+            - UpdateCmekSettings
+            - UpdateSettings
+            - updateCmekSettings
+            - updateSettings
+    disable_indicator:
+        gcp.request|contains:
+            - disableDefaultSink
+            - exemptedMembers
+    condition: selection and disable_indicator
+falsepositives:
+    - Legitimate audit log configuration
+level: critical

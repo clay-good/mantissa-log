@@ -1,0 +1,31 @@
+title: GCP Cloud Run Service Deployed
+id: gcp-audit-cloudrun-001
+status: stable
+description: |
+    Detects deployment of Cloud Run services. Unauthorized deployments
+    could be used for cryptomining, data exfiltration, or establishing
+    persistent access.
+references:
+    - https://cloud.google.com/run/docs
+    - https://attack.mitre.org/techniques/T1610/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1610
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: run.googleapis.com
+        gcp.audit.method_name|contains:
+            - CreateService
+            - ReplaceService
+            - createService
+            - replaceService
+    condition: selection
+falsepositives:
+    - Legitimate container deployments
+    - CI/CD pipelines
+level: low

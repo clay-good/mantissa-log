@@ -1,0 +1,31 @@
+title: Salesforce Large Data Export
+id: sf-large-data-export-001
+status: stable
+description: |
+    Detects report exports containing a large number of rows, which may indicate
+    data exfiltration attempts. Threshold is set at 10,000 rows but should be
+    adjusted based on normal business patterns.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.reports_export.htm
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.collection
+    - attack.t1119
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: ReportExport
+    filter_large:
+        salesforce.performance.rows_processed|gte: 10000
+    condition: selection and filter_large
+falsepositives:
+    - Legitimate business intelligence exports
+    - Scheduled data extracts for analytics
+    - Backup operations
+level: medium

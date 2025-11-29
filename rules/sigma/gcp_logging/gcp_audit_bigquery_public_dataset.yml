@@ -1,0 +1,33 @@
+title: GCP BigQuery Dataset Made Public
+id: gcp-audit-bigquery-public-001
+status: stable
+description: |
+    Detects when a BigQuery dataset is made publicly accessible. Public
+    datasets could expose sensitive business data or PII.
+references:
+    - https://cloud.google.com/bigquery/docs/dataset-access-controls
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.t1530
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: bigquery.googleapis.com
+        gcp.audit.method_name|contains:
+            - datasets.update
+            - datasets.patch
+    public_access:
+        gcp.request|contains:
+            - allUsers
+            - allAuthenticatedUsers
+    condition: selection and public_access
+falsepositives:
+    - Intentionally public datasets
+    - Public data sharing initiatives
+level: critical

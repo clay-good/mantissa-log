@@ -1,0 +1,26 @@
+title: Jamf Pro API Access Outside Business Hours
+id: jamf-api-unusual-hours-001
+status: stable
+description: |
+    Detects Jamf Pro API access outside normal business hours.
+    Unusual API access may indicate compromised credentials.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Jamf_Pro_API.html
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        event.action|contains: api
+    condition: selection
+falsepositives:
+    - Automated integrations and scheduled tasks
+    - IT staff in different time zones
+    - Emergency maintenance
+level: low

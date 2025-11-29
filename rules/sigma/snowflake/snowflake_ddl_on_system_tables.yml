@@ -1,0 +1,34 @@
+title: Snowflake DDL Operations on System Objects
+id: snowflake-ddl-system-objects-001
+status: stable
+description: |
+    Detects DDL (Data Definition Language) operations on system databases or schemas,
+    which may indicate attempts to tamper with audit logs or security configurations.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection_ddl:
+        snowflake.query.type:
+            - ALTER
+            - DROP
+            - TRUNCATE
+            - DELETE
+    selection_system:
+        snowflake.database.name:
+            - SNOWFLAKE
+            - SNOWFLAKE_SAMPLE_DATA
+    condition: selection_ddl and selection_system
+falsepositives:
+    - Snowflake support operations
+    - Authorized system maintenance
+level: critical

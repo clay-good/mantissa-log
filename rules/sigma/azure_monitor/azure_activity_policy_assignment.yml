@@ -1,0 +1,27 @@
+title: Azure Policy Assignment Modified
+id: azure-activity-policy-assignment-001
+status: stable
+description: |
+    Detects changes to Azure Policy assignments.
+    Policies enforce governance and security controls.
+references:
+    - https://docs.microsoft.com/en-us/azure/governance/policy/overview
+    - https://attack.mitre.org/techniques/T1562/001/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains:
+            - Microsoft.Authorization/policyAssignments/write
+            - Microsoft.Authorization/policyAssignments/delete
+    condition: selection
+falsepositives:
+    - Policy updates by governance team
+    - Compliance remediation
+level: medium

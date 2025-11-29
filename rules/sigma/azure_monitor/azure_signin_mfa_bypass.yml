@@ -1,0 +1,28 @@
+title: Azure AD MFA Bypass Attempt
+id: azure-signin-mfa-bypass-001
+status: stable
+description: |
+    Detects potential MFA bypass attempts where sign-in succeeds without
+    completing multi-factor authentication when it should be required.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-mfa-howitworks
+    - https://attack.mitre.org/techniques/T1556/006/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1556.006
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.status.error_code:
+            - '50072'
+            - '50074'
+            - '50076'
+    condition: selection
+falsepositives:
+    - First-time MFA registration
+    - MFA token issues
+level: medium

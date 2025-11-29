@@ -1,0 +1,27 @@
+title: AWS GuardDuty Cryptocurrency Mining Detection
+id: b2c3d4e5-6f7a-8b9c-0d1e-2f3a4b5c6d7e
+status: stable
+description: |
+    Detects GuardDuty findings related to cryptocurrency mining activity,
+    indicating resource hijacking or compromised instances.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1496/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1496
+    - attack.resource_hijacking
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'CryptoCurrency'
+            - 'BitcoinTool'
+    condition: selection
+falsepositives:
+    - Authorized cryptocurrency operations
+level: high

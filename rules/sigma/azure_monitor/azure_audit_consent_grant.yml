@@ -1,0 +1,28 @@
+title: Azure AD Application Consent Granted
+id: azure-audit-consent-grant-001
+status: stable
+description: |
+    Detects when consent is granted to an Azure AD application.
+    Illicit consent grants are a common attack vector.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/grant-admin-consent
+    - https://attack.mitre.org/techniques/T1528/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1528
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains:
+            - Consent to application
+            - Add delegated permission grant
+            - Add app role assignment grant to user
+    condition: selection
+falsepositives:
+    - Legitimate application onboarding
+    - IT-approved applications
+level: medium

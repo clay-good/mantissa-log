@@ -1,0 +1,28 @@
+title: Azure AD User Account Created
+id: azure-audit-user-created-001
+status: stable
+description: |
+    Detects creation of new user accounts in Azure AD.
+    Unauthorized user creation may indicate persistence attempts.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-audit-logs
+    - https://attack.mitre.org/techniques/T1136/003/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136.003
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name:
+            - Add user
+            - Create user
+    condition: selection
+falsepositives:
+    - Legitimate user onboarding
+    - HR-driven provisioning
+    - SCIM provisioning
+level: low

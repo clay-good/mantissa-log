@@ -1,0 +1,26 @@
+title: Azure Resource Deleted
+id: azure-activity-resource-deleted-001
+status: stable
+description: |
+    Detects deletion of Azure resources.
+    Mass deletions may indicate sabotage or ransomware.
+references:
+    - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log
+    - https://attack.mitre.org/techniques/T1485/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1485
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|endswith: /delete
+        event.outcome: success
+    condition: selection
+falsepositives:
+    - Legitimate resource cleanup
+    - Infrastructure teardown
+level: low

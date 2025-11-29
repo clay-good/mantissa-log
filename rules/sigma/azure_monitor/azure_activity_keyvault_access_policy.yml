@@ -1,0 +1,25 @@
+title: Azure Key Vault Access Policy Modified
+id: azure-activity-keyvault-policy-001
+status: stable
+description: |
+    Detects modifications to Azure Key Vault access policies.
+    Attackers may modify policies to gain access to secrets.
+references:
+    - https://docs.microsoft.com/en-us/azure/key-vault/general/security-features
+    - https://attack.mitre.org/techniques/T1552/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1552
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.KeyVault/vaults/accessPolicies/write
+    condition: selection
+falsepositives:
+    - Legitimate policy changes
+    - Application deployments
+level: medium

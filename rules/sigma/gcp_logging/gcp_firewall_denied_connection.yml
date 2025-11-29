@@ -1,0 +1,25 @@
+title: GCP Firewall Connection Denied
+id: gcp-firewall-denied-001
+status: stable
+description: |
+    Detects connections denied by VPC firewall rules. Denied connections
+    may indicate reconnaissance, policy violations, or attack attempts.
+references:
+    - https://cloud.google.com/vpc/docs/firewall-rules-logging
+    - https://attack.mitre.org/techniques/T1046/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.discovery
+    - attack.t1046
+logsource:
+    product: gcp
+    service: firewall_logs
+detection:
+    selection:
+        gcp.firewall.disposition: DENIED
+    condition: selection
+falsepositives:
+    - Normal traffic blocked by security policies
+    - Misconfigured applications
+level: low

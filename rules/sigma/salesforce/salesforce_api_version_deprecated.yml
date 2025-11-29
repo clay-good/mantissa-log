@@ -1,0 +1,30 @@
+title: Salesforce API Access Using Deprecated Version
+id: sf-api-deprecated-version-001
+status: stable
+description: |
+    Detects API calls using deprecated or very old API versions. This may
+    indicate legacy malware or tools that haven't been updated, which could
+    be easier targets for exploitation.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/
+    - https://attack.mitre.org/techniques/T1190/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1190
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type:
+            - 'API'
+            - 'RestApi'
+    filter_old_version:
+        salesforce.api.version|lt: '45.0'
+    condition: selection and filter_old_version
+falsepositives:
+    - Legacy integrations not yet updated
+    - Third-party tools with older SDKs
+level: low

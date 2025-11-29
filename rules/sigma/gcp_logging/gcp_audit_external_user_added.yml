@@ -1,0 +1,31 @@
+title: GCP External User Added to Project
+id: gcp-audit-external-user-001
+status: stable
+description: |
+    Detects when an external user (outside the organization domain) is
+    granted access to a GCP project. External access could indicate
+    unauthorized sharing or potential compromise.
+references:
+    - https://cloud.google.com/iam/docs/granting-changing-revoking-access
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.method_name|endswith:
+            - SetIamPolicy
+            - setIamPolicy
+    external_user:
+        gcp.request|contains: 'user:'
+    condition: selection and external_user
+falsepositives:
+    - Legitimate external collaborators
+    - Vendor access
+    - Consultants
+level: medium

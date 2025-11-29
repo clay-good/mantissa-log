@@ -1,0 +1,35 @@
+title: Azure AD Privileged Role Assignment
+id: azure-audit-privileged-role-001
+status: stable
+description: |
+    Detects assignment of highly privileged roles in Azure AD.
+    These roles should be tightly controlled and monitored.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/roles/permissions-reference
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.privilege_escalation
+    - attack.t1098
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains: Add member to role
+    filter_roles:
+        azure.target.display_name|contains:
+            - Global Administrator
+            - Privileged Role Administrator
+            - Security Administrator
+            - Exchange Administrator
+            - SharePoint Administrator
+            - Intune Administrator
+            - Azure AD Joined Device Local Administrator
+            - Conditional Access Administrator
+    condition: selection and filter_roles
+falsepositives:
+    - Legitimate administrative changes
+    - Role rotations
+level: high

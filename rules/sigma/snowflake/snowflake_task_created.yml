@@ -1,0 +1,27 @@
+title: Snowflake Task Created
+id: snowflake-task-created-001
+status: stable
+description: |
+    Detects creation of scheduled tasks in Snowflake. Tasks can execute
+    SQL statements on a schedule and may be used for persistence.
+references:
+    - https://docs.snowflake.com/en/user-guide/tasks-intro
+    - https://attack.mitre.org/techniques/T1053/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.execution
+    - attack.t1053
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+(OR\s+REPLACE\s+)?TASK'
+    condition: selection
+falsepositives:
+    - Legitimate scheduled job creation
+    - ETL pipeline scheduling
+    - Data refresh automation
+level: low

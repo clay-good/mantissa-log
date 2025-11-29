@@ -1,0 +1,26 @@
+title: Snowflake Account Settings Modified
+id: snowflake-alter-account-001
+status: stable
+description: |
+    Detects modifications to account-level settings in Snowflake.
+    Account settings control security, authentication, and access policies.
+references:
+    - https://docs.snowflake.com/en/sql-reference/sql/alter-account
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)ALTER\s+ACCOUNT'
+    condition: selection
+falsepositives:
+    - Legitimate account configuration changes
+    - Security policy updates
+    - Compliance requirement implementations
+level: high

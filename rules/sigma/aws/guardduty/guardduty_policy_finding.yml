@@ -1,0 +1,27 @@
+title: AWS GuardDuty Policy Violation Finding
+id: f2a3b4c5-6d7e-8f9a-0b1c-2d3e4f5a6b7c
+status: stable
+description: |
+    Detects GuardDuty findings related to S3 or IAM policy violations
+    such as public bucket access, overly permissive policies, or
+    suspicious policy changes.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-s3.html
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.t1530
+    - attack.t1537
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|startswith: 'Policy:'
+    condition: selection
+falsepositives:
+    - Intended public resources
+    - Development environments
+level: medium

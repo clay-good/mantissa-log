@@ -1,0 +1,30 @@
+title: Salesforce Login Outside Business Hours
+id: sf-login-outside-hours-001
+status: stable
+description: |
+    Detects logins occurring outside of normal business hours (before 6 AM or
+    after 10 PM), which may indicate compromised credentials or insider threats.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_overview_login_history.htm
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: salesforce
+    service: login
+detection:
+    selection:
+        event.action: user_login
+        event.outcome: success
+    filter_business_hours:
+        '@timestamp|hour': '6-22'
+    condition: selection and not filter_business_hours
+falsepositives:
+    - Employees working late or early
+    - Users in different time zones
+    - On-call personnel
+    - Scheduled automated processes
+level: low

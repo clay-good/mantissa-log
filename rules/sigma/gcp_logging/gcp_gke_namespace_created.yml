@@ -1,0 +1,26 @@
+title: GKE Namespace Created
+id: gcp-gke-namespace-001
+status: stable
+description: |
+    Detects creation of Kubernetes namespaces in GKE. Unauthorized namespaces
+    could be used to deploy malicious workloads in isolated environments.
+references:
+    - https://cloud.google.com/kubernetes-engine/docs/how-to/audit-logging
+    - https://attack.mitre.org/techniques/T1610/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1610
+logsource:
+    product: gcp
+    service: gke_audit_logs
+detection:
+    selection:
+        gcp.gke.method_name|contains:
+            - namespaces.create
+    condition: selection
+falsepositives:
+    - Legitimate namespace provisioning
+    - Application deployments
+level: low

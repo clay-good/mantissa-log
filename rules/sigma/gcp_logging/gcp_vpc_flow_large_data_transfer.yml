@@ -1,0 +1,26 @@
+title: GCP VPC Large Data Transfer
+id: gcp-vpc-flow-large-transfer-001
+status: stable
+description: |
+    Detects large data transfers in VPC flow logs. Unusual large data
+    transfers may indicate data exfiltration or compromise.
+references:
+    - https://cloud.google.com/vpc/docs/flow-logs
+    - https://attack.mitre.org/techniques/T1048/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1048
+logsource:
+    product: gcp
+    service: vpc_flow_logs
+detection:
+    selection:
+        source.bytes|gt: 1073741824
+    condition: selection
+falsepositives:
+    - Large file transfers
+    - Backup operations
+    - Data migrations
+level: medium

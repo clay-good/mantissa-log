@@ -1,0 +1,30 @@
+title: GCP Logging Sink Modified
+id: gcp-audit-logging-sink-001
+status: stable
+description: |
+    Detects modifications to Cloud Logging sinks. Attackers may modify
+    or delete logging sinks to evade detection and hide their activities.
+references:
+    - https://cloud.google.com/logging/docs/export
+    - https://attack.mitre.org/techniques/T1562/008/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.008
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: logging.googleapis.com
+        gcp.audit.method_name|contains:
+            - UpdateSink
+            - DeleteSink
+            - updateSink
+            - deleteSink
+    condition: selection
+falsepositives:
+    - Legitimate logging configuration changes
+    - Infrastructure updates
+level: high

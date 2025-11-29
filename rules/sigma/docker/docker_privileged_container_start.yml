@@ -1,0 +1,33 @@
+title: Privileged Docker Container Started
+id: d8c87e01-5f3a-4a1d-8b9c-2e4f6a7b8c9d
+status: stable
+description: |
+    Detects when a Docker container is started with privileged mode enabled.
+    Privileged containers have full access to the host system and can be used
+    for container escape attacks and privilege escalation.
+references:
+    - https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+    - https://attack.mitre.org/techniques/T1611/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.t1611
+    - attack.privilege_escalation
+    - attack.t1610
+    - attack.defense_evasion
+logsource:
+    category: application
+    product: docker
+    service: events
+detection:
+    selection:
+        docker.type: 'container'
+        docker.action: 'start'
+    selection_privileged:
+        docker.actor.attributes.privileged: 'true'
+    condition: selection and selection_privileged
+falsepositives:
+    - Legitimate privileged containers for system administration
+    - Container runtimes that require elevated privileges
+    - Development and testing environments
+level: high

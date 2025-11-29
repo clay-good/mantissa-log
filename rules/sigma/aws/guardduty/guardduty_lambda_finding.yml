@@ -1,0 +1,27 @@
+title: AWS GuardDuty Lambda Finding
+id: d2e3f4a5-6b7c-8d9e-0f1a-2b3c4d5e6f7a
+status: stable
+description: |
+    Detects GuardDuty findings related to AWS Lambda functions
+    including suspicious network connections or credential access.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-lambda.html
+    - https://attack.mitre.org/techniques/T1648/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1648
+    - attack.t1059
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'Lambda'
+            - ':Lambda/'
+    condition: selection
+falsepositives:
+    - Lambda functions with legitimate external connections
+level: high

@@ -1,0 +1,28 @@
+title: GCP Pub/Sub Subscription Created
+id: gcp-audit-pubsub-sub-001
+status: stable
+description: |
+    Detects creation of Pub/Sub subscriptions. Unauthorized subscriptions
+    could be used to intercept messages or exfiltrate data.
+references:
+    - https://cloud.google.com/pubsub/docs
+    - https://attack.mitre.org/techniques/T1020/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1020
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: pubsub.googleapis.com
+        gcp.audit.method_name|contains:
+            - CreateSubscription
+            - createSubscription
+    condition: selection
+falsepositives:
+    - Legitimate messaging setup
+    - Application deployments
+level: low

@@ -1,0 +1,26 @@
+title: Azure Storage Account Keys Listed
+id: azure-activity-storage-keys-001
+status: stable
+description: |
+    Detects listing of Azure Storage account access keys.
+    Access keys provide full control over storage accounts.
+references:
+    - https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage
+    - https://attack.mitre.org/techniques/T1552/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.t1552
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains: Microsoft.Storage/storageAccounts/listKeys/action
+    condition: selection
+falsepositives:
+    - Legitimate key access
+    - Backup solutions
+    - Deployment automation
+level: medium

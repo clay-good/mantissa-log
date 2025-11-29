@@ -1,0 +1,28 @@
+title: GKE ClusterRole Created
+id: gcp-gke-clusterrole-001
+status: stable
+description: |
+    Detects creation of ClusterRoles in GKE. ClusterRoles define cluster-wide
+    permissions and unauthorized creation could enable privilege escalation.
+references:
+    - https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1078
+logsource:
+    product: gcp
+    service: gke_audit_logs
+detection:
+    selection:
+        gcp.gke.method_name|contains:
+            - clusterroles.create
+            - clusterrolebindings.create
+    condition: selection
+falsepositives:
+    - Legitimate RBAC configuration
+    - Application deployments
+level: medium

@@ -1,0 +1,27 @@
+title: Snowflake Row Access Policy Modified
+id: snowflake-row-access-policy-modified-001
+status: stable
+description: |
+    Detects modifications to row access policies in Snowflake. Row access policies
+    control which rows users can see and changes may indicate privilege escalation attempts.
+references:
+    - https://docs.snowflake.com/en/user-guide/security-row-intro
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)(CREATE|ALTER|DROP)\s+ROW\s+ACCESS\s+POLICY'
+    condition: selection
+falsepositives:
+    - Legitimate access policy updates
+    - Multi-tenancy configuration changes
+    - Compliance requirement changes
+level: high

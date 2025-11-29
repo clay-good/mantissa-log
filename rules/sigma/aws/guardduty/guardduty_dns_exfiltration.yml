@@ -1,0 +1,29 @@
+title: AWS GuardDuty DNS Exfiltration Finding
+id: f8a9b0c1-2d3e-4f5a-6b7c-8d9e0f1a2b3c
+status: stable
+description: |
+    Detects GuardDuty findings indicating DNS-based data exfiltration
+    or C2 communication through suspicious DNS queries.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1071.004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.command_and_control
+    - attack.t1071.004
+    - attack.exfiltration
+    - attack.t1048
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'DNS'
+            - 'Trojan:EC2/DNSDataExfiltration'
+    condition: selection
+falsepositives:
+    - Unusual but legitimate DNS traffic
+    - DNS-based services
+level: high

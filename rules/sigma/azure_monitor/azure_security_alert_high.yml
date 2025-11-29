@@ -1,0 +1,26 @@
+title: Azure Security Center High Severity Alert
+id: azure-security-alert-high-001
+status: stable
+description: |
+    Detects high severity security alerts from Azure Defender.
+    Requires immediate investigation.
+references:
+    - https://docs.microsoft.com/en-us/azure/defender-for-cloud/alerts-overview
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1078
+logsource:
+    product: azure
+    service: security_alerts
+detection:
+    selection:
+        event.kind: alert
+        azure.security_alert.severity: High
+    condition: selection
+falsepositives:
+    - Rarely false positive for high severity
+level: critical

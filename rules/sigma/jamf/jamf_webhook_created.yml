@@ -1,0 +1,26 @@
+title: Jamf Pro Webhook Created
+id: jamf-webhook-created-001
+status: stable
+description: |
+    Detects creation of new webhooks in Jamf Pro.
+    Webhooks can exfiltrate device data to external systems.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Webhooks.html
+    - https://attack.mitre.org/techniques/T1567/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1567
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Create
+        jamf.audit.object_type: Webhook
+    condition: selection
+falsepositives:
+    - Legitimate integration setup
+    - SIEM integration configuration
+level: medium

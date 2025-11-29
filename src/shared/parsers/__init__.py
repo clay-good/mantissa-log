@@ -15,6 +15,13 @@ from .slack import SlackParser
 from .microsoft365 import Microsoft365Parser
 from .github import GitHubParser
 from .duo import DuoParser
+from .docker import DockerParser
+from .salesforce import SalesforceParser
+from .snowflake import SnowflakeParser
+from .jamf import JamfParser
+from .onepassword import OnePasswordParser
+from .azure_monitor import AzureMonitorParser
+from .gcp_logging import GCPLoggingParser
 
 __all__ = [
     "ParsedEvent",
@@ -36,4 +43,11 @@ __all__ = [
     "Microsoft365Parser",
     "GitHubParser",
     "DuoParser",
+    "DockerParser",
+    "SalesforceParser",
+    "SnowflakeParser",
+    "JamfParser",
+    "OnePasswordParser",
+    "AzureMonitorParser",
+    "GCPLoggingParser",
 ]

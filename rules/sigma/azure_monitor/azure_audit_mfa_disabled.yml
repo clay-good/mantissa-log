@@ -1,0 +1,29 @@
+title: Azure AD MFA Disabled for User
+id: azure-audit-mfa-disabled-001
+status: stable
+description: |
+    Detects when MFA is disabled for a user account.
+    Disabling MFA weakens account security.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-mfa-userstates
+    - https://attack.mitre.org/techniques/T1556/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.defense_evasion
+    - attack.t1556
+logsource:
+    product: azure
+    service: audit_logs
+detection:
+    selection:
+        azure.audit.activity_display_name|contains:
+            - Disable Strong Authentication
+            - Delete MFA
+            - Remove MFA
+    condition: selection
+falsepositives:
+    - MFA method changes
+    - Device replacement scenarios
+level: high

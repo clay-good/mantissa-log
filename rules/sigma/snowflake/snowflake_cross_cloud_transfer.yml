@@ -1,0 +1,29 @@
+title: Snowflake Cross-Cloud Provider Data Transfer
+id: snowflake-cross-cloud-transfer-001
+status: stable
+description: |
+    Detects data transfers between different cloud providers (AWS, Azure, GCP).
+    Cross-cloud transfers are unusual and may indicate data exfiltration.
+references:
+    - https://docs.snowflake.com/en/sql-reference/account-usage/data_transfer_history
+    - https://attack.mitre.org/techniques/T1537/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.exfiltration
+    - attack.t1537
+logsource:
+    product: snowflake
+    service: data_transfer
+detection:
+    selection:
+        event.action: data_transfer
+    filter_different_cloud:
+        source.cloud.provider: '*'
+        destination.cloud.provider: '*'
+    condition: selection and filter_different_cloud
+falsepositives:
+    - Approved multi-cloud architecture
+    - Cloud migration projects
+    - Disaster recovery testing
+level: high

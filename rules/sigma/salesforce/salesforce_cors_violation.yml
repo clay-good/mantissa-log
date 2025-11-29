@@ -1,0 +1,25 @@
+title: Salesforce CORS Violation Detected
+id: sf-cors-violation-001
+status: stable
+description: |
+    Detects Cross-Origin Resource Sharing (CORS) policy violations, which may
+    indicate attempted cross-site attacks or misconfigured applications.
+references:
+    - https://developer.salesforce.com/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_cors.htm
+    - https://attack.mitre.org/techniques/T1189/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1189
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: CorsViolation
+    condition: selection
+falsepositives:
+    - Misconfigured legitimate applications
+    - Development environment testing
+level: medium

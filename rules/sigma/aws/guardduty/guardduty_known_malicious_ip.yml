@@ -1,0 +1,28 @@
+title: AWS GuardDuty Known Malicious IP Finding
+id: b6c7d8e9-0f1a-2b3c-4d5e-6f7a8b9c0d1e
+status: stable
+description: |
+    Detects GuardDuty findings indicating communication with known
+    malicious IP addresses from threat intelligence feeds.
+references:
+    - https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html
+    - https://attack.mitre.org/techniques/T1071/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.command_and_control
+    - attack.t1071
+logsource:
+    product: aws
+    service: guardduty
+detection:
+    selection:
+        type|contains:
+            - 'MaliciousIP'
+            - 'ThreatIntelligence'
+            - '/MaliciousIPCaller.'
+    condition: selection
+falsepositives:
+    - Stale threat intelligence
+    - Shared hosting IPs
+level: high

@@ -1,0 +1,25 @@
+title: Salesforce Transaction Security Alert Triggered
+id: sf-transaction-security-001
+status: stable
+description: |
+    Detects when Salesforce's built-in Transaction Security feature generates
+    an alert. These are policy-based detections for suspicious activity that
+    should be investigated.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.security_transaction_security.htm
+    - https://attack.mitre.org/techniques/T1071/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1071
+logsource:
+    product: salesforce
+    service: eventlog
+detection:
+    selection:
+        salesforce.event_type: TransactionSecurity
+    condition: selection
+falsepositives:
+    - False positives from overly sensitive policies
+level: high

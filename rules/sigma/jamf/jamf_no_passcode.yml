@@ -1,0 +1,25 @@
+title: Jamf Pro Mobile Device Without Passcode
+id: jamf-no-passcode-001
+status: stable
+description: |
+    Detects managed mobile devices that do not have a passcode set.
+    All managed devices should have a passcode for data protection.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Security_Management.html
+    - https://attack.mitre.org/techniques/T1078/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078
+logsource:
+    product: jamf
+    service: mobile_device
+detection:
+    selection:
+        jamf.security.passcode_present: false
+    condition: selection
+falsepositives:
+    - Shared devices with physical security controls
+    - Display-only kiosk devices
+level: high

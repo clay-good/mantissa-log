@@ -1,0 +1,29 @@
+title: Jamf Pro Administrator Account Deleted
+id: jamf-admin-deleted-001
+status: stable
+description: |
+    Detects deletion of administrator accounts in Jamf Pro.
+    May indicate evidence destruction or unauthorized access.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Jamf_Pro_User_Accounts.html
+    - https://attack.mitre.org/techniques/T1531/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.impact
+    - attack.t1531
+logsource:
+    product: jamf
+    service: audit
+detection:
+    selection:
+        jamf.audit.action: Delete
+        jamf.audit.object_type:
+            - Account
+            - User
+            - Administrator
+    condition: selection
+falsepositives:
+    - Legitimate administrator offboarding
+    - Account cleanup activities
+level: medium

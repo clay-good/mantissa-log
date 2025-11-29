@@ -1,0 +1,29 @@
+title: Salesforce Permission Set Assigned
+id: sf-permission-set-assigned-001
+status: stable
+description: |
+    Detects when a permission set is assigned to a user, which grants additional
+    privileges. Monitor for unauthorized privilege escalation attempts.
+references:
+    - https://help.salesforce.com/s/articleView?id=sf.perm_sets_overview.htm
+    - https://attack.mitre.org/techniques/T1098/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098
+    - attack.t1098.001
+logsource:
+    product: salesforce
+    service: setup_audit_trail
+detection:
+    selection:
+        salesforce.audit_trail.action|contains: 'permission'
+        salesforce.audit_trail.action|contains: 'assign'
+    condition: selection
+falsepositives:
+    - Legitimate user provisioning
+    - Role changes during employee transfers
+    - New employee onboarding
+level: low

@@ -1,0 +1,28 @@
+title: Jamf Pro MDM Profile Removed
+id: jamf-mdm-profile-removed-001
+status: stable
+description: |
+    Detects when the MDM profile is removed from a device, indicating
+    the device is no longer managed.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/MDM_Framework.html
+    - https://attack.mitre.org/techniques/T1562/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.t1562.001
+logsource:
+    product: jamf
+    service: webhook
+detection:
+    selection:
+        jamf.event_type:
+            - MDMProfileRemoved
+            - ManagementFrameworkRemoved
+    condition: selection
+falsepositives:
+    - Device migration to new MDM
+    - Legitimate device decommissioning
+level: high

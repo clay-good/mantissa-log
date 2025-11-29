@@ -1,0 +1,26 @@
+title: Azure AD Sign-in from New Location
+id: azure-signin-new-location-001
+status: stable
+description: |
+    Detects sign-in events from unfamiliar locations as flagged by Azure AD.
+    May indicate account compromise or legitimate travel.
+references:
+    - https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/concept-identity-protection-risks
+    - https://attack.mitre.org/techniques/T1078/004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.initial_access
+    - attack.t1078.004
+logsource:
+    product: azure
+    service: signin_logs
+detection:
+    selection:
+        azure.risk.event_types|contains: unfamiliarLocation
+    condition: selection
+falsepositives:
+    - Business travel
+    - Remote workers changing locations
+    - VPN exit points
+level: medium

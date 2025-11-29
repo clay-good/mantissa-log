@@ -1,0 +1,33 @@
+title: GCP Storage Bucket Made Public
+id: gcp-audit-storage-public-001
+status: stable
+description: |
+    Detects when a Cloud Storage bucket IAM policy is modified to include
+    allUsers or allAuthenticatedUsers, potentially exposing data publicly.
+references:
+    - https://cloud.google.com/storage/docs/access-control/iam
+    - https://attack.mitre.org/techniques/T1530/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.t1530
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: storage.googleapis.com
+        gcp.audit.method_name|contains:
+            - SetIamPolicy
+            - setIamPolicy
+    public_access:
+        gcp.request|contains:
+            - allUsers
+            - allAuthenticatedUsers
+    condition: selection and public_access
+falsepositives:
+    - Intentionally public buckets for static website hosting
+    - Public datasets
+level: critical

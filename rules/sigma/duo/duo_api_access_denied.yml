@@ -1,0 +1,29 @@
+title: Duo Security API Access Denied
+id: 7b686jm2-qt5x-4w2t-ux8w-3v7x9y1w2x3v
+status: stable
+description: |
+    Detects denied API access attempts to Duo Security Admin API. Could indicate
+    an attacker attempting to access the API with invalid credentials or from
+    an unauthorized IP address.
+references:
+    - https://duo.com/docs/adminapi
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.credential_access
+    - attack.initial_access
+    - attack.t1110
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action|contains:
+            - api_access
+            - api_denied
+            - unauthorized
+    condition: selection
+falsepositives:
+    - Misconfigured API integration
+    - Expired API credentials
+level: medium

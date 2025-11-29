@@ -1,0 +1,30 @@
+title: Jamf Pro New Device Enrolled
+id: jamf-device-enrolled-001
+status: stable
+description: |
+    Detects when a new device is enrolled in Jamf Pro.
+    Monitor for unauthorized device enrollments.
+references:
+    - https://docs.jamf.com/jamf-pro/documentation/Computer_Enrollment.html
+    - https://attack.mitre.org/techniques/T1136/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136
+logsource:
+    product: jamf
+    service: webhook
+detection:
+    selection:
+        jamf.event_type:
+            - ComputerEnrolled
+            - MobileDeviceEnrolled
+            - PrestageEnrollment
+            - AutomatedDeviceEnrollment
+    condition: selection
+falsepositives:
+    - Legitimate new device deployments
+    - Employee onboarding
+    - Device refresh programs
+level: low

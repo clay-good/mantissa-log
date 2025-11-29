@@ -1,0 +1,26 @@
+title: Duo Security New User Enrolled
+id: 6c5d4b63-7a6e-4f3a-be9d-4c8e0f2d3e4c
+status: stable
+description: |
+    Detects when a new user is enrolled in Duo Security. While routine, unexpected
+    user enrollments could indicate unauthorized account creation or privilege
+    escalation attempts.
+references:
+    - https://duo.com/docs/adminapi#administrator-logs
+author: Mantissa Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1136
+    - attack.privilege_escalation
+logsource:
+    product: cisco
+    service: duo
+detection:
+    selection:
+        action: user_create
+    condition: selection
+falsepositives:
+    - Normal user provisioning by IT administrators
+    - Automated user sync from identity provider
+level: low

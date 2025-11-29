@@ -1,0 +1,28 @@
+title: Snowflake External Function Created
+id: snowflake-external-function-created-001
+status: stable
+description: |
+    Detects creation of external functions that call external APIs.
+    These functions can be used to exfiltrate data or execute remote code.
+references:
+    - https://docs.snowflake.com/en/sql-reference/external-functions
+    - https://attack.mitre.org/techniques/T1059/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.exfiltration
+    - attack.t1567
+logsource:
+    product: snowflake
+    service: query_history
+detection:
+    selection:
+        snowflake.query.text|re: '(?i)CREATE\s+(OR\s+REPLACE\s+)?EXTERNAL\s+FUNCTION'
+    condition: selection
+falsepositives:
+    - Legitimate external API integrations
+    - Approved third-party service connections
+    - Machine learning model inference endpoints
+level: high

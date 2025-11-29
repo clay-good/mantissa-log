@@ -1,0 +1,33 @@
+title: GCP Compute Engine SSH Key Added
+id: gcp-audit-gce-ssh-001
+status: stable
+description: |
+    Detects addition of SSH keys to Compute Engine instances or project
+    metadata. SSH key injection is a common persistence technique.
+references:
+    - https://cloud.google.com/compute/docs/connect/add-ssh-keys
+    - https://attack.mitre.org/techniques/T1098/004/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.persistence
+    - attack.t1098.004
+logsource:
+    product: gcp
+    service: audit_logs
+detection:
+    selection:
+        gcp.audit.service_name: compute.googleapis.com
+        gcp.audit.method_name|contains:
+            - setMetadata
+            - projects.setCommonInstanceMetadata
+            - instances.setMetadata
+    ssh_key:
+        gcp.request|contains:
+            - ssh-keys
+            - sshKeys
+    condition: selection and ssh_key
+falsepositives:
+    - Legitimate SSH key provisioning
+    - User onboarding
+level: high

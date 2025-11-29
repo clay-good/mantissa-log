@@ -1,0 +1,27 @@
+title: Azure Diagnostic Settings Modified
+id: azure-activity-diagnostic-settings-001
+status: stable
+description: |
+    Detects changes to Azure diagnostic settings.
+    Attackers may disable logging to cover tracks.
+references:
+    - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/diagnostic-settings
+    - https://attack.mitre.org/techniques/T1562/008/
+author: Mantissa Log Security Team
+date: 2025-01-28
+tags:
+    - attack.defense_evasion
+    - attack.t1562.008
+logsource:
+    product: azure
+    service: activity_logs
+detection:
+    selection:
+        azure.operation_name|contains:
+            - Microsoft.Insights/diagnosticSettings/write
+            - Microsoft.Insights/diagnosticSettings/delete
+    condition: selection
+falsepositives:
+    - Legitimate logging configuration
+    - Cost optimization
+level: medium
