@@ -1,15 +1,25 @@
 """
-Alert Sender with PII/PHI Redaction
+Alert Sender with LLM Enrichment and PII/PHI Redaction
 
-Sends alerts to configured integrations with automatic PII/PHI redaction.
-Integrates the redaction system with alert routing.
+Sends alerts to configured integrations with:
+1. LLM-powered enrichment (5W1H, behavioral context, recommendations)
+2. Automatic PII/PHI redaction for external systems
+
+The enrichment happens BEFORE redaction so that analysts get full context,
+but sensitive data is redacted before leaving the system.
 """
 
 import json
-from typing import Dict, Any, List
+import logging
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from redaction.redaction_manager import RedactionManager, ensure_redacted_alert
+
+logger = logging.getLogger(__name__)
+
+# Enrichment configuration cache
+_enrichment_config_cache = {}
 
 
 def send_alert_to_integrations(
@@ -17,34 +27,150 @@ def send_alert_to_integrations(
     alert_id: str,
     alert_payload: Dict[str, Any],
     integrations: List[str],
-    severity: str = 'medium'
+    severity: str = 'medium',
+    rule_info: Optional[Dict[str, Any]] = None,
+    enable_enrichment: bool = True,
+    query_executor=None
 ) -> Dict[str, Any]:
     """
-    Send alert to multiple integrations with automatic redaction.
+    Send alert to multiple integrations with enrichment and redaction.
+
+    Processing order:
+    1. LLM enrichment (adds 5W1H, behavioral context, recommendations)
+    2. PII/PHI redaction (removes sensitive data for external systems)
+    3. Send to each integration
 
     Args:
         user_id: User ID
         alert_id: Alert ID
-        alert_payload: Alert payload (unredacted)
+        alert_payload: Alert payload (unredacted, unenriched)
         integrations: List of integration IDs to send to
         severity: Alert severity
+        rule_info: Sigma rule metadata for enrichment context
+        enable_enrichment: Whether to apply LLM enrichment
+        query_executor: Query executor for behavioral analysis
 
     Returns:
         Dictionary with send results per integration
     """
     results = {}
 
+    # Step 1: Apply LLM enrichment if enabled
+    enriched_payload = alert_payload
+    if enable_enrichment:
+        enriched_payload = _enrich_alert(
+            user_id=user_id,
+            alert_payload=alert_payload,
+            severity=severity,
+            rule_info=rule_info,
+            query_executor=query_executor
+        )
+
+    # Step 2: Send to each integration (redaction happens per-integration)
     for integration_id in integrations:
         result = send_alert_to_integration(
             user_id=user_id,
             alert_id=alert_id,
             integration_id=integration_id,
-            alert_payload=alert_payload,
+            alert_payload=enriched_payload,
             severity=severity
         )
         results[integration_id] = result
 
     return results
+
+
+def _enrich_alert(
+    user_id: str,
+    alert_payload: Dict[str, Any],
+    severity: str,
+    rule_info: Optional[Dict[str, Any]] = None,
+    query_executor=None
+) -> Dict[str, Any]:
+    """
+    Apply LLM enrichment to an alert.
+
+    Args:
+        user_id: User ID for LLM provider selection
+        alert_payload: Original alert payload
+        severity: Alert severity
+        rule_info: Sigma rule metadata
+        query_executor: Query executor for behavioral analysis
+
+    Returns:
+        Enriched alert payload
+    """
+    try:
+        from .enrichment.enricher import create_enricher_from_config
+        from .enrichment.config import EnrichmentConfig
+
+        # Get enrichment config (could be from DynamoDB in production)
+        config = _get_enrichment_config(user_id)
+
+        # Create enricher
+        enricher = create_enricher_from_config(
+            config_dict=config,
+            user_id=user_id,
+            query_executor=query_executor
+        )
+
+        # Enrich the alert
+        enriched = enricher.enrich_alert(
+            alert_payload=alert_payload,
+            rule_info=rule_info,
+            user_id=user_id
+        )
+
+        logger.info(f"Alert {alert_payload.get('alert_id')} enriched successfully")
+        return enriched
+
+    except Exception as e:
+        logger.warning(f"Alert enrichment failed, using original payload: {e}")
+        return alert_payload
+
+
+def _get_enrichment_config(user_id: str) -> Dict[str, Any]:
+    """
+    Get enrichment configuration for a user.
+
+    In production, this would fetch from DynamoDB.
+    Returns default config if not found.
+    """
+    if user_id in _enrichment_config_cache:
+        return _enrichment_config_cache[user_id]
+
+    # Default configuration
+    config = {
+        'enabled': True,
+        'llm_model': 'claude-3-5-sonnet-20241022',
+        'enrich_severities': ['critical', 'high', 'medium'],
+        'components': {
+            'five_w_one_h': True,
+            'behavioral_context': True,
+            'baseline_deviation': True,
+            'detection_explainer': True,
+            'recommended_actions': True,
+        },
+        'max_tokens_per_enrichment': 1500,
+        'use_haiku_for_low_severity': True,
+        'fallback_on_error': True,
+    }
+
+    # TODO: Fetch user-specific config from DynamoDB
+    # try:
+    #     import boto3
+    #     dynamodb = boto3.resource('dynamodb')
+    #     table = dynamodb.Table('mantissa_user_settings')
+    #     response = table.get_item(
+    #         Key={'user_id': user_id, 'setting_type': 'enrichment_config'}
+    #     )
+    #     if 'Item' in response:
+    #         config = response['Item'].get('config', config)
+    # except Exception as e:
+    #     logger.debug(f"Could not fetch enrichment config: {e}")
+
+    _enrichment_config_cache[user_id] = config
+    return config
 
 
 def send_alert_to_integration(
@@ -369,7 +495,20 @@ def send_to_email(config: Dict[str, Any], payload: Dict[str, Any], severity: str
 # Formatting functions
 
 def format_slack_message(payload: Dict[str, Any], severity: str) -> str:
-    """Format payload for Slack."""
+    """Format payload for Slack.
+
+    Uses enriched description if available, otherwise falls back to basic format.
+    """
+    # Use enriched description if available
+    if payload.get('enriched_description'):
+        return f"""*{severity.upper()}: {payload.get('detection_name', 'Detection')}*
+
+```
+{payload.get('enriched_description')}
+```
+"""
+
+    # Fallback to basic format
     return f"""*Alert: {payload.get('detection_name', 'Detection')}*
 Severity: {severity.upper()}
 Time: {payload.get('timestamp', datetime.utcnow().isoformat())}
@@ -387,7 +526,32 @@ def format_jira_summary(payload: Dict[str, Any]) -> str:
 
 
 def format_jira_description(payload: Dict[str, Any]) -> str:
-    """Format description for Jira."""
+    """Format description for Jira.
+
+    Uses enriched description if available for comprehensive context.
+    """
+    # Use enriched description if available
+    if payload.get('enriched_description'):
+        return f"""h3. Alert Details
+
+* *Alert ID:* {payload.get('alert_id', 'N/A')}
+* *Detection:* {payload.get('detection_name', 'N/A')}
+* *Severity:* {payload.get('severity', 'N/A')}
+* *Timestamp:* {payload.get('timestamp', 'N/A')}
+* *Event Count:* {payload.get('event_count', 'N/A')}
+
+h3. LLM-Enriched Analysis
+
+{{noformat}}
+{payload.get('enriched_description')}
+{{noformat}}
+
+h3. Original Description
+
+{payload.get('description', 'No description provided')}
+"""
+
+    # Fallback to basic format
     return f"""h3. Alert Details
 
 * *Alert ID:* {payload.get('alert_id', 'N/A')}
@@ -403,7 +567,7 @@ h3. Description
 h3. Raw Data
 
 {{code:json}}
-{json.dumps(payload, indent=2)}
+{json.dumps(payload, indent=2, default=str)}
 {{code}}
 """
 
