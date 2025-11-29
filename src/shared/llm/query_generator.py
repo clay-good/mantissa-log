@@ -1,15 +1,19 @@
 """Natural language to SQL query generation."""
 
 import re
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import json
 
 from .providers.base import LLMProvider
 from .schema_context import SchemaContext
 from .sql_validator import SQLValidator, ValidationResult
 from .prompt_templates import PromptBuilder
+from .cache import QueryPatternCache, InMemoryQueryCache, CachedQuery
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,6 +27,7 @@ class QueryGenerationResult:
     error: Optional[str] = None
     attempts: int = 1
     llm_response: Optional[str] = None
+    from_cache: bool = False
 
     def to_dict(self) -> Dict:
         """Convert to dictionary.
@@ -37,6 +42,7 @@ class QueryGenerationResult:
             "validation_warnings": self.validation_warnings,
             "error": self.error,
             "attempts": self.attempts,
+            "from_cache": self.from_cache,
         }
 
 
@@ -125,7 +131,9 @@ class QueryGenerator:
         schema_context: SchemaContext,
         sql_validator: SQLValidator,
         session_manager: Optional[SessionManager] = None,
-        max_retries: int = 3
+        query_cache: Optional[Union[QueryPatternCache, InMemoryQueryCache]] = None,
+        max_retries: int = 3,
+        enable_cache: bool = True
     ):
         """Initialize query generator.
 
@@ -134,7 +142,9 @@ class QueryGenerator:
             schema_context: Schema context builder
             sql_validator: SQL validator
             session_manager: Optional session manager for conversations
+            query_cache: Optional query cache for reducing LLM calls
             max_retries: Maximum retry attempts for failed queries
+            enable_cache: Whether to enable query caching (default True)
         """
         self.llm_provider = llm_provider
         self.schema_context = schema_context
@@ -142,12 +152,26 @@ class QueryGenerator:
         self.session_manager = session_manager or SessionManager()
         self.max_retries = max_retries
         self.prompt_builder = PromptBuilder()
+        self.enable_cache = enable_cache
+
+        # Initialize cache
+        if query_cache is not None:
+            self.query_cache = query_cache
+        elif enable_cache:
+            try:
+                self.query_cache = QueryPatternCache()
+            except Exception as e:
+                logger.warning(f"Failed to initialize DynamoDB cache, using in-memory: {e}")
+                self.query_cache = InMemoryQueryCache()
+        else:
+            self.query_cache = None
 
     def generate_query(
         self,
         user_question: str,
         session_id: Optional[str] = None,
-        include_explanation: bool = False
+        include_explanation: bool = False,
+        skip_cache: bool = False
     ) -> QueryGenerationResult:
         """Generate SQL query from natural language question.
 
@@ -155,10 +179,44 @@ class QueryGenerator:
             user_question: Natural language question
             session_id: Optional session ID for conversation context
             include_explanation: Whether to generate explanation
+            skip_cache: Skip cache lookup (force LLM call)
 
         Returns:
             QueryGenerationResult
         """
+        # Check cache first (only for standalone queries, not conversations)
+        if self.query_cache and not skip_cache and not session_id:
+            cached = self.query_cache.get(user_question)
+            if cached:
+                logger.debug(f"Cache hit for query: {user_question[:50]}...")
+
+                # Store in session if provided
+                if session_id:
+                    self.session_manager.add_message(
+                        session_id,
+                        ConversationMessage(
+                            role="user",
+                            content=user_question
+                        )
+                    )
+                    self.session_manager.add_message(
+                        session_id,
+                        ConversationMessage(
+                            role="assistant",
+                            content=cached.explanation or "Generated SQL query (from cache)",
+                            sql=cached.generated_sql
+                        )
+                    )
+
+                return QueryGenerationResult(
+                    success=True,
+                    sql=cached.generated_sql,
+                    explanation=cached.explanation,
+                    validation_warnings=[],
+                    attempts=0,
+                    from_cache=True
+                )
+
         # Get conversation history if session provided
         conversation_history = []
         if session_id:
@@ -235,13 +293,26 @@ class QueryGenerator:
                             )
                         )
 
+                    # Cache successful query (only for standalone queries)
+                    if self.query_cache and not session_id:
+                        try:
+                            self.query_cache.put(
+                                query=user_question,
+                                sql=result_sql,
+                                explanation=explanation
+                            )
+                            logger.debug(f"Cached query: {user_question[:50]}...")
+                        except Exception as e:
+                            logger.warning(f"Failed to cache query: {e}")
+
                     return QueryGenerationResult(
                         success=True,
                         sql=result_sql,
                         explanation=explanation,
                         validation_warnings=validation.warnings,
                         attempts=attempt,
-                        llm_response=llm_response
+                        llm_response=llm_response,
+                        from_cache=False
                     )
                 else:
                     # Validation failed, retry

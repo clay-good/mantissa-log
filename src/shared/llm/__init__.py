@@ -16,6 +16,13 @@ from .query_generator import (
     DynamoDBSessionManager,
     ConversationMessage,
 )
+from .cache import (
+    QueryPatternCache,
+    InMemoryQueryCache,
+    CachedQuery,
+    CacheStats,
+    get_query_cache,
+)
 
 __all__ = [
     "ColumnInfo",
@@ -31,4 +38,9 @@ __all__ = [
     "SessionManager",
     "DynamoDBSessionManager",
     "ConversationMessage",
+    "QueryPatternCache",
+    "InMemoryQueryCache",
+    "CachedQuery",
+    "CacheStats",
+    "get_query_cache",
 ]
