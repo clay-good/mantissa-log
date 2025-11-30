@@ -17,10 +17,17 @@ const SQL_FUNCTIONS = [
   'EXTRACT', 'DATE_TRUNC', 'DATE_ADD', 'DATE_SUB', 'REGEXP_LIKE', 'REGEXP_REPLACE'
 ]
 
+function escapeHtml(text) {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
 function highlightSQL(sql) {
   if (!sql) return ''
 
-  let highlighted = sql
+  // SECURITY: Escape HTML entities first to prevent XSS
+  let highlighted = escapeHtml(sql)
 
   // Highlight strings (single and double quotes)
   highlighted = highlighted.replace(

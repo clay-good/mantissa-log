@@ -31,10 +31,10 @@ dynamodb = boto3.resource('dynamodb')
 secrets_client = boto3.client('secretsmanager')
 
 # Environment variables
-LOGS_BUCKET = os.environ['LOGS_BUCKET']
-CHECKPOINT_TABLE = os.environ['CHECKPOINT_TABLE']
-SERVICE_ACCOUNT_SECRET = os.environ['SERVICE_ACCOUNT_SECRET']
-DELEGATED_ADMIN_EMAIL = os.environ['DELEGATED_ADMIN_EMAIL']
+LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
+CHECKPOINT_TABLE = os.environ.get('CHECKPOINT_TABLE', "mantissa-checkpoint-table")
+SERVICE_ACCOUNT_SECRET = os.environ.get('SERVICE_ACCOUNT_SECRET', "mantissa/service/account/secret")
+DELEGATED_ADMIN_EMAIL = os.environ.get('DELEGATED_ADMIN_EMAIL', "")
 
 # Google Workspace API configuration
 API_SCOPES = ['https://www.googleapis.com/auth/admin.reports.audit.readonly']

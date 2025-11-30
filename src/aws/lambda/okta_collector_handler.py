@@ -241,23 +241,26 @@ def lambda_handler(event, context):
     AWS Lambda handler for Okta log collection.
 
     Environment Variables:
-        OKTA_API_TOKEN_SECRET: AWS Secrets Manager secret ID containing Okta API token
-        OKTA_ORG_URL: Okta organization URL
+        OKTA_CREDENTIALS_SECRET: AWS Secrets Manager secret ID with Okta credentials
+            Expected secret JSON format: {"api_token": "...", "org_url": "https://..."}
         S3_BUCKET: S3 bucket for log storage
         CHECKPOINT_TABLE: DynamoDB table for checkpoint tracking
     """
     # Get configuration from environment
-    api_token_secret = os.environ['OKTA_API_TOKEN_SECRET']
-    org_url = os.environ['OKTA_ORG_URL']
-    s3_bucket = os.environ['S3_BUCKET']
+    credentials_secret = os.environ.get('OKTA_CREDENTIALS_SECRET', "mantissa/okta/credentials")
+    s3_bucket = os.environ.get('S3_BUCKET', 'mantissa-logs')
     checkpoint_table = os.environ.get('CHECKPOINT_TABLE', 'mantissa-log-checkpoints')
 
-    # Retrieve API token from Secrets Manager
+    # Retrieve credentials from Secrets Manager
     secrets_client = boto3.client('secretsmanager')
     try:
-        secret_response = secrets_client.get_secret_value(SecretId=api_token_secret)
+        secret_response = secrets_client.get_secret_value(SecretId=credentials_secret)
         secret_data = json.loads(secret_response['SecretString'])
-        api_token = secret_data['api_token']
+        api_token = secret_data.get('api_token')
+        org_url = secret_data.get('org_url')
+
+        if not api_token or not org_url:
+            raise ValueError("Secret must contain 'api_token' and 'org_url' fields")
     except Exception as e:
         print(f"Error retrieving secret: {str(e)}")
         raise

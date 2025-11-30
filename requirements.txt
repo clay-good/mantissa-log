@@ -8,6 +8,7 @@ botocore>=1.34.0
 # Data processing
 pyyaml>=6.0.1
 jsonschema>=4.20.0
+sqlparse>=0.4.4
 
 # HTTP and API
 requests>=2.31.0
@@ -45,3 +46,4 @@ duo-client>=5.2.0  # Duo Security
 azure-identity>=1.15.0  # Azure
 azure-mgmt-monitor>=6.0.2  # Azure Monitor
 google-cloud-logging>=3.9.0  # GCP Cloud Logging
+pyodbc>=5.0.0  # Azure Synapse connectivity

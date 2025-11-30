@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict
 
-from src.shared.detection import (
+from shared.detection import (
     DetectionEngine,
     RuleLoader,
     AthenaQueryExecutor,

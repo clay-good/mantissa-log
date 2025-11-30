@@ -124,8 +124,7 @@ resource "aws_lambda_function" "okta_collector" {
 
   environment {
     variables = merge(local.common_environment, {
-      OKTA_DOMAIN_SECRET   = "mantissa/okta/domain"
-      OKTA_API_TOKEN_SECRET = "mantissa/okta/api_token"
+      OKTA_CREDENTIALS_SECRET = "mantissa/okta/credentials"
     })
   }
 }

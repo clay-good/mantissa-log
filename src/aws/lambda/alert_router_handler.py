@@ -7,15 +7,15 @@ from typing import Any, Dict
 import boto3
 from botocore.exceptions import ClientError
 
-from src.shared.alerting import AlertRouter, RouterConfig, AlertEnricher
-from src.shared.alerting.handlers import (
+from shared.alerting import AlertRouter, RouterConfig, AlertEnricher
+from shared.alerting.handlers import (
     SlackHandler,
     PagerDutyHandler,
     EmailHandler,
     WebhookHandler,
 )
-from src.shared.detection.alert_generator import Alert
-from src.shared.detection.state_manager import DynamoDBStateManager
+from shared.detection.alert_generator import Alert
+from shared.detection.state_manager import DynamoDBStateManager
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

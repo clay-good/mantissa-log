@@ -514,7 +514,7 @@ def lambda_handler(event, context):
         SNOWFLAKE_ROLE: Snowflake role to use (default: ACCOUNTADMIN)
     """
     # Get configuration from environment
-    secret_id = os.environ['SNOWFLAKE_SECRET_ID']
+    secret_id = os.environ.get('SNOWFLAKE_SECRET_ID', "mantissa/snowflake/secret/id")
     s3_bucket = os.environ['S3_BUCKET']
     checkpoint_table = os.environ.get('CHECKPOINT_TABLE', 'mantissa-log-checkpoints')
     warehouse = os.environ.get('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH')

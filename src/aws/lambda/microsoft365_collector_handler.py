@@ -25,10 +25,10 @@ dynamodb = boto3.resource('dynamodb')
 secrets_client = boto3.client('secretsmanager')
 
 # Environment variables
-LOGS_BUCKET = os.environ['LOGS_BUCKET']
-CHECKPOINT_TABLE = os.environ['CHECKPOINT_TABLE']
-CREDENTIALS_SECRET = os.environ['CREDENTIALS_SECRET']
-TENANT_ID = os.environ['TENANT_ID']
+LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
+CHECKPOINT_TABLE = os.environ.get('CHECKPOINT_TABLE', "mantissa-checkpoint-table")
+CREDENTIALS_SECRET = os.environ.get('CREDENTIALS_SECRET', "mantissa/credentials/secret")
+TENANT_ID = os.environ.get('TENANT_ID', "")
 
 # Microsoft 365 API configuration
 OAUTH_URL = f'https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token'

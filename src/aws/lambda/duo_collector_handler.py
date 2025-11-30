@@ -539,7 +539,7 @@ def lambda_handler(event, context):
         CHECKPOINT_TABLE: DynamoDB table for checkpoint tracking
     """
     # Get configuration from environment
-    secret_id = os.environ['DUO_SECRET_ID']
+    secret_id = os.environ.get('DUO_SECRET_ID', "mantissa/duo/secret/id")
     s3_bucket = os.environ['S3_BUCKET']
     checkpoint_table = os.environ.get('CHECKPOINT_TABLE', 'mantissa-log-checkpoints')
 

@@ -25,9 +25,9 @@ dynamodb = boto3.resource('dynamodb')
 secrets_client = boto3.client('secretsmanager')
 
 # Environment variables
-LOGS_BUCKET = os.environ['LOGS_BUCKET']
-CHECKPOINT_TABLE = os.environ['CHECKPOINT_TABLE']
-API_TOKEN_SECRET = os.environ['API_TOKEN_SECRET']
+LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
+CHECKPOINT_TABLE = os.environ.get('CHECKPOINT_TABLE', "mantissa-checkpoint-table")
+API_TOKEN_SECRET = os.environ.get('API_TOKEN_SECRET', "mantissa/api/token/secret")
 
 # Slack API configuration
 SLACK_API_BASE = 'https://api.slack.com'

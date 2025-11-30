@@ -4,15 +4,15 @@ import json
 import os
 from typing import Any, Dict
 
-from src.shared.llm import (
+from shared.llm import (
     QueryGenerator,
     SchemaContext,
     GlueSchemaSource,
     SQLValidator,
     DynamoDBSessionManager,
 )
-from src.shared.llm.providers import get_provider
-from src.shared.detection.engine import AthenaQueryExecutor
+from shared.llm.providers import get_provider
+from shared.detection.engine import AthenaQueryExecutor
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

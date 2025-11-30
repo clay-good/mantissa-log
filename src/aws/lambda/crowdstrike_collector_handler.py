@@ -29,9 +29,9 @@ dynamodb = boto3.resource('dynamodb')
 secrets_client = boto3.client('secretsmanager')
 
 # Environment variables
-LOGS_BUCKET = os.environ['LOGS_BUCKET']
-CHECKPOINT_TABLE = os.environ['CHECKPOINT_TABLE']
-API_CREDENTIALS_SECRET = os.environ['API_CREDENTIALS_SECRET']
+LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
+CHECKPOINT_TABLE = os.environ.get('CHECKPOINT_TABLE', "mantissa-checkpoint-table")
+API_CREDENTIALS_SECRET = os.environ.get('API_CREDENTIALS_SECRET', "mantissa/api/credentials/secret")
 FALCON_CLOUD = os.environ.get('FALCON_CLOUD', 'us-1')  # us-1, us-2, eu-1, us-gov-1
 
 # CrowdStrike API configuration
