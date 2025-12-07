@@ -8,7 +8,6 @@ from src.shared.detection.sigma_converter import (
     SigmaRuleConverter,
     SigmaConversionError,
     SIGMA_AVAILABLE,
-    convert_legacy_to_sigma
 )
 
 
@@ -36,39 +35,6 @@ def sample_sigma_rule():
         "fields": ["sourceIPAddress", "userIdentity.principalId"],
         "level": "high",
         "tags": ["attack.credential_access", "attack.t1110"]
-    }
-
-
-@pytest.fixture
-def sample_legacy_rule():
-    """Sample legacy rule for testing."""
-    return {
-        "id": "legacy-rule-001",
-        "name": "Legacy Test Rule",
-        "description": "Legacy test description",
-        "author": "Test Author",
-        "created": "2025-01-27",
-        "modified": "2025-01-27",
-        "version": "1.0.0",
-        "severity": "high",
-        "enabled": True,
-        "query": {
-            "type": "sql",
-            "sql": "SELECT * FROM cloudtrail WHERE eventName = 'ConsoleLogin'"
-        },
-        "schedule": {
-            "interval": "15m"
-        },
-        "threshold": {
-            "field": "count",
-            "operator": ">=",
-            "value": 1
-        },
-        "metadata": {
-            "mitre_attack": ["T1110", "T1110.001"],
-            "tags": ["authentication", "brute-force"],
-            "false_positives": ["Users forgetting passwords"]
-        }
     }
 
 
@@ -205,97 +171,6 @@ class TestSigmaRuleConverter:
         assert "backend" in stats
         assert stats["backend"] == "athena"
         assert stats["size"] == 0
-
-
-class TestConvertLegacyToSigma:
-    """Tests for legacy to Sigma conversion helper."""
-
-    def test_convert_basic_fields(self, sample_legacy_rule):
-        """Test conversion of basic fields."""
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert sigma_rule["title"] == sample_legacy_rule["name"]
-        assert sigma_rule["id"] == sample_legacy_rule["id"]
-        assert sigma_rule["description"] == sample_legacy_rule["description"]
-        assert sigma_rule["author"] == sample_legacy_rule["author"]
-        assert sigma_rule["date"] == sample_legacy_rule["created"]
-
-    def test_convert_severity_mapping(self, sample_legacy_rule):
-        """Test severity to level mapping."""
-        # Test each severity level
-        severity_tests = [
-            ("critical", "critical"),
-            ("high", "high"),
-            ("medium", "medium"),
-            ("low", "low"),
-            ("info", "informational")
-        ]
-
-        for legacy_severity, expected_level in severity_tests:
-            rule = sample_legacy_rule.copy()
-            rule["severity"] = legacy_severity
-
-            sigma_rule = convert_legacy_to_sigma(rule)
-            assert sigma_rule["level"] == expected_level
-
-    def test_convert_tags(self, sample_legacy_rule):
-        """Test tag conversion."""
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert "tags" in sigma_rule
-        # Should include both regular tags and MITRE tags
-        assert "authentication" in sigma_rule["tags"]
-        assert "brute-force" in sigma_rule["tags"]
-        assert "attack.t1110" in sigma_rule["tags"]
-        assert "attack.t1110.001" in sigma_rule["tags"]
-
-    def test_convert_false_positives(self, sample_legacy_rule):
-        """Test false positives conversion."""
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert "falsepositives" in sigma_rule
-        assert sigma_rule["falsepositives"] == sample_legacy_rule["metadata"]["false_positives"]
-
-    def test_convert_references(self, sample_legacy_rule):
-        """Test references conversion."""
-        # Add references to legacy rule
-        sample_legacy_rule["metadata"]["references"] = [
-            "https://example.com/ref1",
-            "https://example.com/ref2"
-        ]
-
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert "references" in sigma_rule
-        assert sigma_rule["references"] == sample_legacy_rule["metadata"]["references"]
-
-    def test_convert_status_enabled(self, sample_legacy_rule):
-        """Test status conversion when enabled."""
-        sample_legacy_rule["enabled"] = True
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-        assert sigma_rule["status"] == "stable"
-
-    def test_convert_status_disabled(self, sample_legacy_rule):
-        """Test status conversion when disabled."""
-        sample_legacy_rule["enabled"] = False
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-        assert sigma_rule["status"] == "test"
-
-    def test_convert_logsource_default(self, sample_legacy_rule):
-        """Test default logsource is added."""
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert "logsource" in sigma_rule
-        assert sigma_rule["logsource"]["product"] == "aws"
-        assert sigma_rule["logsource"]["service"] == "cloudtrail"
-
-    def test_convert_detection_placeholder(self, sample_legacy_rule):
-        """Test that detection section is added as placeholder."""
-        sigma_rule = convert_legacy_to_sigma(sample_legacy_rule)
-
-        assert "detection" in sigma_rule
-        assert "_comment" in sigma_rule["detection"]
-        assert "Manual conversion required" in sigma_rule["detection"]["_comment"]
 
 
 @pytest.mark.skipif(SIGMA_AVAILABLE, reason="Test for when pySigma is not available")

@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.slack import SlackParser
+from src.shared.parsers.slack import SlackParser
 
 
 class TestSlackParser:

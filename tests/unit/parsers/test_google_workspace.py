@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.google_workspace import GoogleWorkspaceParser
+from src.shared.parsers.google_workspace import GoogleWorkspaceParser
 
 
 class TestGoogleWorkspaceParser:

@@ -5,7 +5,7 @@ from .registry import ParserRegistry, get_parser, list_parsers, register_parser
 
 # Import parsers for registry auto-registration
 from .cloudtrail import CloudTrailParser
-from .vpc_flow import VPCFlowParser
+from .vpc_flow import VPCFlowLogsParser
 from .guardduty import GuardDutyParser
 from .okta import OktaParser
 from .google_workspace import GoogleWorkspaceParser
@@ -33,7 +33,7 @@ __all__ = [
     "register_parser",
     # Parsers
     "CloudTrailParser",
-    "VPCFlowParser",
+    "VPCFlowLogsParser",
     "GuardDutyParser",
     "OktaParser",
     "GoogleWorkspaceParser",

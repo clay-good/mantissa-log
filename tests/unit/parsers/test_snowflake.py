@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.snowflake import SnowflakeParser
+from src.shared.parsers.snowflake import SnowflakeParser
 
 
 class TestSnowflakeParser:

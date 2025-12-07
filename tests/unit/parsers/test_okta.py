@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.okta import OktaParser
+from src.shared.parsers.okta import OktaParser
 
 
 class TestOktaParser:

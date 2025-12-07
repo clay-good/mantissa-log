@@ -1,9 +1,9 @@
 resource "aws_lambda_function" "llm_query" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-llm-query"
   role             = aws_iam_role.llm_query.arn
-  handler          = "handler.lambda_handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.llm_query_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = var.lambda_memory_llm

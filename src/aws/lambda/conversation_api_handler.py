@@ -147,9 +147,7 @@ def handle_query(body: Dict[str, Any]) -> Dict[str, Any]:
     # Build context-aware prompt
     context_prompt = manager.build_context_prompt(session, message)
 
-    # Call LLM to generate SQL
-    # This would integrate with your existing LLM query handler
-    # For now, we'll return a mock response
+    # Call LLM to generate SQL using the shared query generator
     from llm.query_generator import generate_sql_from_nlp
 
     try:
@@ -369,32 +367,83 @@ def handle_delete_session(body: Dict[str, Any], params: Dict[str, str]) -> Dict[
     }
 
 
-# Helper functions (these would integrate with existing modules)
+# Helper functions integrating with existing modules
 
 def generate_sql_from_nlp(prompt: str, user_id: str, session_context=None) -> Dict[str, Any]:
     """
     Generate SQL from natural language using LLM.
 
-    This is a placeholder - would integrate with existing LLM query generation.
+    Integrates with the shared LLM query generation module.
     """
-    # Import existing query generation logic
-    # For now, return mock response
-    return {
-        'sql': 'SELECT * FROM cloudtrail_logs LIMIT 10',
-        'execution_id': 'query-abc123'
-    }
+    from shared.llm import QueryGenerator, SchemaContext, GlueSchemaSource
+    from shared.llm.providers import get_provider
+
+    database_name = os.environ.get("ATHENA_DATABASE", "mantissa_logs")
+    aws_region = os.environ.get("AWS_REGION", "us-east-1")
+    llm_provider_name = os.environ.get("LLM_PROVIDER", "bedrock")
+
+    try:
+        # Get LLM provider
+        llm_provider = get_provider(llm_provider_name, region=aws_region)
+
+        # Get schema context
+        schema_source = GlueSchemaSource(database_name, region=aws_region)
+        schema_context = SchemaContext(database_name, schema_source)
+
+        # Initialize query generator
+        query_generator = QueryGenerator(
+            llm_provider=llm_provider,
+            schema_context=schema_context
+        )
+
+        # Generate SQL from natural language
+        result = query_generator.generate_query(
+            question=prompt,
+            conversation_history=session_context
+        )
+
+        return {
+            'sql': result.sql,
+            'explanation': result.explanation,
+            'execution_id': f'query-{user_id[:8]}'
+        }
+    except Exception as e:
+        print(f"Error generating SQL: {e}")
+        raise
 
 
 def execute_athena_query(sql: str, user_id: str) -> Dict[str, Any]:
     """
     Execute Athena query and return results.
 
-    This is a placeholder - would integrate with existing Athena execution.
+    Integrates with the shared Athena executor module.
     """
-    # Import existing Athena execution logic
-    # For now, return mock response
-    return {
-        'rows': [],
-        'data_scanned_mb': 125.0,
-        'cost_usd': 0.00063
-    }
+    from shared.detection.executors.athena import AthenaQueryExecutor
+
+    database_name = os.environ.get("ATHENA_DATABASE", "mantissa_logs")
+    output_location = os.environ.get("ATHENA_OUTPUT_LOCATION")
+    aws_region = os.environ.get("AWS_REGION", "us-east-1")
+    max_result_rows = int(os.environ.get("MAX_RESULT_ROWS", "1000"))
+
+    try:
+        # Initialize Athena executor
+        executor = AthenaQueryExecutor(
+            database=database_name,
+            output_location=output_location,
+            region=aws_region
+        )
+
+        # Execute query
+        result = executor.execute_query(sql, max_results=max_result_rows)
+
+        return {
+            'rows': result.rows,
+            'columns': result.columns,
+            'row_count': result.row_count,
+            'data_scanned_mb': result.bytes_scanned / (1024 * 1024) if result.bytes_scanned else 0,
+            'cost_usd': (result.bytes_scanned / (1024 ** 4)) * 5.0 if result.bytes_scanned else 0,
+            'execution_time_ms': result.execution_time_ms
+        }
+    except Exception as e:
+        print(f"Error executing Athena query: {e}")
+        raise

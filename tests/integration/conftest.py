@@ -6,14 +6,14 @@ Pytest fixtures for integration tests with mocked AWS services.
 
 import pytest
 import boto3
-from moto import mock_s3, mock_athena, mock_glue, mock_dynamodb, mock_lambda
+from moto import mock_aws
 from typing import Dict, Any
 
 
 @pytest.fixture(scope='function')
 def aws_integration_env(mock_aws_credentials):
     """Set up full AWS integration environment with moto"""
-    with mock_s3(), mock_athena(), mock_glue(), mock_dynamodb(), mock_lambda():
+    with mock_aws():
         yield {
             's3': boto3.client('s3', region_name='us-east-1'),
             'athena': boto3.client('athena', region_name='us-east-1'),

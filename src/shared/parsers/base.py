@@ -231,3 +231,90 @@ def handle_parse_errors(func):
             )
 
     return wrapper
+
+
+class BaseParser(ABC):
+    """Abstract base class for log parsers that take dict input.
+
+    This is an alternative interface for parsers that process JSON/dict events
+    directly rather than raw strings.
+    """
+
+    def __init__(self):
+        self.source_type = "unknown"
+
+    @abstractmethod
+    def parse(self, raw_event: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse raw event dictionary into normalized format.
+
+        Args:
+            raw_event: Raw log event as dictionary
+
+        Returns:
+            Normalized event dictionary
+        """
+        pass
+
+    def safe_get(self, data: dict, path: str, default: Any = None) -> Any:
+        """Safely get nested dictionary value using dot notation.
+
+        Args:
+            data: Dictionary to traverse
+            path: Dot-separated path to value (e.g., 'user.name.first')
+            default: Default value if path not found
+
+        Returns:
+            Value at path or default
+        """
+        keys = path.split(".")
+        current = data
+
+        for key in keys:
+            if not isinstance(current, dict):
+                return default
+            current = current.get(key)
+            if current is None:
+                return default
+
+        return current
+
+    def normalize_timestamp(self, ts: Any) -> Optional[str]:
+        """Normalize various timestamp formats to ISO 8601 string.
+
+        Args:
+            ts: Timestamp in various formats (string, int, float, datetime)
+
+        Returns:
+            ISO 8601 formatted timestamp string
+        """
+        if ts is None:
+            return None
+
+        if isinstance(ts, datetime):
+            return ts.isoformat()
+
+        if isinstance(ts, (int, float)):
+            return datetime.fromtimestamp(ts).isoformat()
+
+        if isinstance(ts, str):
+            # Already a string, validate and return
+            formats = [
+                "%Y-%m-%dT%H:%M:%SZ",
+                "%Y-%m-%dT%H:%M:%S.%fZ",
+                "%Y-%m-%dT%H:%M:%S%z",
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d %H:%M:%S.%f",
+            ]
+
+            for fmt in formats:
+                try:
+                    parsed = datetime.strptime(ts, fmt)
+                    return parsed.isoformat()
+                except ValueError:
+                    continue
+
+            # Return as-is if it looks like ISO format
+            if "T" in ts and ("-" in ts or "+" in ts or "Z" in ts):
+                return ts
+
+        return None

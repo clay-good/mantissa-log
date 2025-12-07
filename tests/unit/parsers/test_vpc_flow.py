@@ -3,8 +3,8 @@
 import pytest
 from datetime import datetime
 
-from shared.parsers.vpc_flow import VPCFlowLogsParser
-from shared.parsers.base import ParserError
+from src.shared.parsers.vpc_flow import VPCFlowLogsParser
+from src.shared.parsers.base import ParserError
 
 
 class TestVPCFlowLogsParser:

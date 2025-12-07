@@ -230,3 +230,251 @@ resource "google_storage_bucket" "functions_source" {
 
   labels = local.common_labels
 }
+
+# LLM Query Cloud Function
+resource "google_cloudfunctions2_function" "llm_query" {
+  name        = "mantissa-llm-query-${local.name_suffix}"
+  location    = var.region
+  description = "Natural language to SQL query generation"
+
+  build_config {
+    runtime     = "python311"
+    entry_point = "llm_query"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.functions_source.name
+        object = google_storage_bucket_object.llm_query_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 300
+    service_account_email = google_service_account.functions.email
+
+    environment_variables = {
+      GCP_PROJECT_ID     = var.project_id
+      BIGQUERY_DATASET   = google_bigquery_dataset.logs.dataset_id
+      LLM_PROVIDER       = var.llm_provider
+      MAX_RESULT_ROWS    = "1000"
+    }
+  }
+
+  labels = local.common_labels
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Detection Engine Cloud Function
+resource "google_cloudfunctions2_function" "detection_engine" {
+  name        = "mantissa-detection-${local.name_suffix}"
+  location    = var.region
+  description = "Detection rule execution engine"
+
+  build_config {
+    runtime     = "python311"
+    entry_point = "detection_engine"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.functions_source.name
+        object = google_storage_bucket_object.detection_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 20
+    available_memory      = "1Gi"
+    timeout_seconds       = 540
+    service_account_email = google_service_account.functions.email
+
+    environment_variables = {
+      GCP_PROJECT_ID   = var.project_id
+      BIGQUERY_DATASET = google_bigquery_dataset.logs.dataset_id
+      RULES_PATH       = "rules/sigma"
+      ALERT_TOPIC      = google_pubsub_topic.alerts.name
+    }
+  }
+
+  labels = local.common_labels
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Alert Router Cloud Function
+resource "google_cloudfunctions2_function" "alert_router" {
+  name        = "mantissa-alert-router-${local.name_suffix}"
+  location    = var.region
+  description = "Alert routing and enrichment"
+
+  build_config {
+    runtime     = "python311"
+    entry_point = "alert_router"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.functions_source.name
+        object = google_storage_bucket_object.alert_router_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 60
+    service_account_email = google_service_account.functions.email
+
+    environment_variables = {
+      GCP_PROJECT_ID    = var.project_id
+      LLM_PROVIDER      = var.llm_provider
+      ENABLE_ENRICHMENT = var.enable_alert_enrichment ? "true" : "false"
+    }
+  }
+
+  labels = local.common_labels
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Archive source code for Cloud Functions
+data "archive_file" "llm_query_source" {
+  type        = "zip"
+  output_path = "${path.module}/llm_query.zip"
+  source_dir  = "${path.module}/../../../src"
+
+  excludes = [
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    "tests"
+  ]
+}
+
+data "archive_file" "detection_source" {
+  type        = "zip"
+  output_path = "${path.module}/detection_engine.zip"
+  source_dir  = "${path.module}/../../../src"
+
+  excludes = [
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    "tests"
+  ]
+}
+
+data "archive_file" "alert_router_source" {
+  type        = "zip"
+  output_path = "${path.module}/alert_router.zip"
+  source_dir  = "${path.module}/../../../src"
+
+  excludes = [
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    "tests"
+  ]
+}
+
+# Upload source archives to GCS
+resource "google_storage_bucket_object" "llm_query_source" {
+  name   = "llm_query/source-${data.archive_file.llm_query_source.output_md5}.zip"
+  bucket = google_storage_bucket.functions_source.name
+  source = data.archive_file.llm_query_source.output_path
+}
+
+resource "google_storage_bucket_object" "detection_source" {
+  name   = "detection_engine/source-${data.archive_file.detection_source.output_md5}.zip"
+  bucket = google_storage_bucket.functions_source.name
+  source = data.archive_file.detection_source.output_path
+}
+
+resource "google_storage_bucket_object" "alert_router_source" {
+  name   = "alert_router/source-${data.archive_file.alert_router_source.output_md5}.zip"
+  bucket = google_storage_bucket.functions_source.name
+  source = data.archive_file.alert_router_source.output_path
+}
+
+# Cloud Scheduler for scheduled detection
+resource "google_cloud_scheduler_job" "detection_schedule" {
+  name        = "mantissa-detection-schedule-${local.name_suffix}"
+  description = "Scheduled detection rule execution"
+  schedule    = "*/15 * * * *" # Every 15 minutes
+  time_zone   = "UTC"
+  region      = var.region
+
+  http_target {
+    http_method = "POST"
+    uri         = google_cloudfunctions2_function.detection_engine.service_config[0].uri
+
+    oidc_token {
+      service_account_email = google_service_account.functions.email
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Pub/Sub trigger for alert routing
+resource "google_cloudfunctions2_function" "alert_pubsub_trigger" {
+  name        = "mantissa-alert-pubsub-${local.name_suffix}"
+  location    = var.region
+  description = "Pub/Sub triggered alert routing"
+
+  build_config {
+    runtime     = "python311"
+    entry_point = "alert_pubsub_trigger"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.functions_source.name
+        object = google_storage_bucket_object.alert_router_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 10
+    available_memory      = "512M"
+    timeout_seconds       = 60
+    service_account_email = google_service_account.functions.email
+
+    environment_variables = {
+      GCP_PROJECT_ID       = var.project_id
+      LLM_PROVIDER         = var.llm_provider
+      ENABLE_ENRICHMENT    = var.enable_alert_enrichment ? "true" : "false"
+      DEFAULT_DESTINATIONS = var.default_alert_destinations
+    }
+  }
+
+  event_trigger {
+    trigger_region = var.region
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.alerts.id
+    retry_policy   = "RETRY_POLICY_RETRY"
+  }
+
+  labels = local.common_labels
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Variables for Cloud Functions
+variable "llm_provider" {
+  description = "LLM provider to use (google, openai, anthropic)"
+  type        = string
+  default     = "google"
+}
+
+variable "enable_alert_enrichment" {
+  description = "Enable LLM-powered alert enrichment"
+  type        = bool
+  default     = true
+}
+
+variable "default_alert_destinations" {
+  description = "JSON string of default alert destinations"
+  type        = string
+  default     = "[]"
+}

@@ -8,7 +8,7 @@ import pytest
 import boto3
 import json
 from pathlib import Path
-from moto import mock_s3, mock_athena, mock_glue, mock_dynamodb
+from moto import mock_aws
 from typing import Dict, Any
 
 # Test data directory
@@ -78,28 +78,28 @@ def mock_aws_credentials(monkeypatch):
 @pytest.fixture
 def s3_client(mock_aws_credentials):
     """Mock S3 client"""
-    with mock_s3():
+    with mock_aws():
         yield boto3.client('s3', region_name='us-east-1')
 
 
 @pytest.fixture
 def athena_client(mock_aws_credentials):
     """Mock Athena client"""
-    with mock_athena():
+    with mock_aws():
         yield boto3.client('athena', region_name='us-east-1')
 
 
 @pytest.fixture
 def glue_client(mock_aws_credentials):
     """Mock Glue client"""
-    with mock_glue():
+    with mock_aws():
         yield boto3.client('glue', region_name='us-east-1')
 
 
 @pytest.fixture
 def dynamodb_client(mock_aws_credentials):
     """Mock DynamoDB client"""
-    with mock_dynamodb():
+    with mock_aws():
         yield boto3.client('dynamodb', region_name='us-east-1')
 
 

@@ -10,7 +10,7 @@ import yaml
 from src.shared.detection.rule import (
     DetectionRule,
     RuleLoader,
-    RuleValidator,
+    SigmaRuleValidator,
     QueryConfig,
     ScheduleConfig,
     ThresholdConfig,
@@ -65,12 +65,12 @@ def sample_rule_yaml(tmp_path, sample_rule_dict):
     return rule_file
 
 
-class TestRuleValidator:
-    """Tests for RuleValidator class."""
+class TestSigmaRuleValidator:
+    """Tests for SigmaRuleValidator class."""
 
     def test_validate_valid_rule(self, sample_rule_dict):
         """Test validation of a valid rule."""
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
         is_valid, errors = validator.validate_rule(sample_rule_dict)
         assert is_valid
         assert len(errors) == 0
@@ -78,7 +78,7 @@ class TestRuleValidator:
     def test_validate_missing_required_field(self, sample_rule_dict):
         """Test validation fails when required field is missing."""
         del sample_rule_dict["severity"]
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
         is_valid, errors = validator.validate_rule(sample_rule_dict)
         assert not is_valid
         assert any("severity" in error.lower() for error in errors)
@@ -86,7 +86,7 @@ class TestRuleValidator:
     def test_validate_invalid_severity(self, sample_rule_dict):
         """Test validation fails with invalid severity."""
         sample_rule_dict["severity"] = "invalid"
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
         is_valid, errors = validator.validate_rule(sample_rule_dict)
         assert not is_valid
         assert any("severity" in error.lower() for error in errors)
@@ -94,13 +94,13 @@ class TestRuleValidator:
     def test_validate_missing_query_sql(self, sample_rule_dict):
         """Test validation fails when query SQL is missing."""
         del sample_rule_dict["query"]["sql"]
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
         is_valid, errors = validator.validate_rule(sample_rule_dict)
         assert not is_valid
 
     def test_validate_sql_select_only(self):
         """Test SQL validation only allows SELECT statements."""
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
 
         # Valid SELECT
         is_valid, errors = validator.validate_sql("SELECT * FROM table")
@@ -117,7 +117,7 @@ class TestRuleValidator:
 
     def test_validate_sql_dangerous_keywords(self):
         """Test SQL validation blocks dangerous keywords."""
-        validator = RuleValidator()
+        validator = SigmaRuleValidator()
 
         dangerous_sqls = [
             "SELECT * FROM users; DROP TABLE logs;",

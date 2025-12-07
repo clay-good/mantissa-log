@@ -112,6 +112,10 @@ enable_apis() {
         "cloudresourcemanager.googleapis.com"
         "iam.googleapis.com"
         "compute.googleapis.com"
+        "bigquery.googleapis.com"
+        "pubsub.googleapis.com"
+        "run.googleapis.com"
+        "artifactregistry.googleapis.com"
     )
 
     if [ "$ENABLE_VERTEX_AI" == "y" ]; then
@@ -165,19 +169,45 @@ EOF
 package_cloud_functions() {
     echo "Packaging Cloud Functions..."
 
-    FUNCTIONS_SOURCE_DIR="$PROJECT_ROOT/src/gcp/functions/collector"
     BUILD_DIR="$PROJECT_ROOT/build/gcp"
+    mkdir -p "$BUILD_DIR"
 
+    # Package Collector Function
+    COLLECTOR_SOURCE="$PROJECT_ROOT/src/gcp/functions/collector"
     mkdir -p "$BUILD_DIR/collector"
-
     echo "  Copying collector source..."
-    cp "$FUNCTIONS_SOURCE_DIR/main.py" "$BUILD_DIR/collector/"
-    cp "$FUNCTIONS_SOURCE_DIR/requirements.txt" "$BUILD_DIR/collector/"
-
-    echo "  Copying shared modules..."
+    cp "$COLLECTOR_SOURCE/main.py" "$BUILD_DIR/collector/"
+    cp "$COLLECTOR_SOURCE/collectors.py" "$BUILD_DIR/collector/"
+    cp "$COLLECTOR_SOURCE/requirements.txt" "$BUILD_DIR/collector/"
     cp -r "$PROJECT_ROOT/src/shared" "$BUILD_DIR/collector/" 2>/dev/null || true
 
-    echo "  Cloud Functions source prepared at $BUILD_DIR/collector"
+    # Package LLM Query Function
+    LLM_QUERY_SOURCE="$PROJECT_ROOT/src/gcp/functions/llm_query"
+    mkdir -p "$BUILD_DIR/llm_query"
+    echo "  Copying LLM Query source..."
+    cp "$LLM_QUERY_SOURCE/main.py" "$BUILD_DIR/llm_query/"
+    cp "$LLM_QUERY_SOURCE/requirements.txt" "$BUILD_DIR/llm_query/"
+    cp -r "$PROJECT_ROOT/src/shared" "$BUILD_DIR/llm_query/" 2>/dev/null || true
+    cp -r "$PROJECT_ROOT/src/gcp/bigquery" "$BUILD_DIR/llm_query/" 2>/dev/null || true
+
+    # Package Detection Engine Function
+    DETECTION_SOURCE="$PROJECT_ROOT/src/gcp/functions/detection_engine"
+    mkdir -p "$BUILD_DIR/detection_engine"
+    echo "  Copying Detection Engine source..."
+    cp "$DETECTION_SOURCE/main.py" "$BUILD_DIR/detection_engine/"
+    cp "$DETECTION_SOURCE/requirements.txt" "$BUILD_DIR/detection_engine/"
+    cp -r "$PROJECT_ROOT/src/shared" "$BUILD_DIR/detection_engine/" 2>/dev/null || true
+    cp -r "$PROJECT_ROOT/src/gcp/bigquery" "$BUILD_DIR/detection_engine/" 2>/dev/null || true
+
+    # Package Alert Router Function
+    ALERT_ROUTER_SOURCE="$PROJECT_ROOT/src/gcp/functions/alert_router"
+    mkdir -p "$BUILD_DIR/alert_router"
+    echo "  Copying Alert Router source..."
+    cp "$ALERT_ROUTER_SOURCE/main.py" "$BUILD_DIR/alert_router/"
+    cp "$ALERT_ROUTER_SOURCE/requirements.txt" "$BUILD_DIR/alert_router/"
+    cp -r "$PROJECT_ROOT/src/shared" "$BUILD_DIR/alert_router/" 2>/dev/null || true
+
+    echo "  Cloud Functions source prepared at $BUILD_DIR"
     echo ""
 }
 
@@ -319,32 +349,50 @@ print_deployment_summary() {
 
     LOGS_BUCKET=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('logs_bucket', {}).get('value', ''))" 2>/dev/null || echo "")
     RULES_BUCKET=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('rules_bucket', {}).get('value', ''))" 2>/dev/null || echo "")
+    LLM_QUERY_URL=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('llm_query_function_url', {}).get('value', ''))" 2>/dev/null || echo "")
+    DETECTION_URL=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('detection_function_url', {}).get('value', ''))" 2>/dev/null || echo "")
+    ALERT_ROUTER_URL=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('alert_router_function_url', {}).get('value', ''))" 2>/dev/null || echo "")
+    FRONTEND_URL=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('frontend_url', {}).get('value', ''))" 2>/dev/null || echo "")
+    BIGQUERY_DATASET=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('bigquery_dataset', {}).get('value', ''))" 2>/dev/null || echo "")
 
     echo "Environment: $ENVIRONMENT"
     echo "Region: $GCP_REGION"
     echo "Project: $PROJECT_ID"
     echo ""
 
-    if [ -n "$LOGS_BUCKET" ]; then
-        echo "Logs Bucket: gs://$LOGS_BUCKET"
-    fi
-
-    if [ -n "$RULES_BUCKET" ]; then
-        echo "Rules Bucket: gs://$RULES_BUCKET"
-    fi
-
+    echo "Storage:"
+    [ -n "$LOGS_BUCKET" ] && echo "  Logs Bucket: gs://$LOGS_BUCKET"
+    [ -n "$RULES_BUCKET" ] && echo "  Rules Bucket: gs://$RULES_BUCKET"
+    [ -n "$BIGQUERY_DATASET" ] && echo "  BigQuery Dataset: $BIGQUERY_DATASET"
     echo ""
+
+    echo "Cloud Functions:"
+    [ -n "$LLM_QUERY_URL" ] && echo "  LLM Query: $LLM_QUERY_URL"
+    [ -n "$DETECTION_URL" ] && echo "  Detection Engine: $DETECTION_URL"
+    [ -n "$ALERT_ROUTER_URL" ] && echo "  Alert Router: $ALERT_ROUTER_URL"
+    echo ""
+
+    if [ -n "$FRONTEND_URL" ]; then
+        echo "Frontend:"
+        echo "  Cloud Run URL: $FRONTEND_URL"
+        echo ""
+    fi
+
     echo "Next steps:"
     echo "1. Configure SaaS API credentials in Secret Manager"
-    echo "2. Review and enable detection rules in gs://$RULES_BUCKET"
-    echo "3. Enable specific collectors by updating terraform variables"
-    echo "4. Monitor collector execution in Cloud Logging"
+    echo "2. Build and deploy frontend container to Cloud Run"
+    echo "3. Review and enable detection rules in gs://$RULES_BUCKET"
+    echo "4. Enable specific collectors by updating terraform variables"
+    echo "5. Monitor execution in Cloud Logging"
     echo ""
     echo "View Cloud Functions:"
-    echo "  gcloud functions list --project=$PROJECT_ID --region=$GCP_REGION"
+    echo "  gcloud functions list --project=$PROJECT_ID --gen2 --region=$GCP_REGION"
+    echo ""
+    echo "View Cloud Run services:"
+    echo "  gcloud run services list --project=$PROJECT_ID --region=$GCP_REGION"
     echo ""
     echo "View logs:"
-    echo "  gcloud logging read 'resource.type=cloud_function' --project=$PROJECT_ID --limit=50"
+    echo "  gcloud logging read 'resource.type=cloud_function OR resource.type=cloud_run_revision' --project=$PROJECT_ID --limit=50"
     echo ""
 }
 

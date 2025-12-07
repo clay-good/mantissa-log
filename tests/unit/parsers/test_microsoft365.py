@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.microsoft365 import Microsoft365Parser
+from src.shared.parsers.microsoft365 import Microsoft365Parser
 
 
 class TestMicrosoft365Parser:

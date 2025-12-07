@@ -158,11 +158,11 @@ resource "aws_iam_role_policy_attachment" "api_handlers_vpc" {
 }
 
 resource "aws_lambda_function" "conversation_api" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-conversation-api"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "conversation_api_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.conversation_api_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = 512
@@ -187,11 +187,11 @@ resource "aws_lambda_function" "conversation_api" {
 }
 
 resource "aws_lambda_function" "cost_api" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-cost-api"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "cost_api_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.cost_api_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = 256
@@ -215,11 +215,11 @@ resource "aws_lambda_function" "cost_api" {
 }
 
 resource "aws_lambda_function" "integration_api" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-integration-api"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "integration_api_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.integration_api_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = 256
@@ -240,11 +240,11 @@ resource "aws_lambda_function" "integration_api" {
 }
 
 resource "aws_lambda_function" "llm_settings_api" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-llm-settings-api"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "llm_settings_api_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.llm_settings_api_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = 256
@@ -265,11 +265,11 @@ resource "aws_lambda_function" "llm_settings_api" {
 }
 
 resource "aws_lambda_function" "redaction_api" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-redaction-api"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "redaction_api_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.redaction_api_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = 256
@@ -290,11 +290,11 @@ resource "aws_lambda_function" "redaction_api" {
 }
 
 resource "aws_lambda_function" "detection_tuner" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-detection-tuner"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "detection_tuner_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.detection_tuner_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 900
   memory_size      = 1024
@@ -320,11 +320,11 @@ resource "aws_lambda_function" "detection_tuner" {
 }
 
 resource "aws_lambda_function" "scheduled_query" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-scheduled-query"
   role             = aws_iam_role.api_handlers.arn
-  handler          = "scheduled_query_handler.handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.scheduled_query_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 300
   memory_size      = 512

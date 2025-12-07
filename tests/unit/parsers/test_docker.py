@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.docker import DockerParser
+from src.shared.parsers.docker import DockerParser
 
 
 class TestDockerParser:

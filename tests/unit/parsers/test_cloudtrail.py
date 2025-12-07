@@ -4,8 +4,8 @@ import pytest
 import json
 from datetime import datetime, timezone
 
-from shared.parsers.cloudtrail import CloudTrailParser
-from shared.parsers.base import ParserError
+from src.shared.parsers.cloudtrail import CloudTrailParser
+from src.shared.parsers.base import ParserError
 
 
 class TestCloudTrailParser:

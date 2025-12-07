@@ -53,13 +53,3 @@ resource "aws_dynamodb_table" "state" {
     enabled = true
   }
 }
-
-data "archive_file" "lambda_placeholder" {
-  type        = "zip"
-  output_path = "${path.module}/lambda_placeholder.zip"
-
-  source {
-    content  = "# Placeholder - will be replaced with actual Lambda code"
-    filename = "placeholder.py"
-  }
-}

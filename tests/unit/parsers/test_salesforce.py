@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.salesforce import SalesforceParser
+from src.shared.parsers.salesforce import SalesforceParser
 
 
 class TestSalesforceParser:

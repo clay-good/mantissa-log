@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.crowdstrike import CrowdStrikeParser
+from src.shared.parsers.crowdstrike import CrowdStrikeParser
 
 
 class TestCrowdStrikeParser:

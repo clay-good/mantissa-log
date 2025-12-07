@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.github import GitHubParser
+from src.shared.parsers.github import GitHubParser
 
 
 class TestGitHubParser:

@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.duo import DuoParser
+from src.shared.parsers.duo import DuoParser
 
 
 class TestDuoParser:

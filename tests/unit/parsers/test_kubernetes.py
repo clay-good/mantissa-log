@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from shared.parsers.kubernetes import KubernetesParser
+from src.shared.parsers.kubernetes import KubernetesParser
 
 
 class TestKubernetesParser:

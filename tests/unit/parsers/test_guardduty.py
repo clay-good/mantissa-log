@@ -4,8 +4,8 @@ import pytest
 import json
 from datetime import datetime, timezone
 
-from shared.parsers.guardduty import GuardDutyParser
-from shared.parsers.base import ParserError
+from src.shared.parsers.guardduty import GuardDutyParser
+from src.shared.parsers.base import ParserError
 
 
 class TestGuardDutyParser:

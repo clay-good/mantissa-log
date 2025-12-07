@@ -41,7 +41,7 @@ locals {
   }
 }
 
-# Archive function source code - placeholder for actual implementation
+# Archive collector function source code
 data "archive_file" "collector_source" {
   type        = "zip"
   source_dir  = "${path.module}/../../../src/gcp/functions/collector"

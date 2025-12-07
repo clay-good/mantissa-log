@@ -8,10 +8,10 @@ Handles provider selection, API key retrieval from Secrets Manager, and fallback
 import boto3
 import json
 from typing import Dict, Any, Optional
-from .providers.anthropic_provider import AnthropicProvider
-from .providers.openai_provider import OpenAIProvider
-from .providers.google_provider import GoogleProvider
-from .providers.bedrock_provider import BedrockProvider
+from .providers.anthropic import AnthropicProvider
+from .providers.openai import OpenAIProvider
+from .providers.google import GoogleProvider
+from .providers.bedrock import BedrockProvider
 from .providers.base import BaseLLMProvider
 
 dynamodb = boto3.resource('dynamodb')

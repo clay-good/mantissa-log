@@ -208,28 +208,56 @@ deploy_infrastructure() {
 upload_function_code() {
     echo "Uploading Function App code..."
 
-    FUNCTION_APP_NAME=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('collector_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
-
-    if [ -z "$FUNCTION_APP_NAME" ]; then
-        echo "  Warning: Function App name not found in outputs, skipping code upload"
-        return
-    fi
-
     RESOURCE_GROUP=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('resource_group_name', {}).get('value', ''))" 2>/dev/null || echo "")
 
-    if [ -f "$PROJECT_ROOT/build/azure/collectors-app.zip" ]; then
-        echo "  Deploying to Function App: $FUNCTION_APP_NAME"
-
+    # Deploy Collectors Function App
+    COLLECTOR_APP=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('collector_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    if [ -n "$COLLECTOR_APP" ] && [ -f "$PROJECT_ROOT/build/azure/collectors-app.zip" ]; then
+        echo "  Deploying Collectors Function App: $COLLECTOR_APP"
         az functionapp deployment source config-zip \
             --resource-group "$RESOURCE_GROUP" \
-            --name "$FUNCTION_APP_NAME" \
+            --name "$COLLECTOR_APP" \
             --src "$PROJECT_ROOT/build/azure/collectors-app.zip" \
             --output none
-
-        echo "  Function App code deployed"
-    else
-        echo "  Warning: Function App package not found at build/azure/collectors-app.zip"
+        echo "  Collectors Function App deployed"
     fi
+
+    # Deploy LLM Query Function App
+    LLM_QUERY_APP=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('llm_query_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    if [ -n "$LLM_QUERY_APP" ] && [ -f "$PROJECT_ROOT/build/azure/llm-query-app.zip" ]; then
+        echo "  Deploying LLM Query Function App: $LLM_QUERY_APP"
+        az functionapp deployment source config-zip \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$LLM_QUERY_APP" \
+            --src "$PROJECT_ROOT/build/azure/llm-query-app.zip" \
+            --output none
+        echo "  LLM Query Function App deployed"
+    fi
+
+    # Deploy Detection Engine Function App
+    DETECTION_APP=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('detection_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    if [ -n "$DETECTION_APP" ] && [ -f "$PROJECT_ROOT/build/azure/detection-app.zip" ]; then
+        echo "  Deploying Detection Engine Function App: $DETECTION_APP"
+        az functionapp deployment source config-zip \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DETECTION_APP" \
+            --src "$PROJECT_ROOT/build/azure/detection-app.zip" \
+            --output none
+        echo "  Detection Engine Function App deployed"
+    fi
+
+    # Deploy Alert Router Function App
+    ALERT_ROUTER_APP=$(python3 -c "import sys, json; print(json.load(open('$PROJECT_ROOT/terraform-outputs-azure.json')).get('alert_router_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    if [ -n "$ALERT_ROUTER_APP" ] && [ -f "$PROJECT_ROOT/build/azure/alert-router-app.zip" ]; then
+        echo "  Deploying Alert Router Function App: $ALERT_ROUTER_APP"
+        az functionapp deployment source config-zip \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$ALERT_ROUTER_APP" \
+            --src "$PROJECT_ROOT/build/azure/alert-router-app.zip" \
+            --output none
+        echo "  Alert Router Function App deployed"
+    fi
+
     echo ""
 }
 
@@ -372,7 +400,11 @@ print_deployment_summary() {
 
     RESOURCE_GROUP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('resource_group_name', {}).get('value', ''))" 2>/dev/null || echo "")
     STORAGE_ACCOUNT=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('storage_account_name', {}).get('value', ''))" 2>/dev/null || echo "")
-    FUNCTION_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('collector_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    COLLECTOR_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('collector_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    LLM_QUERY_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('llm_query_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    DETECTION_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('detection_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    ALERT_ROUTER_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('alert_router_function_app_name', {}).get('value', ''))" 2>/dev/null || echo "")
+    STATIC_WEB_APP=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('static_web_app_url', {}).get('value', ''))" 2>/dev/null || echo "")
     KEY_VAULT=$(python3 -c "import sys, json; print(json.load(open('$OUTPUTS_FILE')).get('key_vault_name', {}).get('value', ''))" 2>/dev/null || echo "")
 
     echo "Environment: $ENVIRONMENT"
@@ -380,34 +412,37 @@ print_deployment_summary() {
     echo "Subscription: $SUBSCRIPTION_ID"
     echo ""
 
-    if [ -n "$RESOURCE_GROUP" ]; then
-        echo "Resource Group: $RESOURCE_GROUP"
-    fi
-
-    if [ -n "$STORAGE_ACCOUNT" ]; then
-        echo "Storage Account: $STORAGE_ACCOUNT"
-    fi
-
-    if [ -n "$FUNCTION_APP" ]; then
-        echo "Function App: $FUNCTION_APP"
-    fi
-
-    if [ -n "$KEY_VAULT" ]; then
-        echo "Key Vault: $KEY_VAULT"
-    fi
-
+    echo "Resources Deployed:"
+    [ -n "$RESOURCE_GROUP" ] && echo "  Resource Group: $RESOURCE_GROUP"
+    [ -n "$STORAGE_ACCOUNT" ] && echo "  Storage Account: $STORAGE_ACCOUNT"
+    [ -n "$KEY_VAULT" ] && echo "  Key Vault: $KEY_VAULT"
     echo ""
+
+    echo "Function Apps:"
+    [ -n "$COLLECTOR_APP" ] && echo "  Collectors: $COLLECTOR_APP"
+    [ -n "$LLM_QUERY_APP" ] && echo "  LLM Query: $LLM_QUERY_APP"
+    [ -n "$DETECTION_APP" ] && echo "  Detection Engine: $DETECTION_APP"
+    [ -n "$ALERT_ROUTER_APP" ] && echo "  Alert Router: $ALERT_ROUTER_APP"
+    echo ""
+
+    if [ -n "$STATIC_WEB_APP" ]; then
+        echo "Frontend:"
+        echo "  Static Web App URL: $STATIC_WEB_APP"
+        echo ""
+    fi
+
     echo "Next steps:"
     echo "1. Configure SaaS API credentials in Key Vault: $KEY_VAULT"
-    echo "2. Review and enable detection rules in storage"
-    echo "3. Enable specific collectors by updating terraform variables"
-    echo "4. Monitor collector execution in Application Insights"
+    echo "2. Deploy frontend code to Static Web App"
+    echo "3. Review and enable detection rules in storage"
+    echo "4. Enable specific collectors by updating terraform variables"
+    echo "5. Monitor execution in Application Insights"
     echo ""
-    echo "View Function App:"
-    echo "  az functionapp show --name $FUNCTION_APP --resource-group $RESOURCE_GROUP"
+    echo "View Function Apps:"
+    echo "  az functionapp list --resource-group $RESOURCE_GROUP --output table"
     echo ""
     echo "View logs:"
-    echo "  az monitor app-insights query --app $FUNCTION_APP --analytics-query 'traces | limit 50'"
+    echo "  az monitor app-insights query --app $COLLECTOR_APP --analytics-query 'traces | limit 50'"
     echo ""
 }
 

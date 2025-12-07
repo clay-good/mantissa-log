@@ -116,7 +116,7 @@ resource "aws_lambda_function" "okta_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-okta"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.okta_collector_handler.handler"
+  handler          = "aws.lambda.okta_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -167,7 +167,7 @@ resource "aws_lambda_function" "google_workspace_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-google-workspace"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.google_workspace_collector_handler.handler"
+  handler          = "aws.lambda.google_workspace_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -220,7 +220,7 @@ resource "aws_lambda_function" "microsoft365_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-microsoft365"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.microsoft365_collector_handler.handler"
+  handler          = "aws.lambda.microsoft365_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -273,7 +273,7 @@ resource "aws_lambda_function" "github_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-github"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.github_collector_handler.handler"
+  handler          = "aws.lambda.github_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -325,7 +325,7 @@ resource "aws_lambda_function" "slack_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-slack"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.slack_collector_handler.handler"
+  handler          = "aws.lambda.slack_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -376,7 +376,7 @@ resource "aws_lambda_function" "duo_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-duo"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.duo_collector_handler.handler"
+  handler          = "aws.lambda.duo_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -429,7 +429,7 @@ resource "aws_lambda_function" "crowdstrike_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-crowdstrike"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.crowdstrike_collector_handler.handler"
+  handler          = "aws.lambda.crowdstrike_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -482,7 +482,7 @@ resource "aws_lambda_function" "kubernetes_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-kubernetes"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.kubernetes_collector_handler.handler"
+  handler          = "aws.lambda.kubernetes_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -535,7 +535,7 @@ resource "aws_lambda_function" "docker_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-docker"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.docker_collector_handler.handler"
+  handler          = "aws.lambda.docker_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -587,7 +587,7 @@ resource "aws_lambda_function" "salesforce_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-salesforce"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.salesforce_collector_handler.handler"
+  handler          = "aws.lambda.salesforce_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -642,7 +642,7 @@ resource "aws_lambda_function" "snowflake_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-snowflake"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.snowflake_collector_handler.handler"
+  handler          = "aws.lambda.snowflake_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -697,7 +697,7 @@ resource "aws_lambda_function" "jamf_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-jamf"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.jamf_collector_handler.handler"
+  handler          = "aws.lambda.jamf_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -750,7 +750,7 @@ resource "aws_lambda_function" "onepassword_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-onepassword"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.onepassword_collector_handler.handler"
+  handler          = "aws.lambda.onepassword_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -801,7 +801,7 @@ resource "aws_lambda_function" "azure_monitor_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-azure-monitor"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.azure_monitor_collector_handler.handler"
+  handler          = "aws.lambda.azure_monitor_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout
@@ -855,7 +855,7 @@ resource "aws_lambda_function" "gcp_logging_collector" {
   filename         = data.archive_file.collectors_package.output_path
   function_name    = "${var.name_prefix}-collector-gcp-logging"
   role             = aws_iam_role.collectors.arn
-  handler          = "aws.lambda.gcp_logging_collector_handler.handler"
+  handler          = "aws.lambda.gcp_logging_collector_handler.lambda_handler"
   source_code_hash = data.archive_file.collectors_package.output_base64sha256
   runtime          = local.lambda_runtime
   timeout          = local.lambda_timeout

@@ -1,9 +1,9 @@
 resource "aws_lambda_function" "alert_router" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-alert-router"
   role             = aws_iam_role.alert_router.arn
-  handler          = "handler.lambda_handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.alert_router_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 60
   memory_size      = var.lambda_memory_alert

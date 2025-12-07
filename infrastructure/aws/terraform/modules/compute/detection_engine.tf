@@ -1,9 +1,22 @@
+data "archive_file" "detection_engine_package" {
+  type        = "zip"
+  output_path = "${path.module}/detection_engine.zip"
+  source_dir  = "${path.module}/../../../../../src"
+
+  excludes = [
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    "tests"
+  ]
+}
+
 resource "aws_lambda_function" "detection_engine" {
-  filename         = data.archive_file.lambda_placeholder.output_path
+  filename         = data.archive_file.detection_engine_package.output_path
   function_name    = "${var.name_prefix}-detection-engine"
   role             = aws_iam_role.detection_engine.arn
-  handler          = "handler.lambda_handler"
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  handler          = "aws.lambda.detection_engine_handler.lambda_handler"
+  source_code_hash = data.archive_file.detection_engine_package.output_base64sha256
   runtime          = "python3.11"
   timeout          = 300
   memory_size      = var.lambda_memory_detection
