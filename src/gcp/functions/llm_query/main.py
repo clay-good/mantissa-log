@@ -15,6 +15,7 @@ from src.shared.llm import (
     SQLValidator,
 )
 from src.shared.llm.providers import get_provider
+from src.shared.llm.cache_backends import FirestoreCacheBackend
 from src.gcp.bigquery.executor import BigQueryExecutor
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,63 @@ def llm_query(request: Request):
         # Initialize components
         logger.info(f"Initializing query generator with provider: {llm_provider_name}")
 
+        # Initialize LLM query pattern cache
+        use_cache = os.environ.get("ENABLE_LLM_CACHE", "true").lower() == "true"
+        query_cache = None
+        if use_cache:
+            try:
+                query_cache = FirestoreCacheBackend(project_id=project_id)
+                logger.info("LLM query pattern cache enabled (Firestore)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize query cache: {e}")
+
+        # Check cache first (skip for refinements)
+        if query_cache and not refinement_request:
+            cached = query_cache.get(user_question)
+            if cached:
+                logger.info(f"LLM cache hit for query: {user_question[:50]}...")
+                response_data = {
+                    "success": True,
+                    "sql": cached.generated_sql,
+                    "explanation": cached.explanation,
+                    "warnings": [],
+                    "attempts": 0,
+                    "cache_hit": True
+                }
+
+                # Execute query if requested
+                if execute_query and cached.generated_sql:
+                    try:
+                        query_executor = BigQueryExecutor(
+                            project_id=project_id,
+                            dataset_id=dataset_id
+                        )
+                        query_result = query_executor.execute_query(
+                            cached.generated_sql,
+                            use_cache=True,
+                            max_results=max_result_rows
+                        )
+                        response_data["results"] = query_result.get("results", [])
+                        response_data["result_count"] = query_result.get("row_count", 0)
+                        response_data["bytes_processed"] = query_result.get("bytes_processed", 0)
+                        response_data["cost_estimate"] = query_result.get("cost_estimate", 0.0)
+                        response_data["bq_cache_hit"] = query_result.get("cache_hit", False)
+                    except Exception as e:
+                        logger.error(f"Error executing cached query: {e}")
+                        response_data["execution_error"] = str(e)
+                        response_data["results"] = []
+
+                return (
+                    json.dumps(response_data),
+                    200,
+                    {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Headers": "Content-Type",
+                        "Access-Control-Allow-Methods": "POST, OPTIONS"
+                    }
+                )
+
         # Get LLM provider
         llm_provider = get_provider(llm_provider_name)
 
@@ -182,13 +240,22 @@ def llm_query(request: Request):
                 {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
             )
 
+        # Cache successful result (skip for refinements)
+        if query_cache and result.success and not refinement_request:
+            try:
+                query_cache.put(user_question, result.sql, result.explanation)
+                logger.info(f"Cached LLM result for query: {user_question[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to cache query result: {e}")
+
         # Build response
         response_data = {
             "success": True,
             "sql": result.sql,
             "explanation": result.explanation,
             "warnings": result.validation_warnings,
-            "attempts": result.attempts
+            "attempts": result.attempts,
+            "cache_hit": False
         }
 
         # Execute query if requested

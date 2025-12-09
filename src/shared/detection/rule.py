@@ -529,11 +529,73 @@ class RuleLoader:
     def _load_rules_from_s3(self) -> List[DetectionRule]:
         """Load rules from S3 bucket.
 
+        Expects rules_path in format: s3://bucket-name/prefix/
+        Downloads all .yml and .yaml files from the S3 prefix.
+
         Returns:
             List of detection rules
         """
-        # TODO: Implement S3 loading using boto3
-        raise NotImplementedError("S3 rule loading not yet implemented")
+        import tempfile
+        try:
+            import boto3
+        except ImportError:
+            logger.error("boto3 not installed - cannot load rules from S3")
+            return []
+
+        rules = []
+
+        # Parse S3 path
+        if not self.rules_path.startswith("s3://"):
+            logger.error(f"Invalid S3 path: {self.rules_path}")
+            return []
+
+        path_parts = self.rules_path[5:].split("/", 1)
+        bucket_name = path_parts[0]
+        prefix = path_parts[1] if len(path_parts) > 1 else ""
+
+        try:
+            s3_client = boto3.client("s3")
+
+            # List all objects with the prefix
+            paginator = s3_client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+
+            for page in pages:
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+
+                    # Only process YAML files
+                    if not (key.endswith(".yml") or key.endswith(".yaml")):
+                        continue
+
+                    try:
+                        # Download file content
+                        response = s3_client.get_object(Bucket=bucket_name, Key=key)
+                        content = response["Body"].read().decode("utf-8")
+
+                        # Parse YAML
+                        rule_dict = yaml.safe_load(content)
+                        if not rule_dict:
+                            continue
+
+                        # Create rule from dict
+                        rule = self._parse_rule(rule_dict, key)
+                        if rule:
+                            rules.append(rule)
+                            self.rules_cache[rule.id] = rule
+                            logger.debug(f"Loaded rule from S3: {rule.id}")
+
+                    except yaml.YAMLError as e:
+                        logger.warning(f"Invalid YAML in S3 file {key}: {e}")
+                    except Exception as e:
+                        logger.warning(f"Error loading rule from S3 {key}: {e}")
+
+            logger.info(f"Loaded {len(rules)} rules from S3: {self.rules_path}")
+
+        except Exception as e:
+            logger.error(f"Error accessing S3 bucket {bucket_name}: {e}")
+
+        return rules
 
     def reload_rules(self) -> None:
         """Clear cache and reload all rules."""

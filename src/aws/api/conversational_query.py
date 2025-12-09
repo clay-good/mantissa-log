@@ -264,12 +264,56 @@ def generate_with_bedrock(prompt: str) -> Dict[str, Any]:
 
 def generate_with_external_llm(prompt: str, provider: str) -> Dict[str, Any]:
     """Generate query using external LLM (Anthropic, OpenAI, etc.)"""
-    # Placeholder for external LLM integration
-    return {
-        'sql': 'SELECT * FROM cloudtrail_logs LIMIT 10',
-        'explanation': 'External LLM integration not yet implemented',
-        'warnings': ['Using fallback query']
-    }
+    import os
+    import re
+
+    try:
+        # Import the provider factory
+        from shared.llm.providers import get_provider
+
+        # Get the configured provider
+        llm = get_provider(provider)
+
+        # Generate completion
+        response = llm.complete(prompt)
+
+        # Extract SQL from response
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Try to extract SQL from code blocks
+        sql_match = re.search(r'```sql\s*(.*?)\s*```', response_text, re.DOTALL | re.IGNORECASE)
+        if sql_match:
+            sql = sql_match.group(1).strip()
+        else:
+            # Try to find SELECT statement
+            select_match = re.search(r'(SELECT\s+.*?)(;|$)', response_text, re.DOTALL | re.IGNORECASE)
+            if select_match:
+                sql = select_match.group(1).strip()
+            else:
+                sql = response_text.strip()
+
+        # Extract explanation (text before or after SQL)
+        explanation = response_text.replace(sql, '').strip()
+        if not explanation:
+            explanation = f'Query generated using {provider}'
+
+        return {
+            'sql': sql,
+            'explanation': explanation[:500],  # Truncate long explanations
+            'warnings': []
+        }
+    except ImportError as e:
+        return {
+            'sql': 'SELECT * FROM cloudtrail_logs LIMIT 10',
+            'explanation': f'Could not load LLM provider module: {e}',
+            'warnings': ['Using fallback query - provider module not available']
+        }
+    except Exception as e:
+        return {
+            'sql': 'SELECT * FROM cloudtrail_logs LIMIT 10',
+            'explanation': f'Error generating query with {provider}: {str(e)}',
+            'warnings': ['Using fallback query due to LLM error']
+        }
 
 
 def get_sessions_table_name() -> str:

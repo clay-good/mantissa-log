@@ -12,6 +12,8 @@ from .providers.anthropic import AnthropicProvider
 from .providers.openai import OpenAIProvider
 from .providers.google import GoogleProvider
 from .providers.bedrock import BedrockProvider
+from .providers.azure_openai import AzureOpenAIProvider
+from .providers.vertex_ai import VertexAIProvider
 from .providers.base import BaseLLMProvider
 
 dynamodb = boto3.resource('dynamodb')
@@ -141,6 +143,27 @@ class LLMProviderFactory:
                 model=model_id,
                 max_tokens=max_tokens,
                 temperature=temperature
+            )
+
+        elif provider_id in ('azure_openai', 'azure-openai', 'azureopenai'):
+            api_key = self._get_api_key(user_id, provider_id, provider_config)
+            endpoint = provider_config.get('endpoint')
+            deployment_name = provider_config.get('deployment_name', model_id)
+            api_version = provider_config.get('api_version', '2024-02-15-preview')
+            return AzureOpenAIProvider(
+                api_key=api_key,
+                endpoint=endpoint,
+                deployment_name=deployment_name,
+                api_version=api_version
+            )
+
+        elif provider_id in ('vertex_ai', 'vertex-ai', 'vertexai'):
+            project_id = provider_config.get('project_id')
+            location = provider_config.get('location', 'us-central1')
+            return VertexAIProvider(
+                project_id=project_id,
+                location=location,
+                model=model_id
             )
 
         else:

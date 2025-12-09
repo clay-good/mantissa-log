@@ -13,7 +13,7 @@ def get_provider(
     """Get LLM provider instance.
 
     Args:
-        provider_name: Provider name ("anthropic", "openai", "bedrock")
+        provider_name: Provider name ("anthropic", "openai", "bedrock", "google", "azure_openai", "vertex_ai")
         **kwargs: Provider-specific configuration
 
     Returns:
@@ -34,6 +34,18 @@ def get_provider(
         from .openai import OpenAIProvider
 
         return OpenAIProvider(**kwargs)
+    elif provider_name == "google":
+        from .google import GoogleProvider
+
+        return GoogleProvider(**kwargs)
+    elif provider_name in ("azure_openai", "azure-openai", "azureopenai"):
+        from .azure_openai import AzureOpenAIProvider
+
+        return AzureOpenAIProvider(**kwargs)
+    elif provider_name in ("vertex_ai", "vertex-ai", "vertexai"):
+        from .vertex_ai import VertexAIProvider
+
+        return VertexAIProvider(**kwargs)
     else:
         raise ValueError(f"Unknown LLM provider: {provider_name}")
 

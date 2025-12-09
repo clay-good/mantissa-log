@@ -232,21 +232,188 @@ def test_slack_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def test_jira_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
-    """Test Jira API integration."""
-    # Placeholder - implement Jira API test
-    return {'success': True, 'message': 'Jira integration test (placeholder)'}
+    """Test Jira API integration by verifying credentials and project access."""
+    import base64
+
+    url = integration.get('url', '').rstrip('/')
+    email = integration.get('email', '')
+    api_token = integration.get('api_token', '')
+    project_key = integration.get('project_key', '')
+
+    if not all([url, email, api_token, project_key]):
+        return {'success': False, 'message': 'Missing required Jira configuration (url, email, api_token, project_key)'}
+
+    try:
+        # Create auth header
+        auth_string = f"{email}:{api_token}"
+        encoded = base64.b64encode(auth_string.encode()).decode()
+        headers = {
+            "Authorization": f"Basic {encoded}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        # Test authentication by calling /myself endpoint
+        response = requests.get(
+            f"{url}/rest/api/3/myself",
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 401:
+            return {'success': False, 'message': 'Invalid Jira credentials'}
+        elif response.status_code != 200:
+            return {'success': False, 'message': f'Jira API returned status {response.status_code}'}
+
+        user_info = response.json()
+
+        # Verify project access
+        project_response = requests.get(
+            f"{url}/rest/api/3/project/{project_key}",
+            headers=headers,
+            timeout=10
+        )
+
+        if project_response.status_code == 404:
+            return {'success': False, 'message': f'Project {project_key} not found'}
+        elif project_response.status_code != 200:
+            return {'success': False, 'message': f'Cannot access project {project_key}'}
+
+        project_info = project_response.json()
+        return {
+            'success': True,
+            'message': f'Connected as {user_info.get("displayName", email)} with access to project {project_info.get("name", project_key)}'
+        }
+
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Connection to Jira timed out'}
+    except requests.exceptions.ConnectionError:
+        return {'success': False, 'message': f'Cannot connect to Jira at {url}'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error testing Jira: {str(e)}'}
 
 
 def test_pagerduty_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
-    """Test PagerDuty integration."""
-    # Placeholder - implement PagerDuty API test
-    return {'success': True, 'message': 'PagerDuty integration test (placeholder)'}
+    """Test PagerDuty integration by validating the routing key."""
+    routing_key = integration.get('routing_key', '')
+
+    if not routing_key:
+        return {'success': False, 'message': 'Missing PagerDuty routing key'}
+
+    try:
+        # Send a test event to PagerDuty Events API v2
+        payload = {
+            "routing_key": routing_key,
+            "event_action": "trigger",
+            "dedup_key": "mantissa-log-integration-test",
+            "payload": {
+                "summary": "Mantissa Log integration test - this is a test alert (will auto-resolve)",
+                "severity": "info",
+                "source": "mantissa-log",
+                "custom_details": {
+                    "test": True,
+                    "message": "This alert was generated to test the PagerDuty integration"
+                }
+            }
+        }
+
+        response = requests.post(
+            "https://events.pagerduty.com/v2/enqueue",
+            json=payload,
+            timeout=10
+        )
+
+        if response.status_code == 202:
+            result = response.json()
+            dedup_key = result.get("dedup_key", "")
+
+            # Immediately resolve the test alert
+            resolve_payload = {
+                "routing_key": routing_key,
+                "event_action": "resolve",
+                "dedup_key": dedup_key or "mantissa-log-integration-test"
+            }
+            requests.post(
+                "https://events.pagerduty.com/v2/enqueue",
+                json=resolve_payload,
+                timeout=10
+            )
+
+            return {
+                'success': True,
+                'message': 'PagerDuty integration verified (test alert sent and resolved)'
+            }
+        elif response.status_code == 400:
+            return {'success': False, 'message': 'Invalid PagerDuty routing key'}
+        else:
+            return {'success': False, 'message': f'PagerDuty returned status {response.status_code}'}
+
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Connection to PagerDuty timed out'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error testing PagerDuty: {str(e)}'}
 
 
 def test_email_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
-    """Test email integration."""
-    # Placeholder - implement SES test email
-    return {'success': True, 'message': 'Email integration test (placeholder)'}
+    """Test email integration by sending a test email via SES."""
+    ses = boto3.client('ses', region_name=integration.get('region', 'us-east-1'))
+
+    to_address = integration.get('to_address', '')
+    from_address = integration.get('from_address', '')
+
+    if not to_address:
+        return {'success': False, 'message': 'Missing recipient email address (to_address)'}
+
+    if not from_address:
+        return {'success': False, 'message': 'Missing sender email address (from_address)'}
+
+    try:
+        # Verify sender identity is configured
+        identities = ses.list_verified_email_addresses()
+        verified_emails = identities.get('VerifiedEmailAddresses', [])
+
+        # Check domain verification if exact email not verified
+        domain = from_address.split('@')[-1] if '@' in from_address else ''
+        domains = ses.list_identities(IdentityType='Domain').get('Identities', [])
+
+        if from_address not in verified_emails and domain not in domains:
+            return {
+                'success': False,
+                'message': f'Sender {from_address} is not verified in SES. Verify the email or domain first.'
+            }
+
+        # Send test email
+        response = ses.send_email(
+            Source=from_address,
+            Destination={
+                'ToAddresses': [to_address]
+            },
+            Message={
+                'Subject': {
+                    'Data': 'Mantissa Log - Integration Test',
+                    'Charset': 'UTF-8'
+                },
+                'Body': {
+                    'Text': {
+                        'Data': 'This is a test email from Mantissa Log to verify your email integration is working correctly.\n\nIf you received this message, your email alerting is configured properly.',
+                        'Charset': 'UTF-8'
+                    }
+                }
+            }
+        )
+
+        message_id = response.get('MessageId', '')
+        return {
+            'success': True,
+            'message': f'Test email sent successfully (MessageId: {message_id})'
+        }
+
+    except ses.exceptions.MessageRejected as e:
+        return {'success': False, 'message': f'Email rejected: {str(e)}'}
+    except ses.exceptions.MailFromDomainNotVerifiedException:
+        return {'success': False, 'message': f'Domain for {from_address} is not verified in SES'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error sending test email: {str(e)}'}
 
 
 def store_integration_secrets(user_id: str, integration_id: str, secrets: Dict[str, Any]) -> str:

@@ -1,31 +1,53 @@
 # Mantissa Log Documentation
 
-This directory contains all documentation for Mantissa Log.
+## Quick Links
+
+- [Getting Started](getting-started.md)
+- [Architecture Overview](architecture/architecture.md)
+- [AWS Deployment](deployment/aws-deployment.md)
+- [Detection Rules](configuration/detection-rules.md)
+- [Alert Routing](configuration/alert-routing.md)
+- [Operations Runbook](operations/runbook.md)
 
 ## Documentation Structure
 
-- **architecture.md**: System architecture diagrams and component descriptions
-- **getting-started.md**: Quick start guide for new users
-- **deployment/**: Deployment guides for different cloud providers
-- **configuration/**: Configuration guides for various components
-- **operations/**: Operational runbooks and procedures
-- **development/**: Development environment setup and contribution guides
-- **api/**: API reference documentation
+```
+docs/
+├── getting-started.md          # Quick start guide
+├── architecture/               # System design
+├── deployment/                 # Cloud deployment guides
+├── configuration/              # Component configuration
+├── features/                   # Feature documentation
+├── operations/                 # Runbooks and scaling
+├── development/                # Contributing and testing
+├── tutorials/                  # Step-by-step guides
+└── api/                        # API reference
+```
 
-## Quick Links
+## By Topic
 
-- [Architecture Overview](architecture.md)
-- [Getting Started](getting-started.md)
-- [AWS Deployment Guide](deployment/aws-deployment.md)
-- [Writing Detection Rules](configuration/detection-rules.md)
-- [Local Development Setup](development/local-setup.md)
+**Deployment**
+- [AWS Deployment](deployment/aws-deployment.md)
+- [Multi-Cloud](deployment/multi-cloud.md)
+- [Pre-Deployment Checklist](deployment/pre-deployment-checklist.md)
+- [Troubleshooting](deployment/troubleshooting.md)
 
-## Documentation Standards
+**Configuration**
+- [Detection Rules](configuration/detection-rules.md)
+- [Alert Routing](configuration/alert-routing.md)
+- [LLM Providers](configuration/llm-configuration.md)
+- [Collector Secrets](configuration/collector-secrets.md)
+- [Log Sources](configuration/log-sources.md)
 
-When contributing documentation:
+**Features**
+- [Natural Language Queries](features/conversational-context.md)
+- [Sigma Rules](features/sigma-rules.md)
+- [PII/PHI Redaction](features/pii-phi-redaction.md)
+- [Cost Projection](features/cost-projection.md)
+- [Integration Wizards](features/integration-wizards.md)
 
-- Use clear, concise language
-- Include code examples where applicable
-- Keep documentation up to date with code changes
-- Use markdown formatting consistently
-- Include diagrams for complex concepts
+**Development**
+- [Local Setup](development/local-setup.md)
+- [Testing](development/testing.md)
+- [Contributing](development/contributing.md)
+- [CI/CD](development/cicd.md)

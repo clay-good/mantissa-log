@@ -1,663 +1,448 @@
 # Mantissa Log
 
-**"Ask Questions. Get Answers. Detect Threats."**
+**"Separate the Signal from the Noise"**
 
-Open-source log aggregator with a natural language query interface. Query petabytes of logs using plain English. Free forever.
+Open-source log aggregation platform with a natural language query interface. Query logs using plain English instead of complex query languages.
 
 ## What is Mantissa Log?
 
-Mantissa Log is a **cloud-native log aggregation platform with an AI-powered natural language query interface**. Instead of learning complex query languages or wrestling with SIEM dashboards, you simply ask questions in plain English:
+Mantissa Log is a **cloud-native log aggregation platform with an AI-powered natural language query interface**. Instead of learning complex query languages, you ask questions in plain English:
 
 - *"When was the last time root was used?"*
 - *"Show me all failed logins from outside the US this week"*
 - *"List all S3 buckets created in the last 24 hours"*
-- *"Find abnormal API calls in CloudTrail today"*
 
-The system translates your questions into optimized SQL, executes them across your cloud data lake, and returns results instantly. It understands follow-up questions, maintains conversation context, and shows you the exact cost of each query before running it.
+The system translates your questions into optimized SQL, executes them across your cloud data lake, and returns results. It maintains conversation context and shows query costs before execution.
 
-**Built for any log aggregation use case, currently focused on security detections.**
+**Built for log aggregation with a focus on security detections.**
 
-### Why Mantissa Log Exists
+---
 
-Modern SIEM vendors charge $150,000+ annually for systems built on primitives that cloud providers offer at commodity prices: S3 storage ($0.023/GB), Athena queries ($5/TB scanned), and serverless compute (pennies per execution).
+## Current Implementation Status
 
-The missing piece isn't infrastructure—it's the **interface**. Writing SQL is tedious. Learning vendor query languages is painful. Dashboards go stale.
+| Cloud Provider | Status | Notes |
+|----------------|--------|-------|
+| **AWS** | Infrastructure Complete | 14 Terraform modules, 25 Lambda handlers, full API |
+| **GCP** | Infrastructure Complete | Cloud Functions, BigQuery integration, Cloud Run frontend |
+| **Azure** | Infrastructure Complete | Azure Functions, Synapse Analytics, Static Web Apps |
 
-**Natural language solves this.** Ask questions the way you think. Get answers in seconds. See exactly what it costs.
+**Important**: While infrastructure code is complete, no production deployments have been independently verified. Test thoroughly before production use.
 
-While Mantissa Log excels at security monitoring (with 590+ pre-built Sigma detection rules), the natural language query interface works for **any log aggregation scenario**: application logs, business analytics, compliance auditing, DevOps troubleshooting, or custom data exploration.
+---
 
-## Cost Comparison
+## Cost Comparison (Theoretical)
 
 **Traditional SIEM (Splunk/Datadog/Sumo Logic):**
-- Base platform fee: $50,000/year
-- Ingestion: 1 TB/day × $150/GB = $150,000/year
-- Users (5 users): $10,000/year
-- **Total: ~$210,000/year**
+- Typical cost: $150,000-$300,000/year for enterprise
 
-**Mantissa Log on AWS (1 TB/day ingestion):**
-- S3 storage (1 TB/day × 365 days × $0.023/GB): $8,395/year
-- Athena queries (500 queries/day, avg 10GB scan × $5/TB): $9,125/year
-- Lambda execution: $2,400/year
-- DynamoDB: $600/year
-- LLM API calls (Claude/GPT): $3,000/year
-- **Total: ~$23,500/year**
+**Mantissa Log on AWS (1 TB/day ingestion estimate):**
+- S3 storage: ~$8,400/year
+- Athena queries: ~$9,100/year (depends on query patterns)
+- Lambda execution: ~$2,400/year
+- DynamoDB: ~$600/year
+- LLM API calls: ~$3,000/year (highly variable)
+- **Estimated Total: ~$23,500/year**
 
-**Savings: $186,500/year (89% reduction)**
+**Disclaimer**: These are rough estimates. Actual costs depend heavily on query patterns, data volume, LLM usage, and optimization. You should run your own cost analysis.
 
-## What Makes Mantissa Log Unique
+---
 
-### 1. Natural Language Query Interface (The Core Innovation)
+## Features
 
-The LLM isn't just a feature—it's the entire interface. Four primary use cases:
+### Natural Language Query Interface
+- Ask questions in plain English
+- LLM converts to SQL (Athena, BigQuery, or Synapse depending on cloud)
+- Shows estimated cost before execution
+- Maintains conversation context for follow-up questions
+- Supports multiple LLM providers: Claude, GPT-4, Gemini, AWS Bedrock, Azure OpenAI, GCP Vertex AI
+- LLM query pattern caching to reduce API calls (AWS: DynamoDB, GCP: Firestore, Azure: Cosmos DB)
 
-#### **Adhoc Searches**
-Ask one-off questions to investigate issues, audit activity, or satisfy curiosity:
+### Detection Engine
+- 591 pre-built Sigma detection rules
+- Sigma rules auto-convert to cloud-specific SQL
+- Scheduled detection execution via EventBridge/Cloud Scheduler
+- Alert deduplication and state management
 
-**Example queries:**
-- *"When was the last time root was used?"*
-- *"Show me all EC2 instances launched in prod this month"*
-- *"Find all Okta logins from new devices"*
-- *"List CloudTrail events with errors in the last hour"*
+### Alert Routing
+- Slack, PagerDuty, Jira, Email, and Webhook integrations
+- LLM-powered alert enrichment with 5W1H context
+- PII/PHI redaction for external destinations
+- Configurable severity-based routing
 
-The system:
-1. Loads your data catalog schema (Glue/BigQuery/Synapse tables)
-2. Generates optimized SQL using your chosen LLM (Claude, GPT-4, Gemini, or Bedrock)
-3. Validates the query is read-only and safe
-4. Shows estimated cost **before execution**
-5. Runs the query and returns results
-6. Remembers context for follow-up questions
+### Data Collectors
+- **Cloud Native**: AWS CloudTrail, VPC Flow Logs, GuardDuty, GCP Audit Logs, Azure Activity Logs
+- **Identity**: Okta, Google Workspace, Microsoft 365, Duo Security
+- **Endpoints**: CrowdStrike Falcon, Jamf Pro
+- **Collaboration**: Slack Audit Logs
+- **SaaS**: Snowflake, Salesforce, 1Password
+- **DevOps**: GitHub Enterprise, Kubernetes Audit Logs, Docker
 
-**Cost visibility:** Before clicking "Run", you see:
-```
-Estimated cost: $0.04 (scans 8.2 GB)
-Monthly cost if run daily: $1.20
+### Web Interface
+- React-based dashboard with Tailwind CSS
+- Query builder with SQL visualization
+- Detection rule management
+- Integration configuration wizards
 
-Optimization tip: Add date filter to reduce cost by 85%
-```
+---
 
-#### **Routine Detections**
-Convert natural language into scheduled detection rules:
+## Limitations (Read Before Using)
 
-**Example:**
-- *"Alert me anytime someone disables CloudTrail logging"*
-- *"Notify me when root account is used"*
-- *"Detect failed login attempts from >5 different IPs for the same user"*
+### What This Project Is NOT
 
-The system:
-1. Generates SQL from your natural language description
-2. Shows projected **monthly cost** based on query frequency and historical data scanned
-3. Creates a scheduled rule (EventBridge/Cloud Scheduler) to run every N minutes
-4. Routes alerts to Slack/PagerDuty/Email/Jira when threshold is met
-5. Uses deduplication to prevent alert spam
+1. **Not Production-Verified**: No known production deployments. Infrastructure is complete but untested at scale.
 
-**Cost projection example:**
-```
-Detection: "Alert on abnormal API calls in CloudTrail"
-Schedule: Every 15 minutes
-Estimated monthly cost: $23.50
-  - Athena queries: $18.20 (364 queries/month, ~50GB avg scan)
-  - Lambda execution: $4.30
-  - DynamoDB writes: $1.00
+2. **Not a Complete SIEM Replacement**: Lacks many enterprise SIEM features:
+   - No dashboards or visualizations (by design - use external BI tools)
+   - No case management (use Jira, ServiceNow, etc.)
+   - No SOAR/automated remediation
+   - No threat intelligence platform integration
+   - No compliance reporting
 
-Reduce cost by 70%: Add partition filters for last 15 min
-```
+3. **Not Managed/SaaS**: You deploy and manage all infrastructure yourself. Requires cloud infrastructure expertise.
 
-#### **Routine Detections with Context Enrichment**
-Every alert sent to Slack/Jira/PagerDuty is enriched with **LLM-generated context**:
+4. **Not Multi-Tenant**: Single-tenant architecture only. Each deployment serves one organization.
 
-**Example alert (Slack):**
-```
-Detection: Abnormal CloudTrail API Calls
+5. **Not High-Availability by Default**: Basic infrastructure without HA/DR configuration. You must add this.
 
-WHO: arn:aws:iam::123456789012:user/john.doe
-WHAT: 47 API calls to sensitive IAM actions in 5 minutes
-WHEN: 2024-01-15 14:23:17 UTC
-WHERE: us-east-1 from IP 203.0.113.45 (external)
-WHY: Potential privilege escalation or reconnaissance activity
-HOW: User called iam:PutUserPolicy, iam:CreateAccessKey, iam:AttachUserPolicy
+### Technical Limitations
 
-Behavioral Context:
-- This user typically makes 2-3 IAM API calls per day
-- This is 15x higher than their 30-day baseline
-- External IP address has never been seen before
-- API calls occurred outside normal working hours (2 AM local time)
+- **Test Suite**: Current test results show 77 failures and 12 errors out of ~1,075 tests. Most are assertion updates for parser edge cases, but you should investigate before production use.
 
-MITRE ATT&CK: T1098 (Account Manipulation)
+- **LLM Dependency**: Requires LLM API keys. Query quality depends on model capability. API costs are unpredictable.
 
-🔍 Recommended Actions:
-1. Contact user John Doe to verify this activity
-2. Review created access keys in IAM console
-3. Check for new policies attached to user/roles
-4. Audit CloudTrail for associated API calls from same IP
-5. Consider rotating user credentials if unauthorized
+- **LLM Provider Configuration**: Each provider requires specific credentials and configuration. Vertex AI requires GCP project setup and IAM permissions. Azure OpenAI requires an Azure OpenAI resource with deployed models.
 
-Raw events: [View in Athena](https://console.aws.amazon.com/athena/...)
-```
+- **SQL Generation**: LLM-generated SQL may occasionally be incorrect or suboptimal. Always review before executing expensive queries.
 
-The **5W1H summary**, behavioral analysis, and recommended actions are all LLM-generated based on the raw event data and 30-day historical baseline.
+- **Cold Starts**: Serverless architecture has cold start latency. First query of a session may be slow.
 
-**This enrichment happens automatically for every detection.** You don't write prompts or configure it—just enable the detection rule.
+- **Query Limits**: Maximum 10,000 rows returned. 120-second query timeout. Deep subqueries limited to 3 levels.
 
-#### **Detection Engineering Automation** (Coming Soon)
-The system runs weekly analysis of all enabled Sigma rules and suggests tuning improvements:
+- **No Real-Time Streaming**: Batch-based log ingestion. Minimum detection latency is your polling interval (typically 5-15 minutes).
 
-- Analyzes historical false positives vs true positives
-- Identifies noisy rules that need refinement
-- Suggests threshold adjustments or additional filters
-- Creates Jira tickets with HIGH CONFIDENCE tuning recommendations
-- Learns from ticket resolution (accept/reject) to improve future suggestions
+- **Schema Changes**: Adding new log sources requires manual Glue/BigQuery table creation.
 
-**Example Jira ticket:**
-```
-Title: [Detection Tuning] Reduce FPs for "AWS CloudTrail Disabled"
+- **Browser Support**: Modern browsers only. No mobile optimization.
 
-Analysis Period: Last 7 days
-False Positives: 23
-True Positives: 0
+- **GCP Function Count**: GCP has 5 Cloud Functions vs 25 AWS Lambda handlers. GCP uses a consolidated collector design rather than individual functions per source.
 
-Recommendation: Add exclusion for service account "terraform-deployer"
+- **Jira Description Format**: Jira tickets use Atlassian Document Format (ADF) which may not render wiki markup as expected in all Jira versions.
 
-Suggested SQL change:
-+ WHERE user_identity_principalid NOT LIKE '%terraform-deployer%'
+- **No Log Retention Management**: You must configure S3/GCS/Azure Blob lifecycle policies separately. No built-in log rotation or archival.
 
-Confidence: HIGH
-Expected FP reduction: 95%
-```
+- **No User Management UI**: User management requires direct Cognito/Identity Platform/Azure AD configuration. No admin UI for user provisioning.
 
-### 2. True Multi-Cloud Support
+- **Single Region**: Infrastructure templates deploy to a single region. Multi-region requires manual configuration.
 
-Write detection rules **once** using Sigma format. They auto-convert to work on:
-- **AWS**: Athena SQL for S3 data lakes
-- **GCP**: BigQuery SQL for Cloud Storage
-- **Azure**: Synapse T-SQL for Blob Storage
+- **No IP Geolocation**: MaxMind GeoIP integration is not implemented. IP-based geographic queries require external enrichment.
 
-**Same rule, three clouds:**
-```yaml
-title: Root Account Usage
-detection:
-  selection:
-    userIdentity.type: Root
-  condition: selection
-```
+- **No Threat Intelligence**: VirusTotal, AbuseIPDB, and other threat intel integrations return placeholder data. You must implement your own TI lookups or use external services.
 
-Mantissa Log automatically converts this to the correct SQL dialect for your chosen cloud provider.
+- **Hardcoded Pricing**: Cloud cost estimates use hardcoded 2024 pricing constants. Actual costs may differ from estimates.
 
-### 3. Comprehensive Log Source Support
+- **Generic Exception Handling**: Some error handlers catch broad exceptions which may mask specific failure causes. Check logs for detailed errors.
 
-While focused on **security detections**, Mantissa Log ingests logs from any JSON/CSV source:
+- **DLQ Retry Logic**: Dead letter queue handler logs failures but does not implement automatic retry. Manual intervention required for failed messages.
 
-| Category | Sources |
-|----------|---------|
-| **Cloud Providers** | AWS CloudTrail, VPC Flow Logs, GuardDuty, GCP Audit Logs, Azure Activity Logs |
-| **Identity** | Okta, Google Workspace, Microsoft 365 / Azure AD, Duo Security |
-| **Endpoints** | CrowdStrike Falcon, Jamf Pro |
-| **Collaboration** | Slack Audit Logs, Microsoft Teams |
-| **SaaS Data** | Snowflake, Salesforce |
-| **DevOps** | GitHub Enterprise, GitLab, Kubernetes Audit Logs |
-| **Containers** | Docker, containerd |
+- **Placeholder Enrichment Functions**: IP reputation, user context, and geolocation lookups in alert enrichment return placeholder data. Integrate with your own data sources.
 
-**Custom parsers:** Add your own log sources by creating a simple Python parser class.
+- **Suppression Analytics**: The `get_suppression_stats()` function in alert deduplication returns placeholder data. Requires a separate suppression log table to track actual suppression counts.
 
-### 4. Cost Transparency
+- **Web UI Profile/Security Settings**: The Settings page has placeholder components for Profile Settings and Security Settings marked "coming soon". User management is done via Cognito/Identity Platform/Azure AD directly.
 
-Most SIEMs hide costs behind opaque per-GB ingestion pricing. Mantissa Log shows **exactly** what you'll pay:
+- **View Recent Failures Modal**: The integration health status "View Recent Failures" button is not implemented. Check CloudWatch/Cloud Logging for failure details.
 
-**Query cost calculation:**
-```
-Cost = (Data Scanned in GB / 1000) × $5.00
+- **Hardcoded User ID**: Some frontend components use a hardcoded `userId: 'current-user'` instead of getting it from the auth context. Works for single-user deployments but may cause issues in multi-user scenarios.
 
-Example:
-- Query scans 8.2 GB
-- Cost = (8.2 / 1000) × $5 = $0.041
-```
+### Operational Concerns
 
-**Detection cost projection:**
-```
-Monthly Cost = (Avg GB per execution) × (Executions per month) × $0.005
-             + Lambda execution cost
-             + DynamoDB write cost
+- **Cost Unpredictability**: Athena/BigQuery charges per data scanned. Poorly optimized queries can be expensive.
 
-Example: "Alert on failed logins" (runs every 15 min)
-- Avg data scanned: 0.5 GB
-- Executions per month: 2,880 (4 per hour × 24 × 30)
-- Query cost: 0.5 × 2,880 × $0.005 = $7.20/month
-- Lambda cost: $2.30/month
-- DynamoDB cost: $0.50/month
-- Total: ~$10/month
-```
+- **Secret Management**: You manage API keys and credentials. Security is your responsibility.
 
-The system shows these projections **before you create the detection**, with optimization suggestions to reduce costs by 70-90%.
+- **Updates**: No automatic updates. You pull and deploy changes manually.
 
-## Quick Demo: Ingest Logs and Ask Questions
+- **Support**: Community support only. No SLA, no vendor backing.
 
-The fastest way to see Mantissa Log in action:
+- **Import Path Sensitivity**: Some Lambda handlers use `sys.path` manipulation for imports. Deployment packaging must preserve directory structure.
 
-### Step 1: Deploy Infrastructure (10 minutes)
+- **Test Configuration**: pytest.ini references a legacy `lambda_functions` directory path. Coverage reports may not include all Lambda handler code. Update paths if needed.
+
+- **Redacted Sender Placeholder**: The `_send_to_integration()` method in `redacted_sender.py` returns a placeholder success response instead of actually sending alerts. PII/PHI redaction is applied but payloads are not forwarded to integrations. You must integrate with the validators or implement actual sending.
+
+- **Print Statements for Logging**: 99 instances of `print()` are used instead of proper logging across 25 files in `src/shared/`. Errors logged this way may not appear in CloudWatch/Cloud Logging. Consider replacing with `logging.error()` for production.
+
+- **Google Gemini Token Estimation**: Token counts for Google Gemini use `word_count * 1.3` estimation. Actual token usage differs significantly. Cost calculations for Gemini will be inaccurate.
+
+---
+
+## Environment Variables
+
+### Core Configuration (All Clouds)
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `LLM_PROVIDER` | LLM provider to use (`bedrock`, `anthropic`, `openai`, `google`, `azure_openai`, `vertex_ai`) | `bedrock` (AWS), `google` (GCP), `openai` (Azure) | Yes |
+| `MAX_RESULT_ROWS` | Maximum rows returned from queries | `1000` | No |
+| `ENABLE_ENRICHMENT` | Enable LLM-powered alert enrichment | `true` | No |
+| `ENABLE_LLM_CACHE` | Enable LLM query pattern caching | `true` | No |
+| `SCHEMA_VERSION` | Schema version for cache invalidation | `v1` | No |
+| `RULES_PATH` | Path to Sigma detection rules | `rules/sigma` | No |
+
+### AWS-Specific
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `AWS_REGION` | AWS region | `us-east-1` | Yes |
+| `ATHENA_DATABASE` | Athena database name | `mantissa_logs` | Yes |
+| `ATHENA_OUTPUT_LOCATION` | S3 location for Athena query results | - | Yes |
+| `ATHENA_OUTPUT_BUCKET` | S3 bucket for Athena results | `mantissa-log-athena-results` | No |
+| `STATE_TABLE` | DynamoDB table for state management | `mantissa-log-state` | No |
+| `QUERY_CACHE_TABLE` | DynamoDB table for LLM query caching | `mantissa-log-query-cache` | No |
+| `CONVERSATION_TABLE` | DynamoDB table for conversation sessions | `mantissa-log-conversation-sessions` | No |
+| `S3_BUCKET` | S3 bucket for log storage | `mantissa-log-data` | Yes |
+| `SECRETS_PREFIX` | Prefix for Secrets Manager secrets | `mantissa-log` | No |
+
+### GCP-Specific
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `GCP_PROJECT_ID` or `GOOGLE_CLOUD_PROJECT` | GCP project ID | - | Yes |
+| `BIGQUERY_DATASET` | BigQuery dataset name | `mantissa_logs` | Yes |
+| `GCS_BUCKET` | GCS bucket for log storage | - | Yes |
+| `ALERT_TOPIC` | Pub/Sub topic for alerts | - | Yes |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON | - | Yes (if not on GCP) |
+| `VERTEX_AI_LOCATION` | Vertex AI region | `us-central1` | No |
+| `VERTEX_AI_MODEL` | Vertex AI model name | `gemini-1.5-pro` | No |
+
+### Azure-Specific
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SYNAPSE_WORKSPACE_NAME` | Synapse workspace name | - | Yes |
+| `SYNAPSE_DATABASE` | Synapse database name | `mantissa_logs` | Yes |
+| `SYNAPSE_SERVER_NAME` | Synapse server name | - | Yes (if not serverless) |
+| `COSMOS_CONNECTION_STRING` | Cosmos DB connection string | - | Yes |
+| `KEY_VAULT_URL` | Azure Key Vault URL | - | Yes |
+| `STORAGE_ACCOUNT_NAME` | Storage account name | - | Yes |
+| `STORAGE_CONNECTION_STRING` | Storage connection string | - | Yes |
+| `ALERT_TOPIC_ENDPOINT` | Event Grid topic endpoint | - | Yes |
+| `ALERT_TOPIC_KEY` | Event Grid topic key | - | Yes |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - | Yes (if using Azure OpenAI) |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | - | Yes (if using Azure OpenAI) |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name | `gpt-4` | No |
+| `AZURE_OPENAI_API_VERSION` | Azure OpenAI API version | `2024-02-15-preview` | No |
+
+### LLM Provider Configuration
+
+| Variable | Provider | Description | Required |
+|----------|----------|-------------|----------|
+| `ANTHROPIC_API_KEY` | Anthropic | Claude API key | Yes (if using Anthropic) |
+| `OPENAI_API_KEY` | OpenAI | GPT-4 API key | Yes (if using OpenAI) |
+| `GOOGLE_API_KEY` | Google | Gemini API key | Yes (if using Google) |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI | Azure OpenAI key | Yes (if using Azure OpenAI) |
+| `GOOGLE_CLOUD_PROJECT` | Vertex AI | GCP project ID | Yes (if using Vertex AI) |
+
+### Collector-Specific (Examples)
+
+| Variable | Collector | Description |
+|----------|-----------|-------------|
+| `OKTA_ORG_URL` | Okta | Okta organization URL |
+| `OKTA_API_TOKEN` | Okta | Okta API token |
+| `GITHUB_ENTERPRISE` | GitHub | GitHub Enterprise name |
+| `GITHUB_ORG` | GitHub | GitHub organization |
+| `DUO_INTEGRATION_KEY` | Duo | Duo integration key |
+| `DUO_API_HOSTNAME` | Duo | Duo API hostname |
+| `SALESFORCE_INSTANCE_URL` | Salesforce | Salesforce instance URL |
+| `TENANT_ID` | Microsoft 365 | Azure AD tenant ID |
+
+---
+
+## Deployment
+
+### Prerequisites
+
+- AWS/GCP/Azure account with appropriate permissions
+- Terraform >= 1.5
+- Python >= 3.11
+- Node.js >= 18
+- LLM API key (Anthropic, OpenAI, Google, or AWS Bedrock access)
+
+### AWS Deployment
 
 ```bash
 git clone https://github.com/your-org/mantissa-log.git
 cd mantissa-log
+
+# Configure backend and environment
+cd infrastructure/aws/terraform
+cp backend.tf.example backend.tf
+cp environments/dev.tfvars.example environments/dev.tfvars
+# Edit backend.tf with your S3 bucket for state
+# Edit environments/dev.tfvars with your configuration
+
+# Initialize and deploy
+terraform init
+terraform plan -var-file=environments/dev.tfvars
+terraform apply -var-file=environments/dev.tfvars
+
+# Deploy Lambda code
+cd ../../..
 bash scripts/deploy.sh
 ```
 
-This deploys:
-- S3 bucket for log storage (partitioned by date/hour)
-- Glue Data Catalog for schema metadata
-- Athena for SQL queries
-- Lambda functions for API and detections
-- DynamoDB for state management
-- CloudFront + S3 for web interface
-
-### Step 2: Ingest Sample Logs
-
-**Option A: Enable CloudTrail (automatic)**
-The deployment script configures CloudTrail to send logs to your Mantissa Log S3 bucket. You'll have queryable data within 15 minutes.
-
-**Option B: Ingest existing logs from other sources**
-
-**Okta logs:**
-```bash
-# Configure Okta API token in Secrets Manager
-aws secretsmanager put-secret-value \
-  --secret-id mantissa-log/okta-token \
-  --secret-string "your-okta-api-token"
-
-# Run the Okta collector Lambda
-aws lambda invoke \
-  --function-name mantissa-log-okta-collector \
-  --payload '{"start_date": "2024-01-01", "end_date": "2024-01-31"}' \
-  response.json
-```
-
-**Google Workspace logs:**
-```bash
-# Configure Google service account in Secrets Manager
-aws secretsmanager put-secret-value \
-  --secret-id mantissa-log/google-workspace-creds \
-  --secret-string file://service-account.json
-
-# Run the Google Workspace collector
-aws lambda invoke \
-  --function-name mantissa-log-google-workspace-collector \
-  --payload '{"days_back": 7}' \
-  response.json
-```
-
-**CloudTrail (if you have existing logs in S3):**
-```bash
-# Copy existing CloudTrail logs to Mantissa Log bucket
-aws s3 sync \
-  s3://your-cloudtrail-bucket/AWSLogs/123456789012/CloudTrail/us-east-1/ \
-  s3://mantissa-log-your-deployment/cloudtrail/ \
-  --exclude "*" --include "*.json.gz"
-
-# Update Glue catalog to recognize new partitions
-aws glue start-crawler --name mantissa-log-cloudtrail-crawler
-```
-
-### Step 3: Configure LLM Provider
-
-Open the web interface (CloudFront URL from deployment output) and configure your LLM:
-
-**Settings > LLM Configuration**
-
-Choose one:
-- **AWS Bedrock** (no API key needed—uses IAM role)
-  - Model: `anthropic.claude-3-5-sonnet-20241022-v2:0`
-- **Anthropic Claude** (requires API key)
-  - Model: `claude-3-5-sonnet-20241022`
-  - API Key: `sk-ant-...`
-- **OpenAI GPT** (requires API key)
-  - Model: `gpt-4-turbo`
-  - API Key: `sk-...`
-- **Google Gemini** (requires API key)
-  - Model: `gemini-1.5-pro`
-  - API Key: `AIza...`
-
-### Step 4: Ask Questions
-
-**Query Interface > New Query**
-
-Try these example queries:
-
-**Example 1: "When was the last time root was used?"**
-```
-🔍 Generated SQL:
-SELECT
-  eventtime,
-  useridentity_principalid,
-  eventname,
-  sourceipaddress,
-  awsregion
-FROM cloudtrail
-WHERE useridentity_type = 'Root'
-ORDER BY eventtime DESC
-LIMIT 10
-
-Estimated cost: $0.03 (scans 6.1 GB)
-
-▶ Run Query
-```
-
-Click "Run Query" to see results:
-```
-| Event Time           | Principal ID | Event Name      | Source IP      | Region    |
-|---------------------|--------------|-----------------|----------------|-----------|
-| 2024-01-15 14:23:17 | root         | ConsoleLogin    | 203.0.113.45   | us-east-1 |
-```
-
-**Example 2: "Show me all failed logins in the last 24 hours"**
-
-The system understands context from previous queries and can access multiple log sources (CloudTrail, Okta, Google Workspace, etc.):
-
-```
-Generated SQL:
-SELECT
-  event_time,
-  user_identity_username,
-  source_ip,
-  user_agent,
-  failure_reason
-FROM (
-  SELECT eventtime as event_time,
-         useridentity_username,
-         sourceipaddress as source_ip,
-         useragent as user_agent,
-         errormessage as failure_reason
-  FROM cloudtrail
-  WHERE errorcode IS NOT NULL
-    AND eventname IN ('ConsoleLogin', 'GetSigninToken')
-    AND eventtime >= current_timestamp - interval '24' hour
-  UNION ALL
-  SELECT published as event_time,
-         actor_alternate_id as user_identity_username,
-         client_ip as source_ip,
-         client_user_agent as user_agent,
-         outcome_reason as failure_reason
-  FROM okta_logs
-  WHERE outcome_result = 'FAILURE'
-    AND event_type LIKE '%authentication%'
-    AND published >= current_timestamp - interval '24' hour
-)
-ORDER BY event_time DESC
-LIMIT 100
-
-Estimated cost: $0.08 (scans 16.4 GB)
-
-Optimization: Add partition filter to reduce cost by 82%:
-   WHERE year = 2024 AND month = 1 AND day = 15
-
-▶ Run Query
-```
-
-**Example 3: Follow-up question: "How many were from outside the US?"**
-
-Mantissa Log remembers your conversation context:
-```
-🔍 Generated SQL (using previous query as subquery):
-SELECT COUNT(*) as failed_login_count
-FROM (
-  [previous query]
-)
-WHERE source_ip NOT IN (
-  SELECT ip_address FROM ip_geolocation WHERE country_code = 'US'
-)
-
-Estimated cost: $0.09 (scans 18.1 GB + geolocation table)
-
-▶ Run Query
-```
-
-### Step 5: Create a Detection Rule
-
-**Rules > Create Detection**
-
-**Natural language input:**
-*"Alert me anytime there are abnormal API calls in CloudTrail"*
-
-System response:
-```
-Generated Detection SQL:
-WITH baseline AS (
-  SELECT
-    useridentity_principalid,
-    COUNT(*) as avg_daily_calls
-  FROM cloudtrail
-  WHERE eventtime >= current_timestamp - interval '30' day
-  GROUP BY useridentity_principalid
-),
-recent_activity AS (
-  SELECT
-    useridentity_principalid,
-    COUNT(*) as recent_calls
-  FROM cloudtrail
-  WHERE eventtime >= current_timestamp - interval '1' hour
-  GROUP BY useridentity_principalid
-)
-SELECT
-  r.useridentity_principalid,
-  r.recent_calls,
-  b.avg_daily_calls / 24 as avg_hourly_calls,
-  r.recent_calls / (b.avg_daily_calls / 24) as deviation_ratio
-FROM recent_activity r
-JOIN baseline b ON r.useridentity_principalid = b.useridentity_principalid
-WHERE r.recent_calls > (b.avg_daily_calls / 24) * 5  -- 5x deviation
-ORDER BY deviation_ratio DESC
-
-Projected Monthly Cost (runs every 15 minutes):
-- Athena queries: $24.30 (2,880 queries × ~8.4 GB avg scan)
-- Lambda execution: $5.20
-- DynamoDB writes: $1.50
-- Total: ~$31/month
-
-Optimization suggestions:
-1. Add partition filter for last 1 hour: Saves $17/month (70% reduction)
-2. Reduce query frequency to 30 min: Saves $12/month (50% reduction)
-3. Use incremental baseline (weekly vs daily): Saves $6/month (25% reduction)
-
-Recommended optimized cost: ~$8/month
-
-Schedule: Every 15 minutes
-Alert threshold: Any match (deviation_ratio > 5)
-Route to: Slack #security-alerts
-Enable context enrichment: ✓ Yes (adds $2/month for LLM API calls)
-
-Save Detection
-```
-
-When this detection fires, the alert sent to Slack includes:
-- **5W1H summary** (who, what, when, where, why, how)
-- **Behavioral context** (comparison to 30-day baseline)
-- **MITRE ATT&CK mapping** (if applicable)
-- **Recommended investigation steps**
-
-All generated by the LLM automatically.
-
-## Architecture
-
-```
-                    +------------------+
-                    |   Web Interface  |
-                    |   (React + Vite) |
-                    +--------+---------+
-                             |
-                    +--------v---------+
-                    |   API Gateway    |
-                    +--------+---------+
-                             |
-         +-------------------+-------------------+
-         |                   |                   |
-+--------v--------+ +--------v--------+ +--------v--------+
-|  LLM Query      | |  Detection      | |  Alert Router   |
-|  Handler        | |  Engine         | |  + Enrichment   |
-|                 | |                 | |                 |
-| - NL to SQL     | | - Sigma Rules   | | - LLM Enricher  |
-| - Conversation  | | - Multi-Cloud   | | - PII Redaction |
-| - Cost Estimate | | - Scheduling    | | - Integrations  |
-| - SQL Validator | | - Deduplication | | - 5W1H Context  |
-+-----------------+ +-----------------+ +-----------------+
-         |                   |                   |
-         +-------------------+-------------------+
-                             |
-              +--------------v--------------+
-              |        Query Executor       |
-              |  (Athena / BigQuery / Synapse)
-              +--------------+--------------+
-                             |
-              +--------------v--------------+
-              |     Data Lake (S3 / GCS)    |
-              |   Partitioned by date/hour  |
-              |      Parquet/JSON.gz        |
-              +-----------------------------+
-```
-
-### How Natural Language Queries Work
-
-1. **User asks question** in web interface
-2. **Schema context loaded**: System fetches Glue Data Catalog (or BigQuery/Synapse metadata) to understand available tables, columns, and data types
-3. **Prompt built**: Question + schema context + conversation history (last 10 messages) sent to LLM
-4. **LLM generates SQL**: Returns optimized query with JOINs, aggregations, filters
-5. **SQL validation**:
-   - Blocks unsafe operations (INSERT, UPDATE, DELETE, DROP, etc.)
-   - Auto-applies LIMIT clause (max 10,000 rows)
-   - Validates table names against allowlist
-   - Checks max subquery depth (3 levels)
-6. **Cost estimation**: Calculates data scanned based on partition filters and historical query stats
-7. **User reviews**: Sees generated SQL, estimated cost, and optimization suggestions
-8. **Query execution**: Athena/BigQuery/Synapse runs the query (120s timeout)
-9. **Results cached**: Stored for 24 hours to avoid redundant LLM calls
-10. **Conversation stored**: DynamoDB saves session for follow-up questions
-
-**Retry logic:** If SQL validation fails, error message is sent back to LLM with request to fix (up to 3 retry attempts).
-
-## Detection Rule Coverage
-
-Mantissa Log includes **590+ pre-built Sigma rules** covering MITRE ATT&CK techniques across 20+ log sources:
-
-| MITRE Tactic | Example Rules |
-|--------------|---------------|
-| **Initial Access** | Brute force login attempts, SSO abuse, SAML token manipulation |
-| **Execution** | Lambda function invoked with untrusted code, container exec into pod |
-| **Persistence** | IAM user created with console access, login profile added to role |
-| **Privilege Escalation** | AssumeRole to admin role, IAM policy modified to grant wildcards |
-| **Defense Evasion** | CloudTrail logging disabled, GuardDuty detector deleted, Config recorder stopped |
-| **Credential Access** | IAM access key created, credentials exposed in CloudTrail errors |
-| **Discovery** | S3 bucket enumeration, Secrets Manager list secrets, VPC describe calls |
-| **Lateral Movement** | Cross-account AssumeRole, VPN tunnel created to untrusted network |
-| **Collection** | S3 GetObject on sensitive buckets, RDS snapshot exported |
-| **Exfiltration** | Large S3 data transfer to external IP, unusual outbound VPC traffic |
-| **Impact** | S3 bucket encryption disabled, RDS instance deleted, ransomware file extensions |
-
-**All rules are customizable** and can be tuned via the web interface.
-
-## What Mantissa Log Is NOT
-
-Mantissa Log is intentionally focused on log aggregation and natural language queries. It does **NOT** include:
-
-- **Dashboards or Visualizations**: Use adhoc NL queries to answer questions on-demand instead of building stale dashboards
-- **Case Management**: Alerts create tickets in Jira/ServiceNow; manage investigations there
-- **SOAR/Automated Remediation**: No automated blocking, policy changes, or infrastructure modifications (use dedicated SOAR tools if needed)
-- **Threat Intelligence Platform**: Integrate with existing TI feeds via log ingestion, but Mantissa Log doesn't maintain its own threat intel database
-- **On-Prem Log Collection**: Focus is exclusively on cloud-native and SaaS log sources
-
-## Target Users
-
-- **Security teams at startups/mid-size companies** who can't afford $150k+ annual SIEM contracts
-- **Detection engineers** who want to prototype rules without worrying about per-GB ingestion costs
-- **Security practitioners** who value transparency and want to understand their security tools
-- **DevOps/SRE teams** who need queryable log aggregation for troubleshooting and auditing
-- **Compliance teams** who need to demonstrate log retention and analysis capabilities
-- **Anyone aggregating logs** who wants a natural language interface instead of learning complex query languages
-
-## Deployment Options
-
-### AWS (Production Ready)
-- **Storage**: S3 (partitioned by date/hour)
-- **Query Engine**: Athena
-- **Compute**: Lambda (25+ handlers)
-- **Metadata**: Glue Data Catalog
-- **Scheduling**: EventBridge
-- **State**: DynamoDB
-- **Auth**: Cognito
-- **Web Hosting**: CloudFront + S3
-
-**Status:** Fully implemented with 14 Terraform modules, 25+ Lambda handlers, and complete API coverage.
-
-**Deployment time:** 10-15 minutes
-
-```bash
-git clone https://github.com/your-org/mantissa-log.git
-cd mantissa-log
-bash scripts/deploy.sh
-```
-
-See [AWS Deployment Guide](docs/deployment/aws-deployment.md)
-
-### GCP (Ready for Testing)
-- **Storage**: Cloud Storage
-- **Query Engine**: BigQuery
-- **Compute**: Cloud Functions (Gen2)
-- **Scheduling**: Cloud Scheduler
-- **State**: Firestore
-- **Web Hosting**: Cloud Run
-- **Secrets**: Secret Manager
-
-**Status:** Full implementation complete with:
-- LLM Query function for natural language to SQL
-- Detection Engine with Sigma rule execution
-- Alert Router with multi-destination support
-- 12+ data collectors (Okta, GitHub, Slack, Microsoft 365, CrowdStrike, Duo, Google Workspace, Salesforce, Snowflake, Jamf, 1Password, Azure Monitor)
-- Cloud Run frontend hosting
-- Terraform infrastructure
-
-**Deployment time:** 15-20 minutes
+### GCP Deployment
 
 ```bash
 cd infrastructure/gcp/terraform
-terraform init && terraform apply
+cp backend.tf.example backend.tf
+cp environments/dev.tfvars.example environments/dev.tfvars
+# Edit environments/dev.tfvars with your GCP project ID and configuration
+terraform init
+terraform plan -var-file=environments/dev.tfvars
+terraform apply -var-file=environments/dev.tfvars
+
 bash scripts/deploy-gcp.sh
 ```
 
-See [GCP Deployment Guide](docs/deployment/gcp-deployment.md)
-
-### Azure (Ready for Testing)
-- **Storage**: Blob Storage
-- **Query Engine**: Synapse Analytics
-- **Compute**: Azure Functions
-- **Scheduling**: Timer Triggers
-- **State**: Cosmos DB
-- **Web Hosting**: Static Web Apps
-- **Secrets**: Key Vault
-
-**Status:** Full implementation complete with:
-- LLM Query function for natural language to SQL
-- Detection Engine with Sigma rule execution
-- Alert Router with multi-destination support
-- 6+ data collectors (Okta, GitHub, Slack, Microsoft 365, CrowdStrike, Duo)
-- Static Web App frontend hosting
-- Terraform infrastructure
-
-**Deployment time:** 15-20 minutes
+### Azure Deployment
 
 ```bash
 cd infrastructure/azure/terraform
-terraform init && terraform apply
+cp backend.tf.example backend.tf
+cp environments/dev.tfvars.example environments/dev.tfvars
+# Edit environments/dev.tfvars with your Azure AD admin and Synapse password
+terraform init
+terraform plan -var-file=environments/dev.tfvars
+terraform apply -var-file=environments/dev.tfvars
+
 bash scripts/deploy-azure.sh
 ```
 
-See [Azure Deployment Guide](docs/deployment/azure-deployment.md)
+---
+
+## Project Structure
+
+```
+mantissa-log/
+|-- src/
+|   |-- shared/           # Cloud-agnostic core (parsers, detection, LLM, alerting)
+|   |-- aws/              # AWS Lambda handlers and Athena integration
+|   |-- gcp/              # GCP Cloud Functions and BigQuery integration
+|   |-- azure/            # Azure Functions and Synapse integration
+|-- infrastructure/
+|   |-- aws/terraform/    # 14 Terraform modules for AWS
+|   |-- gcp/terraform/    # GCP Terraform configuration
+|   |-- azure/terraform/  # Azure Terraform configuration
+|-- web/                  # React frontend application
+|-- rules/sigma/          # 591 Sigma detection rules
+|-- tests/                # Unit, integration, and E2E tests (39 files)
+|-- scripts/              # Deployment and utility scripts
+|-- docs/                 # Documentation
+```
+
+---
+
+## Component Counts
+
+| Component | Count |
+|-----------|-------|
+| AWS Lambda Handlers | 25 |
+| Azure Functions | 16 (12 collectors + 4 core) |
+| GCP Cloud Functions | 5 (4 core + consolidated collector) |
+| LLM Providers | 6 |
+| Alert Handlers | 5 |
+| Sigma Detection Rules | 591 |
+| Log Source Parsers | 22 |
+| Test Files | 39 |
+| AWS Terraform Modules | 12 |
+
+---
+
+## Testing
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run tests
+PYTHONPATH=. pytest tests/ -v
+
+# Current test status:
+# - Passed: ~964
+# - Failed: 77 (mostly parser assertion updates)
+# - Errors: 12 (QueryConfig signature changes)
+# - Skipped: 22
+```
+
+---
 
 ## Documentation
 
 - [Getting Started Guide](docs/getting-started.md)
 - [AWS Deployment](docs/deployment/aws-deployment.md)
-- [GCP Deployment](docs/deployment/gcp-deployment.md)
-- [Azure Deployment](docs/deployment/azure-deployment.md)
-- [Writing Sigma Rules](docs/configuration/sigma-rules.md)
-- [Natural Language Query Examples](docs/tutorials/query-examples.md)
+- [Multi-Cloud Deployment](docs/deployment/multi-cloud.md)
+- [Pre-Deployment Checklist](docs/deployment/pre-deployment-checklist.md)
+- [Detection Rules](docs/configuration/detection-rules.md)
 - [Alert Routing Configuration](docs/configuration/alert-routing.md)
 - [LLM Provider Setup](docs/configuration/llm-configuration.md)
+- [Collector Secrets Configuration](docs/configuration/collector-secrets.md)
 - [API Reference](docs/api/api-reference.md)
-- [Cost Optimization](docs/operations/cost-optimization.md)
+- [Operations Runbook](docs/operations/runbook.md)
 - [Contributing Guide](docs/development/contributing.md)
+
+---
+
+## Architecture
+
+```
+User Question --> LLM Provider --> SQL Generation --> Validation -->
+Cost Estimate --> Athena/BigQuery/Synapse --> Results --> UI
+
+Detection Rule --> Sigma Converter --> Cloud-Specific SQL -->
+Scheduled Execution --> Alert Generation --> Enrichment -->
+Routing --> Slack/PagerDuty/Email/Webhook
+```
+
+### Key Design Decisions
+
+1. **Serverless**: Lambda/Cloud Functions for cost efficiency and scaling
+2. **No Dashboards**: Use natural language queries instead of stale dashboards
+3. **No Case Management**: Alerts create tickets in external systems (Jira, etc.)
+4. **Sigma Format**: Industry-standard detection rules for multi-cloud portability
+5. **LLM-First**: Natural language is the primary interface, not a feature
+
+---
+
+## What's NOT Included (By Design)
+
+- **Dashboards/Visualizations**: Use adhoc queries or external BI tools
+- **Case Management**: Use Jira, ServiceNow, Rootly, etc.
+- **SOAR/Automated Remediation**: Out of scope for security and liability reasons
+- **Threat Intelligence Platform**: Integrate with existing TI feeds via log ingestion
+- **On-Premises Support**: Cloud-native focus only
+- **Real-Time ML Streaming**: Serverless architecture not suited for streaming ML
+
+---
+
+## Contributing
+
+Contributions welcome. Please read the contributing guidelines before submitting PRs.
+
+- Report bugs via GitHub Issues
+- Security vulnerabilities: See SECURITY.md
+- Pull requests require review and passing tests
+
+---
+
+## License
+
+This project is licensed under the MIT License. See LICENSE for details.
+
+---
+
+## Disclaimer
+
+This software is provided "as is" without warranty of any kind. Use at your own risk. The maintainers are not responsible for any damages, costs, or security incidents resulting from use of this software.
+
+Security tools should be thoroughly tested and validated in your environment before production use. This project has not been audited by third-party security firms.

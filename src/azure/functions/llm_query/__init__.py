@@ -12,6 +12,7 @@ from src.shared.llm import (
     SQLValidator,
 )
 from src.shared.llm.providers import get_provider
+from src.shared.llm.cache_backends import CosmosDBCacheBackend
 from src.azure.synapse.executor import SynapseExecutor
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,62 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Initialize components
         logger.info(f"Initializing query generator with provider: {llm_provider_name}")
 
+        # Initialize LLM query pattern cache
+        use_cache = os.environ.get("ENABLE_LLM_CACHE", "true").lower() == "true"
+        query_cache = None
+        if use_cache and os.environ.get("COSMOS_CONNECTION_STRING"):
+            try:
+                query_cache = CosmosDBCacheBackend()
+                logger.info("LLM query pattern cache enabled (Cosmos DB)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize query cache: {e}")
+
+        # Check cache first (skip for refinements)
+        if query_cache and not refinement_request:
+            cached = query_cache.get(user_question)
+            if cached:
+                logger.info(f"LLM cache hit for query: {user_question[:50]}...")
+                response_data = {
+                    "success": True,
+                    "sql": cached.generated_sql,
+                    "explanation": cached.explanation,
+                    "warnings": [],
+                    "attempts": 0,
+                    "cache_hit": True
+                }
+
+                # Execute query if requested
+                if execute_query and cached.generated_sql:
+                    try:
+                        query_executor = SynapseExecutor(
+                            workspace_name=workspace_name,
+                            database_name=database_name,
+                            use_serverless=True
+                        )
+                        query_result = query_executor.execute_query(
+                            cached.generated_sql,
+                            max_results=max_result_rows
+                        )
+                        response_data["results"] = query_result.get("results", [])
+                        response_data["result_count"] = query_result.get("row_count", 0)
+                        response_data["bytes_processed"] = query_result.get("bytes_processed", 0)
+                        response_data["cost_estimate"] = query_result.get("cost_estimate", 0.0)
+                    except Exception as e:
+                        logger.error(f"Error executing cached query: {e}")
+                        response_data["execution_error"] = str(e)
+                        response_data["results"] = []
+
+                return func.HttpResponse(
+                    json.dumps(response_data),
+                    status_code=200,
+                    mimetype="application/json",
+                    headers={
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Headers": "Content-Type",
+                        "Access-Control-Allow-Methods": "POST,OPTIONS"
+                    }
+                )
+
         # Get LLM provider
         llm_provider = get_provider(llm_provider_name)
 
@@ -184,13 +241,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
+        # Cache successful result (skip for refinements)
+        if query_cache and result.success and not refinement_request:
+            try:
+                query_cache.put(user_question, result.sql, result.explanation)
+                logger.info(f"Cached LLM result for query: {user_question[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to cache query result: {e}")
+
         # Build response
         response_data = {
             "success": True,
             "sql": result.sql,
             "explanation": result.explanation,
             "warnings": result.validation_warnings,
-            "attempts": result.attempts
+            "attempts": result.attempts,
+            "cache_hit": False
         }
 
         # Execute query if requested

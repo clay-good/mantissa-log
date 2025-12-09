@@ -22,6 +22,8 @@ structlog>=24.1.0
 # LLM providers
 anthropic>=0.8.0
 openai>=1.0.0
+google-cloud-aiplatform>=1.38.0  # GCP Vertex AI
+google-generativeai>=0.3.0  # Google Gemini API
 
 # Parser dependencies
 ipaddress>=1.0.23
@@ -43,7 +45,17 @@ kubernetes>=28.1.0  # Kubernetes
 PyGithub>=2.1.1  # GitHub
 slackclient>=2.9.4  # Slack
 duo-client>=5.2.0  # Duo Security
-azure-identity>=1.15.0  # Azure
+# Azure SDK
+azure-identity>=1.15.0  # Azure authentication
 azure-mgmt-monitor>=6.0.2  # Azure Monitor
+azure-cosmos>=4.5.0  # Azure Cosmos DB for LLM caching
+azure-synapse-artifacts>=0.18.0  # Azure Synapse Analytics
+azure-functions>=1.17.0  # Azure Functions framework
+pyodbc>=5.0.0  # Azure Synapse ODBC connectivity
+
+# GCP SDK
 google-cloud-logging>=3.9.0  # GCP Cloud Logging
-pyodbc>=5.0.0  # Azure Synapse connectivity
+google-cloud-firestore>=2.14.0  # GCP Firestore for LLM caching
+google-cloud-bigquery>=3.14.0  # GCP BigQuery
+functions-framework>=3.5.0  # GCP Cloud Functions framework
+flask>=3.0.0  # Required by functions-framework
