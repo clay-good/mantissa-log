@@ -2,9 +2,12 @@
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Protocol
+import logging
 
 import boto3
 from botocore.exceptions import ClientError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -88,7 +91,7 @@ class GlueSchemaSource:
             return tables
 
         except ClientError as e:
-            print(f"Error fetching tables from Glue: {e}")
+            logger.error(f"Error fetching tables from Glue: {e}")
             return []
 
     def get_columns(self, table_name: str) -> List[ColumnInfo]:
@@ -120,7 +123,7 @@ class GlueSchemaSource:
             return columns
 
         except ClientError as e:
-            print(f"Error fetching columns for {table_name}: {e}")
+            logger.error(f"Error fetching columns for {table_name}: {e}")
             return []
 
     def _parse_table_info(self, table: Dict) -> TableInfo:

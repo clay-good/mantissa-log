@@ -3,9 +3,12 @@
 import json
 from typing import Optional
 import requests
+import logging
 
 from .base import AlertHandler
 from ...detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class SlackHandler(AlertHandler):
@@ -65,7 +68,7 @@ class SlackHandler(AlertHandler):
             return response.status_code == 200
 
         except requests.exceptions.RequestException as e:
-            print(f"Error sending to Slack: {e}")
+            logger.error(f"Error sending to Slack: {e}")
             return False
 
     def format_alert(self, alert: Alert) -> dict:

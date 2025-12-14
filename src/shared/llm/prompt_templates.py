@@ -120,6 +120,41 @@ Error:
 Output ONLY the corrected SQL query, nothing else.
 SQL:"""
 
+    def build_query_refinement_prompt(
+        self,
+        original_question: str,
+        original_sql: str,
+        refinement_request: str,
+        schema_context: str
+    ) -> str:
+        """Build prompt for refining a query based on user feedback.
+
+        Args:
+            original_question: Original natural language question
+            original_sql: Previously generated SQL
+            refinement_request: User's refinement request
+            schema_context: Schema context information
+
+        Returns:
+            Refinement prompt
+        """
+        return f"""You are refining an existing SQL query based on user feedback.
+
+Original Question: {original_question}
+
+Current SQL Query:
+{original_sql}
+
+User's Refinement Request:
+{refinement_request}
+
+{schema_context}
+
+Generate a refined SQL query that addresses the user's feedback while maintaining the original intent.
+
+Output ONLY the SQL query, nothing else.
+SQL:"""
+
     def _get_example_queries(self) -> List[Dict[str, str]]:
         """Get example query library.
 

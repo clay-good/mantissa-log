@@ -6,6 +6,7 @@ Manages setup wizards for Slack, Jira, PagerDuty, webhooks, etc.
 """
 
 import json
+import logging
 import os
 import sys
 from typing import Dict, Any
@@ -18,6 +19,17 @@ from integrations.integration_manager import (
     IntegrationManager,
     IntegrationType
 )
+
+# Import authentication and CORS utilities
+from auth import (
+    get_authenticated_user_id,
+    AuthenticationError,
+    AuthorizationError,
+)
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -33,65 +45,78 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - POST /integrations/{id}/test - Test integration
     - GET /integrations/types - Get available integration types
     """
+    # Handle CORS preflight
+    method = event.get('httpMethod', 'GET')
+    if method == 'OPTIONS':
+        return cors_preflight_response(event)
+
     try:
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
+                'body': json.dumps({'error': 'Authentication required'})
+            }
+
         path = event.get('path', '')
-        method = event.get('httpMethod', 'GET')
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         params = event.get('pathParameters') or {}
-        query_params = event.get('queryStringParameters') or {}
 
-        # Route to appropriate handler
+        # Route to appropriate handler (pass authenticated user_id)
         if path == '/integrations' and method == 'GET':
-            return handle_list_integrations(query_params)
+            return handle_list_integrations(event, user_id)
         elif path == '/integrations' and method == 'POST':
-            return handle_create_integration(body)
+            return handle_create_integration(event, user_id, body)
         elif path == '/integrations/types' and method == 'GET':
-            return handle_get_integration_types()
+            return handle_get_integration_types(event)
         elif path.startswith('/integrations/') and method == 'GET':
-            return handle_get_integration(params, query_params)
+            return handle_get_integration(event, user_id, params)
         elif path.startswith('/integrations/') and '/test' in path and method == 'POST':
-            return handle_test_integration(params, query_params)
+            return handle_test_integration(event, user_id, params)
         elif path.startswith('/integrations/') and method == 'PUT':
-            return handle_update_integration(params, body)
+            return handle_update_integration(event, user_id, params, body)
         elif path.startswith('/integrations/') and method == 'DELETE':
-            return handle_delete_integration(params, query_params)
+            return handle_delete_integration(event, user_id, params)
         else:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': 'Not found'})
             }
 
     except Exception as e:
-        print(f'Error in integration API handler: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.error(f'Error in integration API handler: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Internal server error'})
         }
 
 
-def handle_list_integrations(query_params: Dict[str, str]) -> Dict[str, Any]:
+def handle_list_integrations(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     List user's integrations.
 
     Query parameters:
-    - user_id: User ID
     - type: Optional integration type filter
-    """
-    user_id = query_params.get('user_id')
-    integration_type_str = query_params.get('type')
 
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
+    Note: user_id is extracted from authenticated JWT.
+    """
+    query_params = event.get('queryStringParameters') or {}
+    integration_type_str = query_params.get('type')
 
     manager = IntegrationManager()
 
@@ -102,6 +127,10 @@ def handle_list_integrations(query_params: Dict[str, str]) -> Dict[str, Any]:
         except ValueError:
             return {
                 'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': f'Invalid integration type: {integration_type_str}'})
             }
 
@@ -123,7 +152,7 @@ def handle_list_integrations(query_params: Dict[str, str]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'integrations': integrations_data,
@@ -132,28 +161,32 @@ def handle_list_integrations(query_params: Dict[str, str]) -> Dict[str, Any]:
     }
 
 
-def handle_create_integration(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_create_integration(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create new integration.
 
     Request body:
     {
-        "user_id": "user-123",
         "integration_type": "slack",
         "name": "My Slack Integration",
         "config": {...},
         "enabled": true
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     integration_type_str = body.get('integration_type')
     name = body.get('name')
     config = body.get('config', {})
     enabled = body.get('enabled', True)
 
-    if not all([user_id, integration_type_str, name, config]):
+    if not all([integration_type_str, name, config]):
         return {
             'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': 'Missing required fields'})
         }
 
@@ -162,6 +195,10 @@ def handle_create_integration(body: Dict[str, Any]) -> Dict[str, Any]:
     except ValueError:
         return {
             'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': f'Invalid integration type: {integration_type_str}'})
         }
 
@@ -180,7 +217,7 @@ def handle_create_integration(body: Dict[str, Any]) -> Dict[str, Any]:
             'statusCode': 201,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
                 'integration': integration.to_dict(),
@@ -189,34 +226,36 @@ def handle_create_integration(body: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        print(f'Error creating integration: {e}')
+        logger.error(f'Error creating integration: {e}', exc_info=True)
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': f'Failed to create integration: {str(e)}'})
+            'body': json.dumps({'error': 'Failed to create integration'})
         }
 
 
-def handle_get_integration(params: Dict[str, str], query_params: Dict[str, str]) -> Dict[str, Any]:
+def handle_get_integration(event: Dict[str, Any], user_id: str, params: Dict[str, str]) -> Dict[str, Any]:
     """
     Get specific integration.
 
     Path parameters:
     - id: Integration ID
 
-    Query parameters:
-    - user_id: User ID
+    Note: user_id is extracted from authenticated JWT.
     """
     integration_id = params.get('id')
-    user_id = query_params.get('user_id')
 
-    if not all([integration_id, user_id]):
+    if not integration_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing integration_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing integration_id'})
         }
 
     manager = IntegrationManager()
@@ -225,6 +264,10 @@ def handle_get_integration(params: Dict[str, str], query_params: Dict[str, str])
     if not integration:
         return {
             'statusCode': 404,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': 'Integration not found'})
         }
 
@@ -240,13 +283,13 @@ def handle_get_integration(params: Dict[str, str], query_params: Dict[str, str])
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'integration': data})
     }
 
 
-def handle_update_integration(params: Dict[str, str], body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_update_integration(event: Dict[str, Any], user_id: str, params: Dict[str, str], body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update integration.
 
@@ -255,19 +298,23 @@ def handle_update_integration(params: Dict[str, str], body: Dict[str, Any]) -> D
 
     Request body:
     {
-        "user_id": "user-123",
         "name": "Updated name",
         "config": {...},
         "enabled": false
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
     integration_id = params.get('id')
-    user_id = body.get('user_id')
 
-    if not all([integration_id, user_id]):
+    if not integration_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing integration_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing integration_id'})
         }
 
     manager = IntegrationManager()
@@ -291,6 +338,10 @@ def handle_update_integration(params: Dict[str, str], body: Dict[str, Any]) -> D
         if not integration:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': 'Integration not found'})
             }
 
@@ -298,7 +349,7 @@ def handle_update_integration(params: Dict[str, str], body: Dict[str, Any]) -> D
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
                 'integration': integration.to_dict(),
@@ -307,34 +358,36 @@ def handle_update_integration(params: Dict[str, str], body: Dict[str, Any]) -> D
         }
 
     except Exception as e:
-        print(f'Error updating integration: {e}')
+        logger.error(f'Error updating integration: {e}', exc_info=True)
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': f'Failed to update integration: {str(e)}'})
+            'body': json.dumps({'error': 'Failed to update integration'})
         }
 
 
-def handle_delete_integration(params: Dict[str, str], query_params: Dict[str, str]) -> Dict[str, Any]:
+def handle_delete_integration(event: Dict[str, Any], user_id: str, params: Dict[str, str]) -> Dict[str, Any]:
     """
     Delete integration.
 
     Path parameters:
     - id: Integration ID
 
-    Query parameters:
-    - user_id: User ID
+    Note: user_id is extracted from authenticated JWT.
     """
     integration_id = params.get('id')
-    user_id = query_params.get('user_id')
 
-    if not all([integration_id, user_id]):
+    if not integration_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing integration_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing integration_id'})
         }
 
     manager = IntegrationManager()
@@ -344,29 +397,31 @@ def handle_delete_integration(params: Dict[str, str], query_params: Dict[str, st
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'message': 'Integration deleted successfully'})
     }
 
 
-def handle_test_integration(params: Dict[str, str], query_params: Dict[str, str]) -> Dict[str, Any]:
+def handle_test_integration(event: Dict[str, Any], user_id: str, params: Dict[str, str]) -> Dict[str, Any]:
     """
     Test integration connection.
 
     Path parameters:
     - id: Integration ID
 
-    Query parameters:
-    - user_id: User ID
+    Note: user_id is extracted from authenticated JWT.
     """
     integration_id = params.get('id')
-    user_id = query_params.get('user_id')
 
-    if not all([integration_id, user_id]):
+    if not integration_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing integration_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing integration_id'})
         }
 
     manager = IntegrationManager()
@@ -376,13 +431,13 @@ def handle_test_integration(params: Dict[str, str], query_params: Dict[str, str]
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps(result)
     }
 
 
-def handle_get_integration_types() -> Dict[str, Any]:
+def handle_get_integration_types(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get available integration types with descriptions.
     """
@@ -446,7 +501,7 @@ def handle_get_integration_types() -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'types': types})
     }

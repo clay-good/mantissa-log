@@ -10,7 +10,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from src.shared.detection.engine import DetectionEngine, DetectionResult
-from src.shared.detection.rule import RuleLoader, DetectionRule
+from src.shared.detection.rule import (
+    RuleLoader,
+    DetectionRule,
+    QueryConfig,
+    ScheduleConfig,
+    ThresholdConfig,
+    AlertConfig
+)
 from src.shared.detection.executors.athena import AthenaQueryExecutor
 from src.shared.detection.executors.bigquery import BigQueryExecutor
 from src.shared.detection.executors.synapse import SynapseExecutor
@@ -28,18 +35,19 @@ class TestDetectionEngineWithAthena:
         executor = Mock(spec=AthenaQueryExecutor)
 
         # Mock execute_query to return sample results
+        # Note: event_count must be integer for threshold comparison
         executor.execute_query.return_value = [
             {
                 'eventname': 'ConsoleLogin',
                 'sourceipaddress': '1.2.3.4',
                 'eventtime': '2024-01-01T12:00:00Z',
-                'count': '5'
+                'event_count': 5
             },
             {
                 'eventname': 'ConsoleLogin',
                 'sourceipaddress': '5.6.7.8',
                 'eventtime': '2024-01-01T12:05:00Z',
-                'count': '10'
+                'event_count': 10
             }
         ]
 
@@ -48,33 +56,28 @@ class TestDetectionEngineWithAthena:
     @pytest.fixture
     def sample_rule(self):
         """Create sample detection rule."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         return DetectionRule(
             id='test-rule-1',
             name='Test Brute Force Detection',
             description='Test rule for brute force detection',
+            author='Mantissa Security Team',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='high',
-            query=DetectionQuery(
-                sql="SELECT eventname, sourceipaddress, COUNT(*) as count FROM cloudtrail WHERE eventname = 'ConsoleLogin' GROUP BY eventname, sourceipaddress"
+            query=QueryConfig(
+                sql="SELECT eventname, sourceipaddress, COUNT(*) as event_count FROM cloudtrail WHERE eventname = 'ConsoleLogin' GROUP BY eventname, sourceipaddress"
             ),
-            schedule=Schedule(interval='5m'),
-            threshold=Threshold(count=5, time_window='5m'),
+            schedule=ScheduleConfig(interval='5m'),
+            # Note: 'count' is a reserved field that counts rows, use 'event_count' to check actual column
+            threshold=ThresholdConfig(field='event_count', operator='>=', value=5),
             alert=AlertConfig(
-                title='Brute Force Detected',
-                body_template='Detected {{count}} failed login attempts from {{sourceipaddress}}'
+                destinations=['slack'],
+                title_template='Brute Force Detected',
+                body_template='Detected {{event_count}} failed login attempts from {{sourceipaddress}}'
             ),
             enabled=True,
             tags=['attack.credential_access'],
-            false_positives=['Legitimate user forgot password'],
-            author='Mantissa Security Team',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=['Legitimate user forgot password']
         )
 
     def test_execute_rule_with_athena(self, mock_athena_executor, sample_rule):
@@ -120,11 +123,12 @@ class TestDetectionEngineWithBigQuery:
         """Create mock BigQuery executor."""
         executor = Mock(spec=BigQueryExecutor)
 
+        # Note: count must be integer for threshold comparison
         executor.execute_query.return_value = [
             {
                 'eventname': 'AssumeRole',
                 'useridentity_arn': 'arn:aws:iam::123456789012:root',
-                'count': '3'
+                'count': 3
             }
         ]
 
@@ -133,33 +137,27 @@ class TestDetectionEngineWithBigQuery:
     @pytest.fixture
     def privilege_escalation_rule(self):
         """Create privilege escalation rule."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         return DetectionRule(
             id='test-rule-2',
             name='Privilege Escalation Detection',
             description='Detect privilege escalation attempts',
+            author='Mantissa Security Team',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='critical',
-            query=DetectionQuery(
+            query=QueryConfig(
                 sql="SELECT eventname, useridentity_arn, COUNT(*) as count FROM cloudtrail WHERE eventname IN ('AttachUserPolicy', 'PutUserPolicy', 'AttachRolePolicy') GROUP BY eventname, useridentity_arn"
             ),
-            schedule=Schedule(interval='5m'),
-            threshold=Threshold(count=1, time_window='5m'),
+            schedule=ScheduleConfig(interval='5m'),
+            threshold=ThresholdConfig(field='count', operator='>=', value=1),
             alert=AlertConfig(
-                title='Privilege Escalation Detected',
+                destinations=['slack'],
+                title_template='Privilege Escalation Detected',
                 body_template='User {{useridentity_arn}} performed {{eventname}}'
             ),
             enabled=True,
             tags=['attack.privilege_escalation'],
-            false_positives=[],
-            author='Mantissa Security Team',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=[]
         )
 
     def test_execute_rule_with_bigquery(self, mock_bigquery_executor, privilege_escalation_rule):
@@ -199,33 +197,27 @@ class TestDetectionEngineWithSynapse:
     @pytest.fixture
     def cloudtrail_disabled_rule(self):
         """Create CloudTrail disabled detection rule."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         return DetectionRule(
             id='test-rule-3',
             name='CloudTrail Disabled',
             description='Detect when CloudTrail logging is disabled',
+            author='Mantissa Security Team',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='critical',
-            query=DetectionQuery(
+            query=QueryConfig(
                 sql="SELECT eventname, useridentity_arn, eventtime FROM cloudtrail WHERE eventname IN ('StopLogging', 'DeleteTrail')"
             ),
-            schedule=Schedule(interval='5m'),
-            threshold=Threshold(count=1, time_window='5m'),
+            schedule=ScheduleConfig(interval='5m'),
+            threshold=ThresholdConfig(field='count', operator='>=', value=1),
             alert=AlertConfig(
-                title='CloudTrail Disabled',
+                destinations=['slack'],
+                title_template='CloudTrail Disabled',
                 body_template='CloudTrail logging disabled by {{useridentity_arn}}'
             ),
             enabled=True,
             tags=['attack.defense_evasion'],
-            false_positives=['Legitimate maintenance'],
-            author='Mantissa Security Team',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=['Legitimate maintenance']
         )
 
     def test_execute_rule_with_synapse(self, mock_synapse_executor, cloudtrail_disabled_rule):
@@ -250,13 +242,6 @@ class TestDetectionEngineErrorHandling:
 
     def test_query_execution_error_athena(self):
         """Test handling of query execution error with Athena."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         executor = Mock(spec=AthenaQueryExecutor)
         executor.execute_query.side_effect = Exception("Athena query failed")
 
@@ -264,17 +249,21 @@ class TestDetectionEngineErrorHandling:
             id='error-rule',
             name='Error Rule',
             description='Rule that will fail',
+            author='Test',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='high',
-            query=DetectionQuery(sql="SELECT * FROM invalid_table"),
-            schedule=Schedule(interval='5m'),
-            threshold=Threshold(count=1, time_window='5m'),
-            alert=AlertConfig(title='Alert', body_template='Body'),
+            query=QueryConfig(sql="SELECT * FROM invalid_table"),
+            schedule=ScheduleConfig(interval='5m'),
+            threshold=ThresholdConfig(field='count', operator='>=', value=1),
+            alert=AlertConfig(
+                destinations=['slack'],
+                title_template='Alert',
+                body_template='Body'
+            ),
             enabled=True,
             tags=[],
-            false_positives=[],
-            author='Test',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=[]
         )
 
         rule_loader = Mock(spec=RuleLoader)
@@ -292,13 +281,6 @@ class TestDetectionEngineErrorHandling:
 
     def test_empty_results_handling(self):
         """Test handling of empty query results."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         executor = Mock(spec=AthenaQueryExecutor)
         executor.execute_query.return_value = []  # No results
 
@@ -306,17 +288,21 @@ class TestDetectionEngineErrorHandling:
             id='no-results-rule',
             name='No Results Rule',
             description='Rule with no results',
+            author='Test',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='low',
-            query=DetectionQuery(sql="SELECT * FROM cloudtrail WHERE 1=0"),
-            schedule=Schedule(interval='5m'),
-            threshold=Threshold(count=1, time_window='5m'),
-            alert=AlertConfig(title='Alert', body_template='Body'),
+            query=QueryConfig(sql="SELECT * FROM cloudtrail WHERE 1=0"),
+            schedule=ScheduleConfig(interval='5m'),
+            threshold=ThresholdConfig(field='count', operator='>=', value=1),
+            alert=AlertConfig(
+                destinations=['slack'],
+                title_template='Alert',
+                body_template='Body'
+            ),
             enabled=True,
             tags=[],
-            false_positives=[],
-            author='Test',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=[]
         )
 
         rule_loader = Mock(spec=RuleLoader)
@@ -338,33 +324,31 @@ class TestDetectionEngineTimeWindows:
 
     def test_custom_time_window(self):
         """Test executing rule with custom time window."""
-        from src.shared.detection.rule import (
-            DetectionQuery,
-            Schedule,
-            Threshold,
-            AlertConfig
-        )
-
         executor = Mock(spec=AthenaQueryExecutor)
+        # Note: count must be integer for threshold comparison
         executor.execute_query.return_value = [
-            {'eventname': 'ConsoleLogin', 'count': '10'}
+            {'eventname': 'ConsoleLogin', 'count': 10}
         ]
 
         rule = DetectionRule(
             id='time-window-rule',
             name='Time Window Rule',
             description='Rule with custom time window',
+            author='Test',
+            created='2024-01-01',
+            modified='2024-01-01',
             severity='medium',
-            query=DetectionQuery(sql="SELECT eventname, COUNT(*) as count FROM cloudtrail GROUP BY eventname"),
-            schedule=Schedule(interval='1h'),
-            threshold=Threshold(count=5, time_window='1h'),
-            alert=AlertConfig(title='Alert', body_template='Body'),
+            query=QueryConfig(sql="SELECT eventname, COUNT(*) as count FROM cloudtrail GROUP BY eventname"),
+            schedule=ScheduleConfig(interval='1h'),
+            threshold=ThresholdConfig(field='count', operator='>=', value=5),
+            alert=AlertConfig(
+                destinations=['slack'],
+                title_template='Alert',
+                body_template='Body'
+            ),
             enabled=True,
             tags=[],
-            false_positives=[],
-            author='Test',
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            false_positives=[]
         )
 
         rule_loader = Mock(spec=RuleLoader)

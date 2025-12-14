@@ -215,9 +215,15 @@ class SynapseExecutor(QueryExecutor):
         """Cancel a running query."""
         conn = self._get_connection()
 
+        # Validate query_id format to prevent SQL injection
+        # Synapse session IDs are integers
+        if not query_id or not str(query_id).isdigit():
+            raise ValueError(f"Invalid query_id format: {query_id}")
+
         try:
             cursor = conn.cursor()
-            cursor.execute(f"KILL '{query_id}'")
+            # Use parameterized query to prevent SQL injection
+            cursor.execute("KILL ?", (int(query_id),))
             cursor.close()
             return True
         except Exception:

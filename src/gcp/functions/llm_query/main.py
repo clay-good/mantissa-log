@@ -17,6 +17,7 @@ from src.shared.llm import (
 from src.shared.llm.providers import get_provider
 from src.shared.llm.cache_backends import FirestoreCacheBackend
 from src.gcp.bigquery.executor import BigQueryExecutor
+from src.shared.auth.gcp import verify_firebase_token, get_cors_headers, AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -85,16 +86,28 @@ def llm_query(request: Request):
     3. Optionally executes the query against BigQuery
     4. Returns results
     """
+    cors_headers = get_cors_headers(request)
+
     # Handle CORS preflight
     if request.method == "OPTIONS":
         return ("", 204, {
-            "Access-Control-Allow-Origin": "*",
+            **cors_headers,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "3600"
         })
 
-    logger.info("Processing LLM query request")
+    # Authenticate user from Firebase/Identity Platform token
+    try:
+        user_id = verify_firebase_token(request)
+    except AuthenticationError as e:
+        return (
+            json.dumps({"error": "Authentication required", "details": str(e)}),
+            401,
+            {"Content-Type": "application/json", **cors_headers}
+        )
+
+    logger.info(f"Processing LLM query request for user: {user_id}")
 
     # Load configuration
     project_id = os.environ.get("GCP_PROJECT_ID")
@@ -117,14 +130,14 @@ def llm_query(request: Request):
             return (
                 json.dumps({"error": "Missing 'question' field in request"}),
                 400,
-                {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+                {"Content-Type": "application/json", **cors_headers}
             )
 
     except Exception as e:
         return (
             json.dumps({"error": f"Invalid JSON in request body: {str(e)}"}),
             400,
-            {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+            {"Content-Type": "application/json", **cors_headers}
         )
 
     try:
@@ -180,12 +193,7 @@ def llm_query(request: Request):
                 return (
                     json.dumps(response_data),
                     200,
-                    {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Headers": "Content-Type",
-                        "Access-Control-Allow-Methods": "POST, OPTIONS"
-                    }
+                    {"Content-Type": "application/json", **cors_headers}
                 )
 
         # Get LLM provider
@@ -237,7 +245,7 @@ def llm_query(request: Request):
                     "attempts": result.attempts
                 }),
                 400,
-                {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+                {"Content-Type": "application/json", **cors_headers}
             )
 
         # Cache successful result (skip for refinements)
@@ -290,12 +298,7 @@ def llm_query(request: Request):
         return (
             json.dumps(response_data),
             200,
-            {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "POST, OPTIONS"
-            }
+            {"Content-Type": "application/json", **cors_headers}
         )
 
     except Exception as e:
@@ -309,5 +312,5 @@ def llm_query(request: Request):
                 "error": f"Internal server error: {str(e)}"
             }),
             500,
-            {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+            {"Content-Type": "application/json", **cors_headers}
         )

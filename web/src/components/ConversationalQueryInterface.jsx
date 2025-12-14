@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Send, RotateCcw, Trash2 } from 'lucide-react';
 import ConversationHistory from './ConversationHistory';
 import CostProjection from './CostProjection';
+import { useAuthStore } from '../stores/authStore';
 
 export default function ConversationalQueryInterface() {
+  const { user } = useAuthStore();
   const [question, setQuestion] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -32,7 +34,7 @@ export default function ConversationalQueryInterface() {
         body: JSON.stringify({
           question,
           sessionId,
-          userId: 'current-user' // TODO: Get from auth context
+          userId: user?.userId || user?.username || 'anonymous'
         })
       });
 

@@ -4,9 +4,12 @@ import base64
 import json
 from typing import Dict, Optional
 import requests
+import logging
 
 from .base import AlertHandler
 from ...detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class JiraHandler(AlertHandler):
@@ -418,19 +421,19 @@ class JiraHandler(AlertHandler):
             result = response.json()
             ticket_key = result.get("key")
             if ticket_key:
-                print(f"Created Jira ticket: {ticket_key}")
+                logger.info(f"Created Jira ticket: {ticket_key}")
                 return True
 
             return False
 
         except requests.exceptions.RequestException as e:
-            print(f"Error creating Jira ticket: {e}")
+            logger.error(f"Error creating Jira ticket: {e}")
             if hasattr(e, "response") and e.response is not None:
                 try:
                     error_detail = e.response.json()
-                    print(f"Jira API error: {json.dumps(error_detail)}")
+                    logger.error(f"Jira API error: {json.dumps(error_detail)}")
                 except Exception:
-                    print(f"Response text: {e.response.text}")
+                    logger.error(f"Response text: {e.response.text}")
             return False
 
     def format_alert(self, alert: Alert) -> dict:

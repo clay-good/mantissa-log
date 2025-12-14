@@ -14,6 +14,7 @@ from src.shared.llm import (
 from src.shared.llm.providers import get_provider
 from src.shared.llm.cache_backends import CosmosDBCacheBackend
 from src.azure.synapse.executor import SynapseExecutor
+from src.shared.auth.azure import verify_azure_ad_token, get_cors_headers, AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,33 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     3. Optionally executes the query against Synapse
     4. Returns results
     """
-    logger.info("Processing LLM query request")
+    cors_headers = get_cors_headers(req)
+
+    # Handle CORS preflight
+    if req.method == "OPTIONS":
+        return func.HttpResponse(
+            "",
+            status_code=204,
+            headers={
+                **cors_headers,
+                "Access-Control-Allow-Methods": "POST,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Max-Age": "3600"
+            }
+        )
+
+    # Authenticate user from Azure AD token
+    try:
+        user_id = verify_azure_ad_token(req)
+    except AuthenticationError as e:
+        return func.HttpResponse(
+            json.dumps({"error": "Authentication required", "details": str(e)}),
+            status_code=401,
+            mimetype="application/json",
+            headers=cors_headers
+        )
+
+    logger.info(f"Processing LLM query request for user: {user_id}")
 
     # Load configuration
     database_name = os.environ.get("SYNAPSE_DATABASE", "mantissa_logs")
@@ -117,14 +144,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(
                 json.dumps({"error": "Missing 'question' field in request"}),
                 status_code=400,
-                mimetype="application/json"
+                mimetype="application/json",
+                headers=cors_headers
             )
 
     except ValueError as e:
         return func.HttpResponse(
             json.dumps({"error": f"Invalid JSON in request body: {str(e)}"}),
             status_code=400,
-            mimetype="application/json"
+            mimetype="application/json",
+            headers=cors_headers
         )
 
     try:
@@ -180,11 +209,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     json.dumps(response_data),
                     status_code=200,
                     mimetype="application/json",
-                    headers={
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Headers": "Content-Type",
-                        "Access-Control-Allow-Methods": "POST,OPTIONS"
-                    }
+                    headers=cors_headers
                 )
 
         # Get LLM provider
@@ -238,7 +263,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     "attempts": result.attempts
                 }),
                 status_code=400,
-                mimetype="application/json"
+                mimetype="application/json",
+                headers=cors_headers
             )
 
         # Cache successful result (skip for refinements)
@@ -291,11 +317,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             json.dumps(response_data),
             status_code=200,
             mimetype="application/json",
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "POST,OPTIONS"
-            }
+            headers=cors_headers
         )
 
     except Exception as e:
@@ -309,5 +331,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 "error": f"Internal server error: {str(e)}"
             }),
             status_code=500,
-            mimetype="application/json"
+            mimetype="application/json",
+            headers=cors_headers
         )

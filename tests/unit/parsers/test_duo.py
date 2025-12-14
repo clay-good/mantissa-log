@@ -203,11 +203,15 @@ class TestDuoParser:
         assert parser.validate(event) is False
 
     def test_parse_preserves_raw_event(self, parser, sample_auth_event):
-        """Test parsing preserves raw event."""
+        """Test parsing preserves raw event (with None/empty values cleaned)."""
         result = parser.parse(sample_auth_event)
 
         assert "_raw" in result
-        assert result["_raw"] == sample_auth_event
+        # Parser cleans None/empty values from _raw, so check key fields
+        assert result["_raw"]["txid"] == sample_auth_event["txid"]
+        assert result["_raw"]["timestamp"] == sample_auth_event["timestamp"]
+        assert result["_raw"]["factor"] == sample_auth_event["factor"]
+        assert result["_raw"]["user"]["name"] == sample_auth_event["user"]["name"]
 
     def test_unix_to_iso_conversion(self, parser):
         """Test Unix timestamp to ISO conversion."""

@@ -7,7 +7,7 @@ and stores them in S3. Supports both enterprise-level and organization-level aud
 
 import json
 import os
-import boto3
+import sys
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 import logging
@@ -15,14 +15,29 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# Add shared modules to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+
+from utils.lazy_init import aws_clients
+
 # Setup logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# AWS Clients
-s3_client = boto3.client('s3')
-dynamodb = boto3.resource('dynamodb')
-secrets_client = boto3.client('secretsmanager')
+
+def _get_s3():
+    """Get lazily-initialized S3 client."""
+    return aws_clients.s3
+
+
+def _get_dynamodb():
+    """Get lazily-initialized DynamoDB resource."""
+    return aws_clients.dynamodb
+
+
+def _get_secrets_manager():
+    """Get lazily-initialized Secrets Manager client."""
+    return aws_clients.secrets_manager
 
 # Environment variables
 LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
@@ -42,7 +57,7 @@ class GitHubCollector:
         """Initialize the collector with API token"""
         self.api_token = self._get_api_token()
         self.session = self._create_session()
-        self.checkpoint_table = dynamodb.Table(CHECKPOINT_TABLE)
+        self.checkpoint_table = _get_dynamodb().Table(CHECKPOINT_TABLE)
         self.enterprise = GITHUB_ENTERPRISE
         self.organization = GITHUB_ORG
 
@@ -58,7 +73,7 @@ class GitHubCollector:
 
     def _get_api_token(self) -> str:
         """Retrieve GitHub API token from Secrets Manager"""
-        response = secrets_client.get_secret_value(SecretId=API_TOKEN_SECRET)
+        response = _get_secrets_manager().get_secret_value(SecretId=API_TOKEN_SECRET)
         secret_data = json.loads(response['SecretString'])
         return secret_data['github_token']
 
@@ -274,7 +289,7 @@ class GitHubCollector:
         ndjson_content = '\n'.join(json.dumps(event) for event in events)
 
         try:
-            s3_client.put_object(
+            _get_s3().put_object(
                 Bucket=LOGS_BUCKET,
                 Key=s3_key,
                 Body=ndjson_content.encode('utf-8'),

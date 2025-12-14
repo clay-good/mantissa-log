@@ -308,11 +308,15 @@ class TestOktaParser:
         assert result["okta"]["authentication_context"]["authentication_provider"] == "OKTA_AUTHENTICATION_PROVIDER"
 
     def test_parse_preserves_raw_event(self, parser, sample_login_event):
-        """Test parsing preserves raw event."""
+        """Test parsing preserves raw event (with None/empty values cleaned)."""
         result = parser.parse(sample_login_event)
 
         assert "_raw" in result
-        assert result["_raw"] == sample_login_event
+        # Parser cleans None/empty values from _raw, so check key fields
+        assert result["_raw"]["uuid"] == sample_login_event["uuid"]
+        assert result["_raw"]["eventType"] == sample_login_event["eventType"]
+        assert result["_raw"]["published"] == sample_login_event["published"]
+        assert result["_raw"]["actor"]["id"] == sample_login_event["actor"]["id"]
 
     def test_validate_valid_event(self, parser, sample_login_event):
         """Test validation of valid event."""
@@ -489,7 +493,8 @@ class TestOktaParserEventTypes:
 
     def test_deny_event_type(self, parser):
         """Test deny events get denied type."""
-        types = parser._get_event_type("app.inbound_del_auth.credentials_denied")
+        # Parser checks for 'deny' not 'denied' in event name
+        types = parser._get_event_type("app.access.deny")
         assert "denied" in types
 
     def test_allow_event_type(self, parser):

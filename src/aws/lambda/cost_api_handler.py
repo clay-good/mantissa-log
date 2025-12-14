@@ -5,8 +5,10 @@ Lambda function to handle cost estimation API requests from the web UI.
 """
 
 import json
+import logging
 import os
 import sys
+from datetime import datetime
 from typing import Dict, Any
 
 # Add shared modules to path
@@ -14,6 +16,17 @@ sys.path.insert(0, '/opt/python')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from cost.cost_estimator import CostEstimator, estimate_query_cost, get_optimization_suggestions
+
+# Import authentication and CORS utilities
+from auth import (
+    get_authenticated_user_id,
+    AuthenticationError,
+    AuthorizationError,
+)
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -26,57 +39,86 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /cost/summary - User cost summary
     - POST /cost/optimize - Get query optimization suggestions
     """
+    # Handle CORS preflight
+    method = event.get('httpMethod', 'GET')
+    if method == 'OPTIONS':
+        return cors_preflight_response(event)
+
     try:
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
+                'body': json.dumps({'error': 'Authentication required'})
+            }
+
         path = event.get('path', '')
-        method = event.get('httpMethod', 'GET')
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
 
-        # Route to appropriate handler
+        # Route to appropriate handler (pass authenticated user_id)
         if path == '/cost/estimate' and method == 'POST':
-            return handle_estimate_detection(body)
+            return handle_estimate_detection(event, user_id, body)
         elif path == '/cost/estimate-query' and method == 'POST':
-            return handle_estimate_query(body)
+            return handle_estimate_query(event, user_id, body)
         elif path == '/cost/summary' and method == 'GET':
-            return handle_cost_summary(event)
+            return handle_cost_summary(event, user_id)
         elif path == '/cost/optimize' and method == 'POST':
-            return handle_optimize_query(body)
+            return handle_optimize_query(event, body)
         else:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': 'Not found'})
             }
 
     except Exception as e:
-        print(f'Error in cost API handler: {e}')
+        logger.error(f'Error in cost API handler: {e}', exc_info=True)
         return {
             'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Internal server error'})
         }
 
 
-def handle_estimate_detection(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_estimate_detection(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handle full cost projection for detection rule.
 
     Request body:
     {
-        "user_id": "user-123",
         "query": "SELECT ...",
         "interval_minutes": 5,
         "estimated_alerts_per_month": 10,
         "lambda_memory_mb": 512
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     query = body.get('query')
     interval_minutes = body.get('interval_minutes', 5)
     estimated_alerts = body.get('estimated_alerts_per_month', 10)
     lambda_memory = body.get('lambda_memory_mb', 512)
 
-    if not user_id or not query:
+    if not query:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id or query'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing query'})
         }
 
     estimator = CostEstimator()
@@ -113,7 +155,7 @@ def handle_estimate_detection(body: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'projection': projection_dict,
@@ -122,23 +164,27 @@ def handle_estimate_detection(body: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_estimate_query(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_estimate_query(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handle quick cost estimate for ad-hoc query.
 
     Request body:
     {
-        "user_id": "user-123",
         "query": "SELECT ..."
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     query = body.get('query')
 
-    if not user_id or not query:
+    if not query:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id or query'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing query'})
         }
 
     estimator = CostEstimator()
@@ -161,7 +207,7 @@ def handle_estimate_query(body: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'estimate': {
@@ -177,23 +223,17 @@ def handle_estimate_query(body: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_cost_summary(event: Dict[str, Any]) -> Dict[str, Any]:
+def handle_cost_summary(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Handle user cost summary request.
 
     Query parameters:
-    - user_id: User ID
     - period_days: Days to analyze (default 30)
+
+    Note: user_id is extracted from authenticated JWT.
     """
     params = event.get('queryStringParameters', {}) or {}
-    user_id = params.get('user_id')
     period_days = int(params.get('period_days', 30))
-
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
 
     estimator = CostEstimator()
     summary = estimator.get_user_cost_summary(user_id, period_days)
@@ -202,7 +242,7 @@ def handle_cost_summary(event: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'summary': summary,
@@ -211,7 +251,7 @@ def handle_cost_summary(event: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_optimize_query(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_optimize_query(event: Dict[str, Any], body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handle query optimization suggestions request.
 
@@ -225,6 +265,10 @@ def handle_optimize_query(body: Dict[str, Any]) -> Dict[str, Any]:
     if not query:
         return {
             'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': 'Missing query'})
         }
 
@@ -235,7 +279,7 @@ def handle_optimize_query(body: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps(result)
     }
@@ -244,7 +288,6 @@ def handle_optimize_query(body: Dict[str, Any]) -> Dict[str, Any]:
 # Helper method for timestamp
 def _get_timestamp(self):
     """Get current UTC timestamp."""
-    from datetime import datetime
     return datetime.utcnow().isoformat() + 'Z'
 
 

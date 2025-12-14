@@ -3,8 +3,11 @@
 import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+import logging
 
 from ..detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class AlertEnricher:
@@ -199,7 +202,7 @@ class AlertEnricher:
                 geo_data = self._lookup_geolocation(ip)
                 geolocation[ip] = geo_data
             except Exception as e:
-                print(f"Error looking up geolocation for {ip}: {e}")
+                logger.warning(f"Error looking up geolocation for {ip}: {e}")
                 geolocation[ip] = {"error": str(e)}
 
         return geolocation
@@ -213,16 +216,21 @@ class AlertEnricher:
         Returns:
             Geolocation data
         """
-        # Placeholder implementation
-        # In production, integrate with MaxMind GeoIP2 or ip-api.com
-        return {
-            "ip": ip,
-            "country": "Unknown",
-            "city": "Unknown",
-            "latitude": 0.0,
-            "longitude": 0.0,
-            "source": "placeholder"
-        }
+        try:
+            from ..enrichment.geolocation import GeoIPService
+            service = GeoIPService()
+            result = service.lookup(ip)
+            return result.to_dict()
+        except ImportError:
+            # Fallback if enrichment module not available
+            return {
+                "ip": ip,
+                "country": "Unknown",
+                "city": "Unknown",
+                "latitude": 0.0,
+                "longitude": 0.0,
+                "source": "fallback"
+            }
 
     def _get_threat_intel(self, ips: List[str]) -> Dict[str, Dict]:
         """Get threat intelligence for IP addresses.
@@ -244,7 +252,7 @@ class AlertEnricher:
                 intel_data = self._lookup_threat_intel(ip)
                 threat_intel[ip] = intel_data
             except Exception as e:
-                print(f"Error looking up threat intel for {ip}: {e}")
+                logger.warning(f"Error looking up threat intel for {ip}: {e}")
                 threat_intel[ip] = {"error": str(e)}
 
         return threat_intel
@@ -258,19 +266,20 @@ class AlertEnricher:
         Returns:
             Threat intelligence data
         """
-        # Placeholder implementation
-        # In production, integrate with:
-        # - VirusTotal API
-        # - AbuseIPDB
-        # - AlienVault OTX
-        # - Shodan
-        return {
-            "ip": ip,
-            "reputation": "unknown",
-            "malicious": False,
-            "categories": [],
-            "source": "placeholder"
-        }
+        try:
+            from ..enrichment.threat_intel import ThreatIntelService
+            service = ThreatIntelService()
+            result = service.lookup_ip(ip)
+            return result.to_dict()
+        except ImportError:
+            # Fallback if enrichment module not available
+            return {
+                "ip": ip,
+                "reputation": "unknown",
+                "malicious": False,
+                "categories": [],
+                "source": "fallback"
+            }
 
     def _get_related_alerts(self, alert: Alert) -> List[Dict]:
         """Get related alerts from history.
@@ -319,7 +328,7 @@ class AlertEnricher:
             return unique_related[:10]  # Return max 10 related alerts
 
         except Exception as e:
-            print(f"Error getting related alerts: {e}")
+            logger.warning(f"Error getting related alerts: {e}")
             return []
 
 

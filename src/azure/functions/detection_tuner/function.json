@@ -1,0 +1,12 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "timer",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "0 0 9 * * 1"
+    }
+  ],
+  "description": "Weekly detection tuning analysis. Runs every Monday at 9:00 AM UTC."
+}

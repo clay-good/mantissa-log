@@ -10,8 +10,11 @@ import json
 from typing import Dict, Any, Optional
 from datetime import datetime
 import boto3
+import logging
 
 from ..redaction.pii_redactor import create_redactor, PIIRedactor
+
+logger = logging.getLogger(__name__)
 
 
 class RedactedIntegrationSender:
@@ -61,7 +64,7 @@ class RedactedIntegrationSender:
                 self.redactor = create_redactor()
 
         except Exception as e:
-            print(f'Error loading redaction config for user {self.user_id}: {e}')
+            logger.error(f'Error loading redaction config for user {self.user_id}: {e}')
             # Fail-safe: create redactor with defaults
             self.redactor = create_redactor()
 
@@ -271,17 +274,130 @@ class RedactedIntegrationSender:
         config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Send payload to integration.
+        Send payload to integration using the appropriate handler.
 
-        NOTE: This is a placeholder. In production, this would delegate to
-        the appropriate integration validator/sender (SlackValidator, JiraValidator, etc.)
+        Args:
+            integration_type: Type of integration (slack, jira, pagerduty, email, webhook)
+            payload: Redacted payload to send
+            config: Integration configuration
+
+        Returns:
+            Dict with success status and details
         """
-        # TODO: Integrate with existing validators from validators.py
-        return {
-            'success': True,
-            'message': f'Payload prepared for {integration_type}',
-            'redacted': self.redactor is not None
-        }
+        try:
+            handler = self._get_handler(integration_type, config)
+            if not handler:
+                return {
+                    'success': False,
+                    'message': f'Unknown integration type: {integration_type}',
+                    'redacted': self.redactor is not None
+                }
+
+            # Create an Alert-like object from payload for the handler
+            from ..detection.alert_generator import Alert
+
+            alert = Alert(
+                id=payload.get('alert_id', 'unknown'),
+                rule_id=payload.get('rule_id', ''),
+                rule_name=payload.get('rule_name', ''),
+                severity=payload.get('severity', 'medium'),
+                title=payload.get('title', payload.get('rule_name', 'Alert')),
+                description=payload.get('description', ''),
+                timestamp=payload.get('timestamp', datetime.utcnow().isoformat()),
+                source_data=payload.get('source_data', {}),
+                matched_conditions=payload.get('matched_conditions', [])
+            )
+
+            # Send via handler
+            success = handler.send(alert)
+
+            return {
+                'success': success,
+                'message': f'Alert sent to {integration_type}' if success else f'Failed to send to {integration_type}',
+                'redacted': self.redactor is not None,
+                'integration_type': integration_type
+            }
+
+        except Exception as e:
+            logger.error(f'Error sending to {integration_type}: {e}')
+            return {
+                'success': False,
+                'message': str(e),
+                'redacted': self.redactor is not None,
+                'error': str(e)
+            }
+
+    def _get_handler(self, integration_type: str, config: Dict[str, Any]):
+        """
+        Get the appropriate handler for an integration type.
+
+        Args:
+            integration_type: Type of integration
+            config: Integration configuration
+
+        Returns:
+            Handler instance or None if unknown type
+        """
+        integration_type_lower = integration_type.lower()
+
+        try:
+            if integration_type_lower == 'slack':
+                from ..alerting.handlers.slack import SlackHandler
+                return SlackHandler(
+                    webhook_url=config.get('webhook_url'),
+                    channel=config.get('channel'),
+                    username=config.get('username', 'Mantissa Log'),
+                    icon_emoji=config.get('icon_emoji', ':shield:')
+                )
+
+            elif integration_type_lower == 'jira':
+                from ..alerting.handlers.jira import JiraHandler
+                return JiraHandler(
+                    server_url=config.get('server_url') or config.get('url'),
+                    username=config.get('username') or config.get('email'),
+                    api_token=config.get('api_token') or config.get('token'),
+                    project_key=config.get('project_key') or config.get('project'),
+                    issue_type=config.get('issue_type', 'Task')
+                )
+
+            elif integration_type_lower == 'pagerduty':
+                from ..alerting.handlers.pagerduty import PagerDutyHandler
+                return PagerDutyHandler(
+                    routing_key=config.get('routing_key') or config.get('integration_key'),
+                    severity_mapping=config.get('severity_mapping')
+                )
+
+            elif integration_type_lower == 'email':
+                from ..alerting.handlers.email import EmailHandler
+                return EmailHandler(
+                    smtp_host=config.get('smtp_host', 'localhost'),
+                    smtp_port=config.get('smtp_port', 587),
+                    sender_email=config.get('sender_email') or config.get('from'),
+                    recipients=config.get('recipients') or config.get('to', []),
+                    username=config.get('username'),
+                    password=config.get('password'),
+                    use_tls=config.get('use_tls', True)
+                )
+
+            elif integration_type_lower == 'webhook':
+                from ..alerting.handlers.webhook import WebhookHandler
+                return WebhookHandler(
+                    url=config.get('url') or config.get('webhook_url'),
+                    headers=config.get('headers', {}),
+                    method=config.get('method', 'POST'),
+                    timeout=config.get('timeout', 30)
+                )
+
+            else:
+                logger.warning(f'Unknown integration type: {integration_type}')
+                return None
+
+        except ImportError as e:
+            logger.error(f'Failed to import handler for {integration_type}: {e}')
+            return None
+        except Exception as e:
+            logger.error(f'Failed to create handler for {integration_type}: {e}')
+            return None
 
     def _log_redaction_audit(
         self,
@@ -309,7 +425,7 @@ class RedactedIntegrationSender:
             })
         except Exception as e:
             # Don't fail the alert if audit logging fails
-            print(f'Warning: Failed to log redaction audit: {e}')
+            logger.warning(f'Failed to log redaction audit: {e}')
 
 
 def send_redacted_alert(

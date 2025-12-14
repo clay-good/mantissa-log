@@ -12,6 +12,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 import boto3
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -227,7 +230,7 @@ class CostEstimator:
             }
 
         except Exception as e:
-            print(f'Error fetching query statistics: {e}')
+            logger.error(f'Error fetching query statistics: {e}')
             return {
                 'sample_count': 0,
                 'avg_data_scanned_mb': 0,
@@ -433,7 +436,7 @@ class CostEstimator:
             }
 
         except Exception as e:
-            print(f'Error generating cost summary: {e}')
+            logger.error(f'Error generating cost summary: {e}')
             return {
                 'period_days': period_days,
                 'total_queries': 0,

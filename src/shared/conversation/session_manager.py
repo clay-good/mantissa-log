@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import json
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -328,7 +331,7 @@ class DynamoDBSessionStorage:
             return ConversationSession.from_dict(item)
 
         except Exception as e:
-            print(f"Error loading session: {str(e)}")
+            logger.error(f"Error loading session: {str(e)}")
             return None
 
     def delete_session(self, session_id: str) -> None:

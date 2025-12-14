@@ -13,7 +13,7 @@ Supports:
 
 import json
 import os
-import boto3
+import sys
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 import logging
@@ -21,14 +21,29 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+# Add shared modules to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+
+from utils.lazy_init import aws_clients
+
 # Setup logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# AWS Clients
-s3_client = boto3.client('s3')
-dynamodb = boto3.resource('dynamodb')
-secrets_client = boto3.client('secretsmanager')
+
+def _get_s3():
+    """Get lazily-initialized S3 client."""
+    return aws_clients.s3
+
+
+def _get_dynamodb():
+    """Get lazily-initialized DynamoDB resource."""
+    return aws_clients.dynamodb
+
+
+def _get_secrets_manager():
+    """Get lazily-initialized Secrets Manager client."""
+    return aws_clients.secrets_manager
 
 # Environment variables
 LOGS_BUCKET = os.environ.get('LOGS_BUCKET', "logs-bucket")
@@ -48,12 +63,12 @@ class GoogleWorkspaceCollector:
         """Initialize the collector with service account credentials"""
         self.credentials = self._get_credentials()
         self.service = build('admin', 'reports_v1', credentials=self.credentials)
-        self.checkpoint_table = dynamodb.Table(CHECKPOINT_TABLE)
+        self.checkpoint_table = _get_dynamodb().Table(CHECKPOINT_TABLE)
 
     def _get_credentials(self):
         """Retrieve and configure service account credentials"""
         # Get service account JSON from Secrets Manager
-        response = secrets_client.get_secret_value(SecretId=SERVICE_ACCOUNT_SECRET)
+        response = _get_secrets_manager().get_secret_value(SecretId=SERVICE_ACCOUNT_SECRET)
         service_account_info = json.loads(response['SecretString'])
 
         # Create credentials with delegated admin
@@ -205,7 +220,7 @@ class GoogleWorkspaceCollector:
         ndjson_content = '\n'.join(json.dumps(activity) for activity in activities)
 
         try:
-            s3_client.put_object(
+            _get_s3().put_object(
                 Bucket=LOGS_BUCKET,
                 Key=s3_key,
                 Body=ndjson_content.encode('utf-8'),

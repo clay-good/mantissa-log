@@ -5,14 +5,32 @@ Manages alert integrations (Slack, Jira, PagerDuty, Email, Webhooks).
 """
 
 import json
-import boto3
+import logging
+import sys
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 import requests
 
+# Add shared modules to path
+sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
 
-dynamodb = boto3.resource('dynamodb')
-secretsmanager = boto3.client('secretsmanager')
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+from utils.lazy_init import aws_clients
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+def _get_dynamodb():
+    """Get lazily-initialized DynamoDB resource."""
+    return aws_clients.dynamodb
+
+
+def _get_secrets_manager():
+    """Get lazily-initialized Secrets Manager client."""
+    return aws_clients.secrets_manager
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -26,44 +44,52 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - POST /integrations/{id}/test -> test_integration(id)
     - DELETE /integrations/{id} -> delete_integration(id)
     """
+    # Handle CORS preflight
+    http_method = event.get('httpMethod', 'GET')
+    if http_method == 'OPTIONS':
+        return cors_preflight_response(event)
+
     try:
-        http_method = event.get('httpMethod', 'GET')
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return error_response(event, 'Authentication required', 401)
+
         path = event.get('path', '')
         path_parameters = event.get('pathParameters') or {}
 
-        user_id = get_user_id_from_event(event)
-
         if http_method == 'GET' and path == '/integrations':
-            return list_integrations(user_id)
+            return list_integrations(event, user_id)
 
         elif http_method == 'GET' and '/integrations/' in path:
             integration_id = path_parameters.get('id')
-            return get_integration(user_id, integration_id)
+            return get_integration(event, user_id, integration_id)
 
         elif http_method == 'POST' and path == '/integrations':
             body = json.loads(event.get('body', '{}'))
-            return create_or_update_integration(user_id, body)
+            return create_or_update_integration(event, user_id, body)
 
         elif http_method == 'POST' and '/test' in path:
             integration_id = path_parameters.get('id')
-            return test_integration(user_id, integration_id)
+            return test_integration(event, user_id, integration_id)
 
         elif http_method == 'DELETE':
             integration_id = path_parameters.get('id')
-            return delete_integration(user_id, integration_id)
+            return delete_integration(event, user_id, integration_id)
 
         else:
-            return error_response('Method not allowed', 405)
+            return error_response(event, 'Method not allowed', 405)
 
     except Exception as e:
-        print(f"Error handling integration request: {str(e)}")
-        return error_response(str(e), 500)
+        logger.error(f"Error handling integration request: {str(e)}", exc_info=True)
+        return error_response(event, 'Internal server error', 500)
 
 
-def list_integrations(user_id: str) -> Dict[str, Any]:
+def list_integrations(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """List all integrations for a user."""
     table_name = get_integrations_table_name()
-    table = dynamodb.Table(table_name)
+    table = _get_dynamodb().Table(table_name)
 
     response = table.query(
         KeyConditionExpression='user_id = :user_id',
@@ -76,35 +102,35 @@ def list_integrations(user_id: str) -> Dict[str, Any]:
     if not integrations:
         integrations = get_default_integrations(user_id)
 
-    return success_response({'integrations': integrations})
+    return success_response(event, {'integrations': integrations})
 
 
-def get_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
+def get_integration(event: Dict[str, Any], user_id: str, integration_id: str) -> Dict[str, Any]:
     """Get a specific integration."""
     table_name = get_integrations_table_name()
-    table = dynamodb.Table(table_name)
+    table = _get_dynamodb().Table(table_name)
 
     response = table.get_item(
         Key={'user_id': user_id, 'integration_id': integration_id}
     )
 
     if 'Item' not in response:
-        return error_response('Integration not found', 404)
+        return error_response(event, 'Integration not found', 404)
 
-    return success_response(response['Item'])
+    return success_response(event, response['Item'])
 
 
-def create_or_update_integration(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+def create_or_update_integration(event: Dict[str, Any], user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create or update an integration."""
     table_name = get_integrations_table_name()
-    table = dynamodb.Table(table_name)
+    table = _get_dynamodb().Table(table_name)
 
     integration_id = data.get('integration_id')
     integration_type = data.get('integration_type')
     config = data.get('config', {})
 
     if not integration_id or not integration_type:
-        return error_response('integration_id and integration_type are required', 400)
+        return error_response(event, 'integration_id and integration_type are required', 400)
 
     # Store secrets in Secrets Manager
     secret_arn = None
@@ -132,16 +158,16 @@ def create_or_update_integration(user_id: str, data: Dict[str, Any]) -> Dict[str
 
     table.put_item(Item=item)
 
-    return success_response({
+    return success_response(event, {
         'message': 'Integration saved successfully',
         'integration': item
     })
 
 
-def test_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
+def test_integration(event: Dict[str, Any], user_id: str, integration_id: str) -> Dict[str, Any]:
     """Test an integration connection."""
     # Get integration config
-    integration = get_integration(user_id, integration_id)
+    integration = get_integration(event, user_id, integration_id)
 
     if integration.get('statusCode') != 200:
         return integration
@@ -163,10 +189,16 @@ def test_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
         test_result = test_pagerduty_integration(integration_data)
     elif integration_type == 'email':
         test_result = test_email_integration(integration_data)
+    elif integration_type == 'servicenow':
+        test_result = test_servicenow_integration(integration_data)
+    elif integration_type == 'teams':
+        test_result = test_teams_integration(integration_data)
+    elif integration_type == 'webhook':
+        test_result = test_webhook_integration(integration_data)
 
     # Update last test timestamp
     table_name = get_integrations_table_name()
-    table = dynamodb.Table(table_name)
+    table = _get_dynamodb().Table(table_name)
 
     table.update_item(
         Key={'user_id': user_id, 'integration_id': integration_id},
@@ -177,13 +209,13 @@ def test_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
         }
     )
 
-    return success_response(test_result)
+    return success_response(event, test_result)
 
 
-def delete_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
+def delete_integration(event: Dict[str, Any], user_id: str, integration_id: str) -> Dict[str, Any]:
     """Delete an integration."""
     table_name = get_integrations_table_name()
-    table = dynamodb.Table(table_name)
+    table = _get_dynamodb().Table(table_name)
 
     # Get integration to find secret ARN
     response = table.get_item(
@@ -193,19 +225,19 @@ def delete_integration(user_id: str, integration_id: str) -> Dict[str, Any]:
     if 'Item' in response and 'secret_arn' in response['Item']:
         # Delete secret
         try:
-            secretsmanager.delete_secret(
+            _get_secrets_manager().delete_secret(
                 SecretId=response['Item']['secret_arn'],
                 ForceDeleteWithoutRecovery=True
             )
         except Exception as e:
-            print(f"Error deleting secret: {str(e)}")
+            logger.error(f"Error deleting secret: {str(e)}")
 
     # Delete integration
     table.delete_item(
         Key={'user_id': user_id, 'integration_id': integration_id}
     )
 
-    return success_response({'message': 'Integration deleted successfully'})
+    return success_response(event, {'message': 'Integration deleted successfully'})
 
 
 def test_slack_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
@@ -416,20 +448,270 @@ def test_email_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'message': f'Error sending test email: {str(e)}'}
 
 
+def test_servicenow_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
+    """Test ServiceNow integration by validating credentials and creating a test incident."""
+    instance_url = integration.get('instance_url', '').rstrip('/')
+    username = integration.get('username', '')
+    password = integration.get('password', '')
+    client_id = integration.get('client_id', '')
+    client_secret = integration.get('client_secret', '')
+
+    if not instance_url:
+        return {'success': False, 'message': 'Missing ServiceNow instance URL'}
+
+    # Support both basic auth and OAuth
+    use_oauth = bool(client_id and client_secret)
+
+    try:
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+
+        if use_oauth:
+            # Get OAuth token
+            token_url = f"{instance_url}/oauth_token.do"
+            token_data = {
+                'grant_type': 'password',
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'username': username,
+                'password': password
+            }
+            token_response = requests.post(token_url, data=token_data, timeout=10)
+
+            if token_response.status_code != 200:
+                return {'success': False, 'message': 'Failed to obtain OAuth token from ServiceNow'}
+
+            access_token = token_response.json().get('access_token')
+            headers['Authorization'] = f'Bearer {access_token}'
+        else:
+            # Basic auth
+            if not username or not password:
+                return {'success': False, 'message': 'Missing ServiceNow username or password'}
+            auth = (username, password)
+
+        # Test connection by querying sys_user table
+        test_url = f"{instance_url}/api/now/table/sys_user?sysparm_limit=1"
+
+        if use_oauth:
+            response = requests.get(test_url, headers=headers, timeout=10)
+        else:
+            response = requests.get(test_url, headers=headers, auth=auth, timeout=10)
+
+        if response.status_code == 401:
+            return {'success': False, 'message': 'Invalid ServiceNow credentials'}
+        elif response.status_code == 403:
+            return {'success': False, 'message': 'Access denied - check user permissions'}
+        elif response.status_code != 200:
+            return {'success': False, 'message': f'ServiceNow returned status {response.status_code}'}
+
+        # Verify incident table access
+        incident_url = f"{instance_url}/api/now/table/incident?sysparm_limit=1"
+        if use_oauth:
+            incident_response = requests.get(incident_url, headers=headers, timeout=10)
+        else:
+            incident_response = requests.get(incident_url, headers=headers, auth=auth, timeout=10)
+
+        if incident_response.status_code != 200:
+            return {
+                'success': False,
+                'message': 'Cannot access incident table - check ITIL role permissions'
+            }
+
+        return {
+            'success': True,
+            'message': f'Connected to ServiceNow instance at {instance_url} with incident table access'
+        }
+
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Connection to ServiceNow timed out'}
+    except requests.exceptions.ConnectionError:
+        return {'success': False, 'message': f'Cannot connect to ServiceNow at {instance_url}'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error testing ServiceNow: {str(e)}'}
+
+
+def test_teams_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
+    """Test Microsoft Teams integration by sending a test message to the webhook."""
+    webhook_url = integration.get('webhook_url', '')
+
+    if not webhook_url:
+        return {'success': False, 'message': 'Missing Teams webhook URL'}
+
+    # Validate webhook URL format
+    if not webhook_url.startswith('https://') or 'webhook.office.com' not in webhook_url:
+        return {
+            'success': False,
+            'message': 'Invalid Teams webhook URL format. URL should be from webhook.office.com'
+        }
+
+    try:
+        # Send adaptive card test message
+        card_payload = {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "0076D7",
+            "summary": "Mantissa Log Integration Test",
+            "sections": [{
+                "activityTitle": "🔔 Mantissa Log Integration Test",
+                "facts": [
+                    {"name": "Status", "value": "✅ Connection Successful"},
+                    {"name": "Test Time", "value": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")},
+                    {"name": "Message", "value": "Your Microsoft Teams integration is working correctly."}
+                ],
+                "markdown": True
+            }]
+        }
+
+        response = requests.post(
+            webhook_url,
+            json=card_payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+
+        # Teams webhooks return 200 with "1" on success
+        if response.status_code == 200:
+            return {
+                'success': True,
+                'message': 'Test message sent to Teams channel successfully'
+            }
+        elif response.status_code == 400:
+            return {'success': False, 'message': 'Invalid webhook payload format'}
+        elif response.status_code == 404:
+            return {'success': False, 'message': 'Webhook URL not found - it may have been deleted'}
+        elif response.status_code == 429:
+            return {'success': False, 'message': 'Rate limited by Teams - try again later'}
+        else:
+            return {'success': False, 'message': f'Teams webhook returned status {response.status_code}'}
+
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Connection to Teams webhook timed out'}
+    except requests.exceptions.ConnectionError:
+        return {'success': False, 'message': 'Cannot connect to Teams webhook URL'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error testing Teams: {str(e)}'}
+
+
+def test_webhook_integration(integration: Dict[str, Any]) -> Dict[str, Any]:
+    """Test generic webhook integration by sending a test payload."""
+    webhook_url = integration.get('webhook_url', '')
+    method = integration.get('method', 'POST').upper()
+    headers = integration.get('headers', {})
+    auth_type = integration.get('auth_type', 'none')
+    auth_token = integration.get('auth_token', '')
+    auth_username = integration.get('auth_username', '')
+    auth_password = integration.get('auth_password', '')
+
+    if not webhook_url:
+        return {'success': False, 'message': 'Missing webhook URL'}
+
+    # Validate URL
+    if not webhook_url.startswith(('http://', 'https://')):
+        return {'success': False, 'message': 'Invalid webhook URL - must start with http:// or https://'}
+
+    try:
+        # Build request headers
+        request_headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mantissa-Log/1.0',
+            **headers
+        }
+
+        # Add authentication
+        auth = None
+        if auth_type == 'bearer' and auth_token:
+            request_headers['Authorization'] = f'Bearer {auth_token}'
+        elif auth_type == 'api_key' and auth_token:
+            # Support both header and query param API keys
+            api_key_header = integration.get('api_key_header', 'X-API-Key')
+            request_headers[api_key_header] = auth_token
+        elif auth_type == 'basic' and auth_username and auth_password:
+            auth = (auth_username, auth_password)
+
+        # Build test payload
+        test_payload = {
+            "test": True,
+            "source": "mantissa-log",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "message": "This is a test webhook from Mantissa Log to verify your integration.",
+            "alert": {
+                "rule_name": "Integration Test",
+                "severity": "info",
+                "description": "Test alert payload for webhook verification"
+            }
+        }
+
+        # Send request based on method
+        if method == 'POST':
+            response = requests.post(
+                webhook_url,
+                json=test_payload,
+                headers=request_headers,
+                auth=auth,
+                timeout=15
+            )
+        elif method == 'PUT':
+            response = requests.put(
+                webhook_url,
+                json=test_payload,
+                headers=request_headers,
+                auth=auth,
+                timeout=15
+            )
+        elif method == 'GET':
+            # For GET, send params instead of body
+            response = requests.get(
+                webhook_url,
+                params={'test': 'true', 'source': 'mantissa-log'},
+                headers=request_headers,
+                auth=auth,
+                timeout=15
+            )
+        else:
+            return {'success': False, 'message': f'Unsupported HTTP method: {method}'}
+
+        # Check response
+        if response.status_code >= 200 and response.status_code < 300:
+            response_preview = response.text[:200] if response.text else '(empty response)'
+            return {
+                'success': True,
+                'message': f'Webhook returned {response.status_code}. Response: {response_preview}'
+            }
+        elif response.status_code == 401:
+            return {'success': False, 'message': 'Authentication failed - check credentials'}
+        elif response.status_code == 403:
+            return {'success': False, 'message': 'Access forbidden - check permissions'}
+        elif response.status_code == 404:
+            return {'success': False, 'message': 'Webhook endpoint not found'}
+        elif response.status_code >= 500:
+            return {'success': False, 'message': f'Webhook server error (status {response.status_code})'}
+        else:
+            return {'success': False, 'message': f'Webhook returned status {response.status_code}'}
+
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Webhook request timed out (15s)'}
+    except requests.exceptions.SSLError:
+        return {'success': False, 'message': 'SSL certificate verification failed'}
+    except requests.exceptions.ConnectionError as e:
+        return {'success': False, 'message': f'Cannot connect to webhook URL: {str(e)[:100]}'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error testing webhook: {str(e)}'}
+
+
 def store_integration_secrets(user_id: str, integration_id: str, secrets: Dict[str, Any]) -> str:
     """Store integration secrets in Secrets Manager."""
     secret_name = f"mantissa-log/{user_id}/{integration_id}"
+    sm = _get_secrets_manager()
 
     try:
-        response = secretsmanager.create_secret(
+        response = sm.create_secret(
             Name=secret_name,
             SecretString=json.dumps(secrets)
         )
         return response['ARN']
 
-    except secretsmanager.exceptions.ResourceExistsException:
+    except sm.exceptions.ResourceExistsException:
         # Update existing secret
-        response = secretsmanager.update_secret(
+        response = sm.update_secret(
             SecretId=secret_name,
             SecretString=json.dumps(secrets)
         )
@@ -442,10 +724,10 @@ def get_secret_value(secret_arn: str) -> str:
         return None
 
     try:
-        response = secretsmanager.get_secret_value(SecretId=secret_arn)
+        response = _get_secrets_manager().get_secret_value(SecretId=secret_arn)
         return response['SecretString']
     except Exception as e:
-        print(f"Error retrieving secret: {str(e)}")
+        logger.error(f"Error retrieving secret: {str(e)}")
         return None
 
 
@@ -487,19 +769,35 @@ def get_default_integrations(user_id: str) -> List[Dict[str, Any]]:
             'description': 'Trigger PagerDuty incidents',
             'configured': False,
             'status': 'not_configured'
+        },
+        {
+            'user_id': user_id,
+            'integration_id': 'servicenow',
+            'integration_type': 'servicenow',
+            'name': 'ServiceNow',
+            'description': 'Create ServiceNow incidents',
+            'configured': False,
+            'status': 'not_configured'
+        },
+        {
+            'user_id': user_id,
+            'integration_id': 'teams',
+            'integration_type': 'teams',
+            'name': 'Microsoft Teams',
+            'description': 'Send alerts to Teams channels',
+            'configured': False,
+            'status': 'not_configured'
+        },
+        {
+            'user_id': user_id,
+            'integration_id': 'webhook',
+            'integration_type': 'webhook',
+            'name': 'Custom Webhook',
+            'description': 'Send alerts to any HTTP endpoint',
+            'configured': False,
+            'status': 'not_configured'
         }
     ]
-
-
-def get_user_id_from_event(event: Dict[str, Any]) -> str:
-    """Extract user ID from Cognito claims in the event."""
-    request_context = event.get('requestContext', {})
-    authorizer = request_context.get('authorizer', {})
-    claims = authorizer.get('claims', {})
-
-    # Get user ID from Cognito sub claim
-    user_id = claims.get('sub') or claims.get('cognito:username', 'default-user')
-    return user_id
 
 
 def get_integrations_table_name() -> str:
@@ -508,25 +806,25 @@ def get_integrations_table_name() -> str:
     return os.environ.get('INTEGRATION_SETTINGS_TABLE', 'mantissa-log-integration-settings')
 
 
-def success_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a success response."""
+def success_response(event: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a success response with secure CORS headers."""
     return {
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps(data)
     }
 
 
-def error_response(message: str, status_code: int) -> Dict[str, Any]:
-    """Return an error response."""
+def error_response(event: Dict[str, Any], message: str, status_code: int) -> Dict[str, Any]:
+    """Return an error response with secure CORS headers."""
     return {
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'error': message})
     }

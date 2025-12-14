@@ -10,6 +10,9 @@ import json
 import logging
 from typing import Dict, Any
 
+from shared.auth import get_authenticated_user_id, AuthenticationError
+from shared.auth.cors import get_cors_headers, cors_preflight_response
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -113,15 +116,20 @@ def _handle_api_request(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     path_params = event.get('pathParameters', {}) or {}
     query_params = event.get('queryStringParameters', {}) or {}
 
+    # Handle CORS preflight
+    if http_method == 'OPTIONS':
+        return cors_preflight_response(event)
+
+    # Authenticate user from JWT
+    try:
+        user_id = get_authenticated_user_id(event)
+    except AuthenticationError:
+        return _response(event, 401, {'error': 'Authentication required'})
+
     try:
         body = json.loads(event.get('body', '{}') or '{}')
     except json.JSONDecodeError:
         body = {}
-
-    # Get user_id from request context (JWT, API key, etc.)
-    user_id = _get_user_id(event)
-    if not user_id:
-        return _response(401, {'error': 'Unauthorized'})
 
     manager = ScheduledQueryManager()
     query_id = path_params.get('id')
@@ -129,53 +137,53 @@ def _handle_api_request(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         # POST /api/scheduled-queries - Create
         if http_method == 'POST' and not query_id:
-            return _create_query(manager, user_id, body)
+            return _create_query(event, manager, user_id, body)
 
         # GET /api/scheduled-queries - List
         elif http_method == 'GET' and not query_id:
-            return _list_queries(manager, user_id, query_params)
+            return _list_queries(event, manager, user_id, query_params)
 
         # GET /api/scheduled-queries/{id} - Get
         elif http_method == 'GET' and query_id and 'history' not in path:
-            return _get_query(manager, user_id, query_id)
+            return _get_query(event, manager, user_id, query_id)
 
         # PUT /api/scheduled-queries/{id} - Update
         elif http_method == 'PUT' and query_id:
-            return _update_query(manager, user_id, query_id, body)
+            return _update_query(event, manager, user_id, query_id, body)
 
         # DELETE /api/scheduled-queries/{id} - Delete
         elif http_method == 'DELETE' and query_id:
-            return _delete_query(manager, user_id, query_id)
+            return _delete_query(event, manager, user_id, query_id)
 
         # POST /api/scheduled-queries/{id}/execute - Manual execute
         elif http_method == 'POST' and query_id and 'execute' in path:
-            return _execute_query(manager, query_id)
+            return _execute_query(event, manager, user_id, query_id)
 
         # GET /api/scheduled-queries/{id}/history - Get history
         elif http_method == 'GET' and query_id and 'history' in path:
-            return _get_history(manager, query_id, query_params)
+            return _get_history(event, manager, user_id, query_id, query_params)
 
         else:
-            return _response(404, {'error': 'Not found'})
+            return _response(event, 404, {'error': 'Not found'})
 
     except Exception as e:
         logger.error(f"API error: {e}")
         import traceback
         traceback.print_exc()
-        return _response(500, {'error': str(e)})
+        return _response(event, 500, {'error': str(e)})
 
 
-def _create_query(manager, user_id: str, body: Dict) -> Dict:
+def _create_query(event: Dict, manager, user_id: str, body: Dict) -> Dict:
     """Create a new scheduled query."""
     required = ['query_text', 'schedule_expression', 'output_channel']
     for field in required:
         if field not in body:
-            return _response(400, {'error': f'{field} is required'})
+            return _response(event, 400, {'error': f'{field} is required'})
 
     # Validate schedule expression
     schedule = body['schedule_expression']
     if not _validate_schedule_expression(schedule):
-        return _response(400, {'error': 'Invalid schedule_expression. Use rate() or cron() format.'})
+        return _response(event, 400, {'error': 'Invalid schedule_expression. Use rate() or cron() format.'})
 
     query = manager.create_query(
         user_id=user_id,
@@ -189,60 +197,65 @@ def _create_query(manager, user_id: str, body: Dict) -> Dict:
         metadata=body.get('metadata')
     )
 
-    return _response(201, query.to_dict())
+    return _response(event, 201, query.to_dict())
 
 
-def _list_queries(manager, user_id: str, params: Dict) -> Dict:
+def _list_queries(event: Dict, manager, user_id: str, params: Dict) -> Dict:
     """List scheduled queries for user."""
     enabled_only = params.get('enabled_only', 'false').lower() == 'true'
     limit = min(int(params.get('limit', '100')), 100)
 
     queries = manager.list_queries(user_id, enabled_only=enabled_only, limit=limit)
 
-    return _response(200, {
+    return _response(event, 200, {
         'queries': [q.to_dict() for q in queries],
         'count': len(queries)
     })
 
 
-def _get_query(manager, user_id: str, query_id: str) -> Dict:
+def _get_query(event: Dict, manager, user_id: str, query_id: str) -> Dict:
     """Get a specific scheduled query."""
     query = manager.get_query(user_id, query_id)
 
     if not query:
-        return _response(404, {'error': 'Query not found'})
+        return _response(event, 404, {'error': 'Query not found'})
 
-    return _response(200, query.to_dict())
+    return _response(event, 200, query.to_dict())
 
 
-def _update_query(manager, user_id: str, query_id: str, body: Dict) -> Dict:
+def _update_query(event: Dict, manager, user_id: str, query_id: str, body: Dict) -> Dict:
     """Update a scheduled query."""
     # Validate schedule if being updated
     if 'schedule_expression' in body:
         if not _validate_schedule_expression(body['schedule_expression']):
-            return _response(400, {'error': 'Invalid schedule_expression'})
+            return _response(event, 400, {'error': 'Invalid schedule_expression'})
 
     query = manager.update_query(user_id, query_id, body)
 
     if not query:
-        return _response(404, {'error': 'Query not found'})
+        return _response(event, 404, {'error': 'Query not found'})
 
-    return _response(200, query.to_dict())
+    return _response(event, 200, query.to_dict())
 
 
-def _delete_query(manager, user_id: str, query_id: str) -> Dict:
+def _delete_query(event: Dict, manager, user_id: str, query_id: str) -> Dict:
     """Delete a scheduled query."""
     success = manager.delete_query(user_id, query_id)
 
     if not success:
-        return _response(404, {'error': 'Query not found or delete failed'})
+        return _response(event, 404, {'error': 'Query not found or delete failed'})
 
-    return _response(200, {'message': 'Query deleted', 'query_id': query_id})
+    return _response(event, 200, {'message': 'Query deleted', 'query_id': query_id})
 
 
-def _execute_query(manager, query_id: str) -> Dict:
+def _execute_query(event: Dict, manager, user_id: str, query_id: str) -> Dict:
     """Manually execute a scheduled query."""
     from shared.scheduled import ScheduledQueryExecutor, ScheduledQueryConfig
+
+    # Verify user owns this query before executing
+    query = manager.get_query(user_id, query_id)
+    if not query:
+        return _response(event, 404, {'error': 'Query not found'})
 
     config = ScheduledQueryConfig.from_environment()
     executor = ScheduledQueryExecutor(config=config, manager=manager)
@@ -250,52 +263,27 @@ def _execute_query(manager, query_id: str) -> Dict:
     result = executor.execute(query_id)
 
     return _response(
+        event,
         200 if result.success else 500,
         result.to_dict()
     )
 
 
-def _get_history(manager, query_id: str, params: Dict) -> Dict:
+def _get_history(event: Dict, manager, user_id: str, query_id: str, params: Dict) -> Dict:
     """Get execution history for a query."""
+    # Verify user owns this query before fetching history
+    query = manager.get_query(user_id, query_id)
+    if not query:
+        return _response(event, 404, {'error': 'Query not found'})
+
     limit = min(int(params.get('limit', '50')), 100)
 
     history = manager.get_execution_history(query_id, limit=limit)
 
-    return _response(200, {
+    return _response(event, 200, {
         'history': history,
         'count': len(history)
     })
-
-
-def _get_user_id(event: Dict) -> str:
-    """Extract user ID from request context."""
-    # Try various sources
-    request_context = event.get('requestContext', {})
-
-    # From Cognito authorizer
-    authorizer = request_context.get('authorizer', {})
-    if 'claims' in authorizer:
-        return authorizer['claims'].get('sub') or authorizer['claims'].get('cognito:username')
-
-    # From custom authorizer
-    if 'principalId' in authorizer:
-        return authorizer['principalId']
-
-    # From query params (for testing)
-    params = event.get('queryStringParameters', {}) or {}
-    if 'user_id' in params:
-        return params['user_id']
-
-    # From body (for testing)
-    try:
-        body = json.loads(event.get('body', '{}') or '{}')
-        if 'user_id' in body:
-            return body['user_id']
-    except json.JSONDecodeError:
-        pass
-
-    # Default for testing
-    return os.environ.get('DEFAULT_USER_ID', 'default-user')
 
 
 def _validate_schedule_expression(expression: str) -> bool:
@@ -315,15 +303,13 @@ def _validate_schedule_expression(expression: str) -> bool:
     return False
 
 
-def _response(status_code: int, body: Dict) -> Dict:
-    """Build API Gateway response."""
+def _response(event: Dict, status_code: int, body: Dict) -> Dict:
+    """Build API Gateway response with secure CORS headers."""
     return {
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+            **get_cors_headers(event)
         },
         'body': json.dumps(body)
     }

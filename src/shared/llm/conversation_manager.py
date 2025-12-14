@@ -14,6 +14,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 import boto3
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MessageRole(Enum):
@@ -292,7 +295,7 @@ class ConversationManager:
             return session
 
         except Exception as e:
-            print(f'Error retrieving session: {e}')
+            logger.error(f'Error retrieving session: {e}')
             return None
 
     def _save_session(self, session: ConversationSession):
@@ -305,7 +308,7 @@ class ConversationManager:
             self.table.put_item(Item=item)
 
         except Exception as e:
-            print(f'Error saving session: {e}')
+            logger.error(f'Error saving session: {e}')
             raise
 
     def add_user_message(
@@ -497,7 +500,7 @@ class ConversationManager:
             return sessions
 
         except Exception as e:
-            print(f'Error retrieving user sessions: {e}')
+            logger.error(f'Error retrieving user sessions: {e}')
             return []
 
     def delete_session(self, session_id: str, user_id: str):
@@ -516,7 +519,7 @@ class ConversationManager:
                 }
             )
         except Exception as e:
-            print(f'Error deleting session: {e}')
+            logger.error(f'Error deleting session: {e}')
 
 
 def create_conversation_session(user_id: str) -> str:

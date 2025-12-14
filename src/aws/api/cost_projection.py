@@ -5,6 +5,7 @@ Provides cost estimation and tracking endpoints for detection rules and queries.
 """
 
 import json
+import logging
 import boto3
 from typing import Dict, Any
 import sys
@@ -14,6 +15,11 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
 
 from cost.calculator import CostCalculator, CostTracker
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class CostProjectionAPI:
@@ -36,8 +42,18 @@ class CostProjectionAPI:
         - GET /api/cost/compare - Compare actual vs projected
         - POST /api/cost/track - Record execution cost
         """
+        # Handle CORS preflight
+        http_method = event.get('httpMethod')
+        if http_method == 'OPTIONS':
+            return cors_preflight_response(event)
+
         try:
-            http_method = event.get('httpMethod')
+            # Authenticate user from Cognito JWT claims
+            try:
+                user_id = get_authenticated_user_id(event)
+            except AuthenticationError:
+                return self._error_response(event, 'Authentication required', 401)
+
             path = event.get('path', '')
             body = json.loads(event.get('body', '{}'))
             params = event.get('queryStringParameters', {}) or {}
@@ -50,6 +66,7 @@ class CostProjectionAPI:
 
                 if not query_stats or not schedule_expression:
                     return self._error_response(
+                        event,
                         'query_stats and schedule_expression are required',
                         400
                     )
@@ -60,7 +77,7 @@ class CostProjectionAPI:
                     estimated_alerts
                 )
 
-                return self._success_response(result)
+                return self._success_response(event, result)
 
             # POST /api/cost/project/query - Calculate query cost
             elif http_method == 'POST' and path.endswith('/project/query'):
@@ -69,6 +86,7 @@ class CostProjectionAPI:
 
                 if data_scanned_bytes is None or execution_time_ms is None:
                     return self._error_response(
+                        event,
                         'data_scanned_bytes and execution_time_ms are required',
                         400
                     )
@@ -78,7 +96,7 @@ class CostProjectionAPI:
                     execution_time_ms
                 )
 
-                return self._success_response(result)
+                return self._success_response(event, result)
 
             # POST /api/cost/estimate-range - Estimate cost range
             elif http_method == 'POST' and path.endswith('/estimate-range'):
@@ -87,6 +105,7 @@ class CostProjectionAPI:
 
                 if not query_stats or not schedule_expression:
                     return self._error_response(
+                        event,
                         'query_stats and schedule_expression are required',
                         400
                     )
@@ -96,7 +115,7 @@ class CostProjectionAPI:
                     schedule_expression
                 )
 
-                return self._success_response(result)
+                return self._success_response(event, result)
 
             # POST /api/cost/optimizations - Get optimization suggestions
             elif http_method == 'POST' and path.endswith('/optimizations'):
@@ -105,6 +124,7 @@ class CostProjectionAPI:
 
                 if not query_stats or not cost_breakdown:
                     return self._error_response(
+                        event,
                         'query_stats and cost_breakdown are required',
                         400
                     )
@@ -114,17 +134,18 @@ class CostProjectionAPI:
                     cost_breakdown
                 )
 
-                return self._success_response({'suggestions': suggestions})
+                return self._success_response(event, {'suggestions': suggestions})
 
             # POST /api/cost/track - Record execution cost
             elif http_method == 'POST' and path.endswith('/track'):
-                user_id = body.get('user_id')
+                # user_id comes from authenticated JWT, not request body
                 rule_id = body.get('rule_id')
                 execution_cost = body.get('execution_cost')
 
-                if not all([user_id, rule_id, execution_cost]):
+                if not rule_id or not execution_cost:
                     return self._error_response(
-                        'user_id, rule_id, and execution_cost are required',
+                        event,
+                        'rule_id and execution_cost are required',
                         400
                     )
 
@@ -134,34 +155,36 @@ class CostProjectionAPI:
                     execution_cost
                 )
 
-                return self._success_response({'status': 'recorded'})
+                return self._success_response(event, {'status': 'recorded'})
 
             # GET /api/cost/actual - Get actual costs
             elif http_method == 'GET' and path.endswith('/actual'):
-                user_id = params.get('user_id')
+                # user_id comes from authenticated JWT, not query params
                 rule_id = params.get('rule_id')
                 days = int(params.get('days', 30))
 
-                if not user_id or not rule_id:
+                if not rule_id:
                     return self._error_response(
-                        'user_id and rule_id are required',
+                        event,
+                        'rule_id is required',
                         400
                     )
 
                 result = self.tracker.get_actual_costs(user_id, rule_id, days)
 
-                return self._success_response(result)
+                return self._success_response(event, result)
 
             # GET /api/cost/compare - Compare actual vs projected
             elif http_method == 'GET' and path.endswith('/compare'):
-                user_id = params.get('user_id')
+                # user_id comes from authenticated JWT, not query params
                 rule_id = params.get('rule_id')
                 projected_cost = float(params.get('projected_cost', 0))
                 days = int(params.get('days', 30))
 
-                if not user_id or not rule_id or not projected_cost:
+                if not rule_id or not projected_cost:
                     return self._error_response(
-                        'user_id, rule_id, and projected_cost are required',
+                        event,
+                        'rule_id and projected_cost are required',
                         400
                     )
 
@@ -172,37 +195,35 @@ class CostProjectionAPI:
                     days
                 )
 
-                return self._success_response(result)
+                return self._success_response(event, result)
 
             else:
-                return self._error_response('Not found', 404)
+                return self._error_response(event, 'Not found', 404)
 
         except ValueError as e:
-            return self._error_response(f'Invalid input: {str(e)}', 400)
+            return self._error_response(event, f'Invalid input: {str(e)}', 400)
         except Exception as e:
-            print(f"Error in cost projection API: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return self._error_response(str(e), 500)
+            logger.error(f"Error in cost projection API: {str(e)}", exc_info=True)
+            return self._error_response(event, 'Internal server error', 500)
 
-    def _success_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Return success response."""
+    def _success_response(self, event: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+        """Return success response with secure CORS headers."""
         return {
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps(data)
         }
 
-    def _error_response(self, message: str, status_code: int) -> Dict[str, Any]:
-        """Return error response."""
+    def _error_response(self, event: Dict[str, Any], message: str, status_code: int) -> Dict[str, Any]:
+        """Return error response with secure CORS headers."""
         return {
             'statusCode': status_code,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({'error': message})
         }

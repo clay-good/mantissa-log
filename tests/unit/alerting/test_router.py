@@ -96,16 +96,40 @@ class TestAlertRouter:
         assert "slack" in result.destinations_succeeded
         assert "email" in result.destinations_failed
 
-    def test_route_alert_handler_exception(self, sample_alert, router_config):
+    def test_route_alert_handler_exception(self):
         """Test routing when handler raises exception."""
+        # Create alert with only slack destination
+        alert = Alert(
+            id="test-alert-123",
+            rule_id="test-rule-001",
+            rule_name="Test Detection Rule",
+            severity="high",
+            title="Test Alert",
+            description="This is a test alert",
+            timestamp=datetime(2025, 1, 27, 12, 0, 0),
+            destinations=["slack"],  # Only slack
+            results=[{"field": "value"}],
+            metadata={"result_count": 1},
+            tags=["test"],
+            suppression_key="test-key"
+        )
+
         error_handler = Mock(spec=AlertHandler)
         error_handler.send.side_effect = Exception("Connection error")
         error_handler.validate_config.return_value = True
 
-        handlers = {"slack": error_handler}
-        router = AlertRouter(handlers, router_config)
+        # Use config with only slack routing
+        config = RouterConfig(
+            default_destinations=["slack"],
+            severity_routing={"high": ["slack"]},  # Only slack for high severity
+            enrichment_enabled=False,
+            max_concurrent_sends=5
+        )
 
-        result = router.route_alert(sample_alert)
+        handlers = {"slack": error_handler}
+        router = AlertRouter(handlers, config)
+
+        result = router.route_alert(alert)
 
         assert not result.success
         assert len(result.destinations_failed) == 1

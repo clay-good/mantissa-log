@@ -12,6 +12,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationType(Enum):
@@ -282,7 +285,7 @@ class IntegrationManager:
             return IntegrationConfig.from_dict(response['Item'])
 
         except Exception as e:
-            print(f'Error retrieving integration: {e}')
+            logger.error(f'Error retrieving integration: {e}')
             return None
 
     def list_integrations(
@@ -324,7 +327,7 @@ class IntegrationManager:
             return integrations
 
         except Exception as e:
-            print(f'Error listing integrations: {e}')
+            logger.error(f'Error listing integrations: {e}')
             return []
 
     def update_integration(
@@ -395,7 +398,7 @@ class IntegrationManager:
                 }
             )
         except Exception as e:
-            print(f'Error deleting integration: {e}')
+            logger.error(f'Error deleting integration: {e}')
 
     def test_integration(
         self,
@@ -447,7 +450,7 @@ class IntegrationManager:
             return result
 
         except Exception as e:
-            print(f'Error testing integration: {e}')
+            logger.error(f'Error testing integration: {e}')
             return {
                 'success': False,
                 'error': str(e)
@@ -463,7 +466,7 @@ class IntegrationManager:
             self.table.put_item(Item=item)
 
         except Exception as e:
-            print(f'Error saving integration: {e}')
+            logger.error(f'Error saving integration: {e}')
             raise
 
     def _store_sensitive_data(
@@ -577,7 +580,7 @@ class IntegrationManager:
                     ForceDeleteWithoutRecovery=True
                 )
             except Exception as e:
-                print(f'Error deleting secret {secret_id}: {e}')
+                logger.warning(f'Error deleting secret {secret_id}: {e}')
 
     def _store_secret(
         self,
@@ -615,7 +618,7 @@ class IntegrationManager:
             response = self.secrets_client.get_secret_value(SecretId=secret_id)
             return response['SecretString']
         except Exception as e:
-            print(f'Error retrieving secret: {e}')
+            logger.error(f'Error retrieving secret: {e}')
             return ''
 
     def _test_slack(self, config: Dict[str, Any]) -> Dict[str, Any]:

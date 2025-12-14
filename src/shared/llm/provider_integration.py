@@ -7,11 +7,14 @@ allowing queries to use user-configured LLM providers and models.
 
 import os
 from typing import Optional, Dict, Any
+import logging
 from .provider_manager import (
     LLMProviderManager,
     LLMProvider,
     UserLLMSettings
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderBasedLLMClient:
@@ -105,7 +108,7 @@ class ProviderBasedLLMClient:
                         return result
 
                 except Exception as e:
-                    print(f'Error generating with {provider.value}: {e}')
+                    logger.warning(f'Error generating with {provider.value}: {e}')
                     # Continue to next provider
                     continue
 
@@ -346,8 +349,8 @@ class ProviderBasedLLMClient:
         """
         # This would be implemented to track usage in DynamoDB
         # For now, just log it
-        print(f'LLM Usage - Provider: {provider.value}, Model: {model_id}, '
-              f'Input: {input_tokens}, Output: {output_tokens}, Cost: ${cost_usd:.6f}')
+        logger.info(f'LLM Usage - Provider: {provider.value}, Model: {model_id}, '
+                    f'Input: {input_tokens}, Output: {output_tokens}, Cost: ${cost_usd:.6f}')
 
 
 def generate_sql_from_nlp(
@@ -413,5 +416,5 @@ def generate_sql_from_nlp(
         }
 
     except Exception as e:
-        print(f'Error generating SQL: {e}')
+        logger.error(f'Error generating SQL: {e}')
         raise

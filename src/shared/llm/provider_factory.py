@@ -8,6 +8,7 @@ Handles provider selection, API key retrieval from Secrets Manager, and fallback
 import boto3
 import json
 from typing import Dict, Any, Optional
+import logging
 from .providers.anthropic import AnthropicProvider
 from .providers.openai import OpenAIProvider
 from .providers.google import GoogleProvider
@@ -15,6 +16,8 @@ from .providers.bedrock import BedrockProvider
 from .providers.azure_openai import AzureOpenAIProvider
 from .providers.vertex_ai import VertexAIProvider
 from .providers.base import BaseLLMProvider
+
+logger = logging.getLogger(__name__)
 
 dynamodb = boto3.resource('dynamodb')
 secrets_manager = boto3.client('secretsmanager')
@@ -75,7 +78,7 @@ class LLMProviderFactory:
                 )
                 return provider
             except Exception as e:
-                print(f"Failed to create user's configured provider {provider_id}: {e}")
+                logger.warning(f"Failed to create user's configured provider {provider_id}: {e}")
                 if not fallback_to_bedrock:
                     raise
 
@@ -93,7 +96,7 @@ class LLMProviderFactory:
             )
             return response.get('Item', {}).get('config', {})
         except Exception as e:
-            print(f"Error getting user LLM config: {e}")
+            logger.error(f"Error getting user LLM config: {e}")
             return {}
 
     def _create_provider(
@@ -246,7 +249,7 @@ class LLMProviderFactory:
                 }
             )
         except Exception as e:
-            print(f"Error tracking LLM usage: {e}")
+            logger.warning(f"Error tracking LLM usage: {e}")
 
 
 # Singleton instance

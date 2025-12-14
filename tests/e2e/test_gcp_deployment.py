@@ -33,6 +33,9 @@ GCP_CONFIGURED = all([
     os.environ.get("GCP_FUNCTION_URL_BASE"),
 ])
 
+# Apply skip to all tests in this module
+pytestmark = pytest.mark.skipif(not GCP_CONFIGURED, reason="GCP environment not configured")
+
 
 @pytest.fixture(scope="module")
 def gcp_config() -> Dict[str, str]:

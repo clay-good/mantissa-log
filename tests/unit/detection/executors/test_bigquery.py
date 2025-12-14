@@ -3,6 +3,10 @@
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
+
+# Skip all tests if google-cloud-bigquery is not installed
+pytest.importorskip("google.cloud.bigquery", reason="google-cloud-bigquery not installed")
+
 from src.shared.detection.executors.bigquery import BigQueryExecutor
 from src.shared.detection.executors.base import (
     QueryResult,

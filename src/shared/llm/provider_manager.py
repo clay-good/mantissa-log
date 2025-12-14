@@ -11,6 +11,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 import boto3
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LLMProvider(Enum):
@@ -265,7 +268,7 @@ class LLMProviderManager:
             return settings
 
         except Exception as e:
-            print(f'Error getting user settings: {e}')
+            logger.error(f'Error getting user settings: {e}')
             return None
 
     def save_user_settings(self, settings: UserLLMSettings):
@@ -312,7 +315,7 @@ class LLMProviderManager:
             self.settings_table.put_item(Item=item)
 
         except Exception as e:
-            print(f'Error saving user settings: {e}')
+            logger.error(f'Error saving user settings: {e}')
             raise
 
     def store_api_key(
@@ -373,7 +376,7 @@ class LLMProviderManager:
             return response['SecretString']
 
         except Exception as e:
-            print(f'Error retrieving API key: {e}')
+            logger.error(f'Error retrieving API key: {e}')
             return None
 
     def delete_api_key(self, secret_id: str):
@@ -389,7 +392,7 @@ class LLMProviderManager:
                 ForceDeleteWithoutRecovery=True
             )
         except Exception as e:
-            print(f'Error deleting API key: {e}')
+            logger.error(f'Error deleting API key: {e}')
 
     def test_provider_connection(
         self,

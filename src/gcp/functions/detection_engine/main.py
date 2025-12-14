@@ -13,6 +13,7 @@ from google.cloud import firestore, pubsub_v1
 from src.shared.detection.engine import DetectionEngine
 from src.shared.detection.rule import RuleLoader
 from src.gcp.bigquery.executor import BigQueryExecutor
+from src.shared.auth.gcp import verify_firebase_token, get_cors_headers, AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -74,16 +75,28 @@ def detection_engine(request: Request):
 
     Executes detection rules against BigQuery and generates alerts.
     """
+    cors_headers = get_cors_headers(request)
+
     # Handle CORS
     if request.method == "OPTIONS":
         return ("", 204, {
-            "Access-Control-Allow-Origin": "*",
+            **cors_headers,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "3600"
         })
 
-    logger.info("Processing detection engine request")
+    # Authenticate user from Firebase/Identity Platform token
+    try:
+        user_id = verify_firebase_token(request)
+    except AuthenticationError as e:
+        return (
+            json.dumps({"error": "Authentication required", "details": str(e)}),
+            401,
+            {"Content-Type": "application/json", **cors_headers}
+        )
+
+    logger.info(f"Processing detection engine request for user: {user_id}")
 
     # Load configuration
     project_id = os.environ.get("GCP_PROJECT_ID")
@@ -177,7 +190,7 @@ def detection_engine(request: Request):
         return (
             json.dumps(response),
             200,
-            {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+            {"Content-Type": "application/json", **cors_headers}
         )
 
     except Exception as e:
@@ -188,7 +201,7 @@ def detection_engine(request: Request):
         return (
             json.dumps({"success": False, "error": str(e)}),
             500,
-            {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+            {"Content-Type": "application/json", **cors_headers}
         )
 
 

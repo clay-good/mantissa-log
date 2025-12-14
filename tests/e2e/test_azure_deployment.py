@@ -34,6 +34,9 @@ AZURE_CONFIGURED = all([
     os.environ.get("AZURE_FUNCTION_APP_URL"),
 ])
 
+# Apply skip to all tests in this module
+pytestmark = pytest.mark.skipif(not AZURE_CONFIGURED, reason="Azure environment not configured")
+
 
 @pytest.fixture(scope="module")
 def azure_config() -> Dict[str, str]:

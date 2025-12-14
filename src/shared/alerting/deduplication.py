@@ -14,6 +14,9 @@ from dataclasses import dataclass
 from enum import Enum
 import boto3
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SuppressionReason(Enum):
@@ -187,7 +190,7 @@ class AlertDeduplicator:
             return False
 
         except Exception as e:
-            print(f'Error checking duplicate: {e}')
+            logger.error(f'Error checking duplicate: {e}')
             # Fail open - send the alert
             return False
 
@@ -219,7 +222,7 @@ class AlertDeduplicator:
             return alert_count >= self.config.max_alerts_per_window
 
         except Exception as e:
-            print(f'Error checking rate limit: {e}')
+            logger.error(f'Error checking rate limit: {e}')
             # Fail open
             return False
 
@@ -318,7 +321,7 @@ class AlertDeduplicator:
                 self.suppression_rules.append(rule)
 
         except Exception as e:
-            print(f'Error loading suppression rules: {e}')
+            logger.error(f'Error loading suppression rules: {e}')
 
     def create_maintenance_window(
         self,

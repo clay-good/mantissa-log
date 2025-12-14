@@ -10,12 +10,15 @@ import json
 import boto3
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Set
+import logging
 from .redactor import (
     Redactor,
     RedactionType,
     IntegrationRedactionConfig,
     redact_for_integration
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RedactionManager:
@@ -75,7 +78,7 @@ class RedactionManager:
             return IntegrationRedactionConfig.from_dict(item['config'])
 
         except Exception as e:
-            print(f'Error retrieving redaction config: {e}')
+            logger.error(f'Error retrieving redaction config: {e}')
             return self._get_default_config(integration_id, 'unknown')
 
     def save_integration_config(
@@ -106,7 +109,7 @@ class RedactionManager:
             self.table.put_item(Item=item)
 
         except Exception as e:
-            print(f'Error saving redaction config: {e}')
+            logger.error(f'Error saving redaction config: {e}')
             raise
 
     def get_user_configs(
@@ -139,7 +142,7 @@ class RedactionManager:
             return configs
 
         except Exception as e:
-            print(f'Error retrieving user configs: {e}')
+            logger.error(f'Error retrieving user configs: {e}')
             return []
 
     def delete_integration_config(
@@ -162,7 +165,7 @@ class RedactionManager:
                 }
             )
         except Exception as e:
-            print(f'Error deleting redaction config: {e}')
+            logger.error(f'Error deleting redaction config: {e}')
 
     def log_redaction(
         self,
@@ -197,7 +200,7 @@ class RedactionManager:
             self.table.put_item(Item=item)
 
         except Exception as e:
-            print(f'Error logging redaction: {e}')
+            logger.warning(f'Error logging redaction: {e}')
             # Don't fail the alert if audit logging fails
             pass
 
@@ -241,7 +244,7 @@ class RedactionManager:
             return audit_records
 
         except Exception as e:
-            print(f'Error retrieving audit trail: {e}')
+            logger.error(f'Error retrieving audit trail: {e}')
             return []
 
     def redact_alert_for_integration(
@@ -400,7 +403,7 @@ class RedactionManager:
             return stats
 
         except Exception as e:
-            print(f'Error getting redaction statistics: {e}')
+            logger.error(f'Error getting redaction statistics: {e}')
             return {
                 'total_redactions': 0,
                 'redaction_counts_by_type': {},

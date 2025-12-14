@@ -6,6 +6,7 @@ Manages session state, conversation context, and multi-turn query refinement.
 """
 
 import json
+import logging
 import os
 import sys
 from typing import Dict, Any
@@ -21,6 +22,17 @@ from llm.conversation_manager import (
     get_conversation_context
 )
 
+# Import authentication and CORS utilities
+from auth import (
+    get_authenticated_user_id,
+    AuthenticationError,
+    AuthorizationError,
+)
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -33,62 +45,75 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /conversation/{session_id} - Get specific session
     - DELETE /conversation/{session_id} - Delete session
     """
+    # Handle CORS preflight
+    method = event.get('httpMethod', 'GET')
+    if method == 'OPTIONS':
+        return cors_preflight_response(event)
+
     try:
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
+                'body': json.dumps({'error': 'Authentication required'})
+            }
+
         path = event.get('path', '')
-        method = event.get('httpMethod', 'GET')
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         params = event.get('pathParameters') or {}
 
-        # Route to appropriate handler
+        # Route to appropriate handler (pass authenticated user_id)
         if path == '/conversation/create' and method == 'POST':
-            return handle_create_session(body)
+            return handle_create_session(event, user_id, body)
         elif path == '/conversation/query' and method == 'POST':
-            return handle_query(body)
+            return handle_query(event, user_id, body)
         elif path == '/conversation/sessions' and method == 'GET':
-            return handle_get_sessions(event)
+            return handle_get_sessions(event, user_id)
         elif path.startswith('/conversation/') and method == 'GET':
-            return handle_get_session(event, params)
+            return handle_get_session(event, user_id, params)
         elif path.startswith('/conversation/') and method == 'DELETE':
-            return handle_delete_session(body, params)
+            return handle_delete_session(event, user_id, params)
         else:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': 'Not found'})
             }
 
     except Exception as e:
-        print(f'Error in conversation API handler: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.error(f'Error in conversation API handler: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Internal server error'})
         }
 
 
-def handle_create_session(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_create_session(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new conversation session.
 
     Request body:
     {
-        "user_id": "user-123",
         "metadata": {"source": "web-ui"}
     }
-    """
-    user_id = body.get('user_id')
-    metadata = body.get('metadata', {})
 
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
+    Note: user_id is extracted from authenticated JWT, not request body.
+    """
+    metadata = body.get('metadata', {})
 
     manager = ConversationManager()
     session = manager.create_session(user_id, metadata)
@@ -97,7 +122,7 @@ def handle_create_session(body: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'session_id': session.session_id,
@@ -107,34 +132,42 @@ def handle_create_session(body: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_query(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_query(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Process a conversational query.
 
     Request body:
     {
-        "user_id": "user-123",
         "session_id": "session-abc123",
         "message": "Show me failed logins"
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     session_id = body.get('session_id')
     message = body.get('message')
 
-    if not all([user_id, session_id, message]):
+    if not all([session_id, message]):
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing required fields'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing session_id or message'})
         }
 
     manager = ConversationManager()
 
-    # Get session
+    # Get session (validates user owns this session)
     session = manager.get_session(session_id, user_id)
     if not session:
         return {
             'statusCode': 404,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': 'Session not found'})
         }
 
@@ -194,7 +227,7 @@ def handle_query(body: Dict[str, Any]) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
                 'response': response_text,
@@ -208,45 +241,39 @@ def handle_query(body: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        print(f'Error processing query: {e}')
+        logger.error(f'Error processing query: {e}', exc_info=True)
 
         # Add error message to conversation
         manager.add_assistant_response(
             session_id,
             user_id,
-            f"I encountered an error processing your request: {str(e)}"
+            f"I encountered an error processing your request."
         )
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
-                'error': str(e),
+                'error': 'Query processing failed',
                 'response': "I'm sorry, I encountered an error processing your request. Please try rephrasing your question."
             })
         }
 
 
-def handle_get_sessions(event: Dict[str, Any]) -> Dict[str, Any]:
+def handle_get_sessions(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Get user's conversation sessions.
 
     Query parameters:
-    - user_id: User ID
     - limit: Maximum sessions to return (default 10)
+
+    Note: user_id is extracted from authenticated JWT.
     """
     params = event.get('queryStringParameters', {}) or {}
-    user_id = params.get('user_id')
     limit = int(params.get('limit', 10))
-
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
 
     manager = ConversationManager()
     sessions = manager.get_user_sessions(user_id, limit)
@@ -267,7 +294,7 @@ def handle_get_sessions(event: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({
             'sessions': sessions_data,
@@ -276,24 +303,25 @@ def handle_get_sessions(event: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_get_session(event: Dict[str, Any], params: Dict[str, str]) -> Dict[str, Any]:
+def handle_get_session(event: Dict[str, Any], user_id: str, params: Dict[str, str]) -> Dict[str, Any]:
     """
     Get specific conversation session.
 
     Path parameters:
     - session_id: Session ID
 
-    Query parameters:
-    - user_id: User ID
+    Note: user_id is extracted from authenticated JWT.
     """
-    query_params = event.get('queryStringParameters', {}) or {}
     session_id = params.get('session_id')
-    user_id = query_params.get('user_id')
 
-    if not all([session_id, user_id]):
+    if not session_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing session_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing session_id'})
         }
 
     manager = ConversationManager()
@@ -302,6 +330,10 @@ def handle_get_session(event: Dict[str, Any], params: Dict[str, str]) -> Dict[st
     if not session:
         return {
             'statusCode': 404,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': 'Session not found'})
         }
 
@@ -327,31 +359,31 @@ def handle_get_session(event: Dict[str, Any], params: Dict[str, str]) -> Dict[st
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'session': session_data})
     }
 
 
-def handle_delete_session(body: Dict[str, Any], params: Dict[str, str]) -> Dict[str, Any]:
+def handle_delete_session(event: Dict[str, Any], user_id: str, params: Dict[str, str]) -> Dict[str, Any]:
     """
     Delete a conversation session.
 
     Path parameters:
     - session_id: Session ID
 
-    Request body:
-    {
-        "user_id": "user-123"
-    }
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
     session_id = params.get('session_id')
-    user_id = body.get('user_id')
 
-    if not all([session_id, user_id]):
+    if not session_id:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing session_id or user_id'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing session_id'})
         }
 
     manager = ConversationManager()
@@ -361,7 +393,7 @@ def handle_delete_session(body: Dict[str, Any], params: Dict[str, str]) -> Dict[
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'message': 'Session deleted successfully'})
     }

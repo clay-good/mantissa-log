@@ -59,9 +59,9 @@ def test_lifecycle_policy(aws_integration_env, test_s3_buckets):
     lifecycle_config = {
         'Rules': [
             {
-                'Id': 'archive-old-logs',
+                'ID': 'archive-old-logs',  # AWS uses 'ID' not 'Id'
                 'Status': 'Enabled',
-                'Prefix': 'cloudtrail/',
+                'Filter': {'Prefix': 'cloudtrail/'},  # Use Filter instead of Prefix
                 'Transitions': [
                     {
                         'Days': 90,
@@ -83,7 +83,7 @@ def test_lifecycle_policy(aws_integration_env, test_s3_buckets):
     # Verify lifecycle policy
     response = s3.get_bucket_lifecycle_configuration(Bucket=test_s3_buckets['logs'])
     assert len(response['Rules']) == 1
-    assert response['Rules'][0]['Id'] == 'archive-old-logs'
+    assert response['Rules'][0]['ID'] == 'archive-old-logs'
 
 
 @pytest.mark.integration

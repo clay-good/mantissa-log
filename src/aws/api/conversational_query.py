@@ -5,6 +5,7 @@ Generates SQL queries with conversation context for multi-turn interactions.
 """
 
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Dict, Any, List
@@ -13,6 +14,11 @@ from typing import Dict, Any, List
 sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
 
 from conversation import SessionManager, DynamoDBSessionStorage
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -34,18 +40,26 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "conversationHistory": [...]
     }
     """
+    # Handle CORS preflight
+    http_method = event.get('httpMethod')
+    if http_method == 'OPTIONS':
+        return cors_preflight_response(event)
+
     try:
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return error_response(event, 'Authentication required', 401)
+
         body = json.loads(event.get('body', '{}'))
 
         question = body.get('question', '')
         session_id = body.get('sessionId')
-        user_id = body.get('userId')
+        # user_id comes from authenticated JWT, not request body
 
         if not question:
-            return error_response('question is required', 400)
-
-        if not user_id:
-            return error_response('userId is required', 400)
+            return error_response(event, 'question is required', 400)
 
         # Initialize session manager
         storage = DynamoDBSessionStorage(
@@ -59,6 +73,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not session:
                 # Session expired or not found, create new
                 session = session_manager.create_session(user_id)
+            elif session.user_id != user_id:
+                # Verify user owns this session
+                return error_response(event, 'Access denied', 403)
         else:
             session = session_manager.create_session(user_id)
 
@@ -97,7 +114,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         session.update_context('last_table', result.get('primary_table'))
         session_manager.save_session(session)
 
-        return success_response({
+        return success_response(event, {
             'sql': result['sql'],
             'explanation': result['explanation'],
             'sessionId': session.session_id,
@@ -106,10 +123,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         })
 
     except Exception as e:
-        print(f"Error in conversational query generation: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return error_response(str(e), 500)
+        logger.error(f"Error in conversational query generation: {str(e)}", exc_info=True)
+        return error_response(event, 'Internal server error', 500)
 
 
 def generate_contextual_query(
@@ -322,25 +337,25 @@ def get_sessions_table_name() -> str:
     return os.environ.get('CONVERSATION_SESSIONS_TABLE', 'mantissa-log-conversation-sessions')
 
 
-def success_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Return success response"""
+def success_response(event: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+    """Return success response with secure CORS headers."""
     return {
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps(data)
     }
 
 
-def error_response(message: str, status_code: int) -> Dict[str, Any]:
-    """Return error response"""
+def error_response(event: Dict[str, Any], message: str, status_code: int) -> Dict[str, Any]:
+    """Return error response with secure CORS headers."""
     return {
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'error': message})
     }

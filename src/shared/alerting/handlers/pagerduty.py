@@ -3,9 +3,12 @@
 import json
 from typing import Optional
 import requests
+import logging
 
 from .base import AlertHandler
 from ...detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class PagerDutyHandler(AlertHandler):
@@ -60,7 +63,7 @@ class PagerDutyHandler(AlertHandler):
             return response.status_code == 202
 
         except requests.exceptions.RequestException as e:
-            print(f"Error sending to PagerDuty: {e}")
+            logger.error(f"Error sending to PagerDuty: {e}")
             return False
 
     def format_alert(self, alert: Alert) -> dict:
@@ -168,5 +171,5 @@ class PagerDutyHandler(AlertHandler):
             return response.status_code == 202
 
         except requests.exceptions.RequestException as e:
-            print(f"Error resolving PagerDuty alert: {e}")
+            logger.error(f"Error resolving PagerDuty alert: {e}")
             return False

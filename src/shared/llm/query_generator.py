@@ -467,7 +467,7 @@ class QueryGenerator:
         Returns:
             Natural language explanation
         """
-        prompt = self.prompt_builder.build_explanation_prompt(sql)
+        prompt = self.prompt_builder.build_explanation_prompt(sql, [])
 
         try:
             explanation = self.llm_provider.generate(prompt, max_tokens=500)
@@ -544,7 +544,7 @@ class DynamoDBSessionManager(SessionManager):
                 }
             )
         except Exception as e:
-            print(f"Error storing message in DynamoDB: {e}")
+            logger.error(f"Error storing message in DynamoDB: {e}")
 
     def get_history(self, session_id: str, limit: int = 5) -> List[ConversationMessage]:
         """Get conversation history from DynamoDB.
@@ -578,7 +578,7 @@ class DynamoDBSessionManager(SessionManager):
             return messages
 
         except Exception as e:
-            print(f"Error retrieving session history: {e}")
+            logger.error(f"Error retrieving session history: {e}")
             return []
 
     def clear_session(self, session_id: str) -> None:
@@ -606,4 +606,4 @@ class DynamoDBSessionManager(SessionManager):
                 )
 
         except Exception as e:
-            print(f"Error clearing session: {e}")
+            logger.error(f"Error clearing session: {e}")

@@ -1,11 +1,14 @@
 """Alert routing orchestrator for Mantissa Log."""
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from enum import Enum
 
 from ..detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class Severity(str, Enum):
@@ -148,7 +151,7 @@ class AlertRouter:
         # Validate handlers
         for name, handler in self.handlers.items():
             if not handler.validate_config():
-                print(f"Warning: Handler {name} has invalid configuration")
+                logger.warning(f"Handler {name} has invalid configuration")
 
     def route_alert(self, alert: Alert) -> RoutingResult:
         """Route a single alert to configured destinations.
@@ -164,7 +167,7 @@ class AlertRouter:
             try:
                 alert = self.enricher.enrich(alert)
             except Exception as e:
-                print(f"Error enriching alert {alert.id}: {e}")
+                logger.error(f"Error enriching alert {alert.id}: {e}")
 
         # Determine destinations
         destinations = self._determine_destinations(alert)
@@ -177,7 +180,7 @@ class AlertRouter:
             handler = self.handlers.get(destination)
 
             if not handler:
-                print(f"Warning: No handler found for destination: {destination}")
+                logger.warning(f"No handler found for destination: {destination}")
                 result.destinations_failed[destination] = "Handler not found"
                 continue
 
@@ -192,7 +195,7 @@ class AlertRouter:
             except Exception as e:
                 error_msg = f"{type(e).__name__}: {str(e)}"
                 result.destinations_failed[destination] = error_msg
-                print(f"Error sending alert {alert.id} to {destination}: {error_msg}")
+                logger.error(f"Error sending alert {alert.id} to {destination}: {error_msg}")
 
         return result
 
@@ -219,7 +222,7 @@ class AlertRouter:
                     result = future.result()
                     results.append(result)
                 except Exception as e:
-                    print(f"Error routing alert {alert.id}: {e}")
+                    logger.error(f"Error routing alert {alert.id}: {e}")
                     results.append(RoutingResult(
                         alert_id=alert.id,
                         destinations_attempted=[],

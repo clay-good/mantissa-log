@@ -11,8 +11,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from decimal import Decimal
+import logging
 
 from .provider_manager import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -137,7 +140,7 @@ class UsageTracker:
         try:
             self.table.put_item(Item=record.to_dynamodb_item())
         except Exception as e:
-            print(f'Error recording usage: {e}')
+            logger.warning(f'Error recording usage: {e}')
             # Don't fail the request if usage tracking fails
             pass
 
@@ -251,9 +254,7 @@ class UsageTracker:
             )
 
         except Exception as e:
-            print(f'Error getting usage summary: {e}')
-            import traceback
-            traceback.print_exc()
+            logger.error(f'Error getting usage summary: {e}', exc_info=True)
 
             # Return empty summary on error
             return UsageSummary(
@@ -329,7 +330,7 @@ class UsageTracker:
             return result
 
         except Exception as e:
-            print(f'Error getting daily usage: {e}')
+            logger.error(f'Error getting daily usage: {e}')
             return []
 
     def check_cost_threshold(

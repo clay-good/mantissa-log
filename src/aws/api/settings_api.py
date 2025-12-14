@@ -6,22 +6,48 @@ Stores sensitive data (API keys) in AWS Secrets Manager.
 """
 
 import json
-import boto3
+import logging
 import os
+import sys
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-dynamodb = boto3.resource('dynamodb')
-secrets_manager = boto3.client('secretsmanager')
+# Add shared modules to path
+sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
+
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+from utils.lazy_init import aws_clients
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 USER_SETTINGS_TABLE = os.environ.get('USER_SETTINGS_TABLE', 'mantissa_user_settings')
+
+
+def _get_dynamodb():
+    """Get lazily-initialized DynamoDB resource."""
+    return aws_clients.dynamodb
+
+
+def _get_secrets_manager():
+    """Get lazily-initialized Secrets Manager client."""
+    return aws_clients.secrets_manager
 
 
 class SettingsAPI:
     """API handler for user settings and configuration"""
 
     def __init__(self):
-        self.table = dynamodb.Table(USER_SETTINGS_TABLE)
+        self._table = None
+
+    @property
+    def table(self):
+        """Get lazily-initialized DynamoDB table."""
+        if self._table is None:
+            self._table = _get_dynamodb().Table(USER_SETTINGS_TABLE)
+        return self._table
 
     def lambda_handler(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         """Main Lambda handler for settings endpoints"""
@@ -29,50 +55,50 @@ class SettingsAPI:
         http_method = event.get('httpMethod')
         path = event.get('path', '')
 
+        # Handle CORS preflight
+        if http_method == 'OPTIONS':
+            return cors_preflight_response(event)
+
         try:
+            # Authenticate user from Cognito JWT claims
+            try:
+                user_id = get_authenticated_user_id(event)
+            except AuthenticationError:
+                return self._error_response(event, 'Authentication required', 401)
+
             if '/api/settings/llm/test' in path:
                 if http_method == 'POST':
-                    return self.test_llm_connection(event)
+                    return self.test_llm_connection(event, user_id)
 
             elif '/api/settings/llm' in path:
                 if http_method == 'GET':
-                    return self.get_llm_settings(event)
+                    return self.get_llm_settings(event, user_id)
                 elif http_method == 'PUT':
-                    return self.update_llm_settings(event)
+                    return self.update_llm_settings(event, user_id)
 
             elif '/api/settings/integrations/test' in path:
                 if http_method == 'POST':
-                    return self.test_integration(event)
+                    return self.test_integration(event, user_id)
 
             elif '/api/settings/integrations' in path:
                 if http_method == 'GET':
-                    return self.get_integration_settings(event)
+                    return self.get_integration_settings(event, user_id)
                 elif http_method == 'PUT':
-                    return self.update_integration_settings(event)
+                    return self.update_integration_settings(event, user_id)
 
             else:
                 return {
                     'statusCode': 404,
                     'body': json.dumps({'error': 'Endpoint not found'}),
-                    'headers': self._cors_headers()
+                    'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
                 }
 
         except Exception as e:
-            print(f"Error in settings API: {e}")
-            return {
-                'statusCode': 500,
-                'body': json.dumps({'error': str(e)}),
-                'headers': self._cors_headers()
-            }
+            logger.error(f"Error in settings API: {e}", exc_info=True)
+            return self._error_response(event, 'Internal server error', 500)
 
-    def get_llm_settings(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Get LLM configuration for a user"""
-
-        params = event.get('queryStringParameters', {}) or {}
-        user_id = params.get('user_id')
-
-        if not user_id:
-            return self._error_response('user_id is required', 400)
+    def get_llm_settings(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Get LLM configuration for a user (user_id from authenticated JWT)"""
 
         try:
             response = self.table.get_item(
@@ -90,23 +116,20 @@ class SettingsAPI:
             return {
                 'statusCode': 200,
                 'body': json.dumps({'config': config}),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error getting LLM settings: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error getting LLM settings: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to get settings', 500)
 
-    def update_llm_settings(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Update LLM configuration for a user"""
+    def update_llm_settings(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Update LLM configuration for a user (user_id from authenticated JWT)"""
 
         try:
             body = json.loads(event.get('body', '{}'))
-            user_id = body.get('user_id')
             config = body.get('config', {})
-
-            if not user_id:
-                return self._error_response('user_id is required', 400)
+            # user_id comes from authenticated JWT, not request body
 
             # Store API keys in Secrets Manager
             secret_references = {}
@@ -118,14 +141,15 @@ class SettingsAPI:
                             secret_name = f"mantissa-log/{user_id}/llm/{provider_id}"
 
                             # Store in Secrets Manager
+                            sm = _get_secrets_manager()
                             try:
-                                secrets_manager.create_secret(
+                                sm.create_secret(
                                     Name=secret_name,
                                     SecretString=provider_config['apiKey']
                                 )
-                            except secrets_manager.exceptions.ResourceExistsException:
+                            except sm.exceptions.ResourceExistsException:
                                 # Secret exists, update it
-                                secrets_manager.update_secret(
+                                sm.update_secret(
                                     SecretId=secret_name,
                                     SecretString=provider_config['apiKey']
                                 )
@@ -152,15 +176,15 @@ class SettingsAPI:
                     'message': 'LLM configuration updated successfully',
                     'config': config
                 }),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error updating LLM settings: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error updating LLM settings: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to update settings', 500)
 
-    def test_llm_connection(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Test connection to an LLM provider"""
+    def test_llm_connection(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Test connection to an LLM provider (user_id from authenticated JWT)"""
 
         try:
             body = json.loads(event.get('body', '{}'))
@@ -170,7 +194,7 @@ class SettingsAPI:
             region = body.get('region')
 
             if not provider:
-                return self._error_response('provider is required', 400)
+                return self._error_response(event, 'provider is required', 400)
 
             # Test connection based on provider
             if provider == 'anthropic':
@@ -182,26 +206,20 @@ class SettingsAPI:
             elif provider == 'bedrock':
                 result = self._test_bedrock(region, model)
             else:
-                return self._error_response(f'Unknown provider: {provider}', 400)
+                return self._error_response(event, f'Unknown provider: {provider}', 400)
 
             return {
                 'statusCode': 200 if result['success'] else 400,
                 'body': json.dumps(result),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error testing LLM connection: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error testing LLM connection: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to test connection', 500)
 
-    def get_integration_settings(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Get integration configuration for a user"""
-
-        params = event.get('queryStringParameters', {}) or {}
-        user_id = params.get('user_id')
-
-        if not user_id:
-            return self._error_response('user_id is required', 400)
+    def get_integration_settings(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Get integration configuration for a user (user_id from authenticated JWT)"""
 
         try:
             response = self.table.get_item(
@@ -223,23 +241,20 @@ class SettingsAPI:
             return {
                 'statusCode': 200,
                 'body': json.dumps({'integrations': integrations}),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error getting integration settings: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error getting integration settings: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to get integrations', 500)
 
-    def update_integration_settings(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Update integration configuration for a user"""
+    def update_integration_settings(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Update integration configuration for a user (user_id from authenticated JWT)"""
 
         try:
             body = json.loads(event.get('body', '{}'))
-            user_id = body.get('user_id')
             integrations = body.get('integrations', {})
-
-            if not user_id:
-                return self._error_response('user_id is required', 400)
+            # user_id comes from authenticated JWT, not request body
 
             # Store sensitive fields in Secrets Manager
             secret_references = {}
@@ -263,13 +278,14 @@ class SettingsAPI:
                             secret_name = f"mantissa-log/{user_id}/integration/{integration_type}/{field}"
 
                             # Store in Secrets Manager
+                            sm = _get_secrets_manager()
                             try:
-                                secrets_manager.create_secret(
+                                sm.create_secret(
                                     Name=secret_name,
                                     SecretString=config[field]
                                 )
-                            except secrets_manager.exceptions.ResourceExistsException:
-                                secrets_manager.update_secret(
+                            except sm.exceptions.ResourceExistsException:
+                                sm.update_secret(
                                     SecretId=secret_name,
                                     SecretString=config[field]
                                 )
@@ -298,15 +314,15 @@ class SettingsAPI:
                     'message': 'Integration settings updated successfully',
                     'integrations': integrations
                 }),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error updating integration settings: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error updating integration settings: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to update integrations', 500)
 
-    def test_integration(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Test an integration configuration"""
+    def test_integration(self, event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Test an integration configuration (user_id from authenticated JWT)"""
 
         try:
             body = json.loads(event.get('body', '{}'))
@@ -314,7 +330,7 @@ class SettingsAPI:
             config = body.get('config', {})
 
             if not integration_type:
-                return self._error_response('type is required', 400)
+                return self._error_response(event, 'type is required', 400)
 
             # Test integration based on type
             if integration_type == 'slack':
@@ -328,17 +344,17 @@ class SettingsAPI:
             elif integration_type == 'webhook':
                 result = self._test_webhook(config)
             else:
-                return self._error_response(f'Unknown integration type: {integration_type}', 400)
+                return self._error_response(event, f'Unknown integration type: {integration_type}', 400)
 
             return {
                 'statusCode': 200 if result['success'] else 400,
                 'body': json.dumps(result),
-                'headers': self._cors_headers()
+                'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
             }
 
         except Exception as e:
-            print(f"Error testing integration: {e}")
-            return self._error_response(str(e), 500)
+            logger.error(f"Error testing integration: {e}", exc_info=True)
+            return self._error_response(event, 'Failed to test integration', 500)
 
     # LLM Test Methods
 
@@ -537,21 +553,12 @@ class SettingsAPI:
         except Exception as e:
             return {'success': False, 'message': f'Webhook error: {str(e)}'}
 
-    def _cors_headers(self) -> Dict[str, str]:
-        """CORS headers for API responses"""
-        return {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        }
-
-    def _error_response(self, message: str, status_code: int = 400) -> Dict[str, Any]:
-        """Standard error response"""
+    def _error_response(self, event: Dict[str, Any], message: str, status_code: int = 400) -> Dict[str, Any]:
+        """Standard error response with secure CORS headers"""
         return {
             'statusCode': status_code,
             'body': json.dumps({'error': message}),
-            'headers': self._cors_headers()
+            'headers': {'Content-Type': 'application/json', **get_cors_headers(event)}
         }
 
 

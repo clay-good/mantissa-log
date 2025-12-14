@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime, timedelta
 import functools
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar('T')
@@ -219,7 +222,7 @@ class RetryHandler:
 
             except self.config.non_retryable_exceptions as e:
                 # Don't retry non-retryable errors
-                print(f"{operation_name} failed with non-retryable error: {e}")
+                logger.error(f"{operation_name} failed with non-retryable error: {e}")
                 raise
 
             except Exception as e:
@@ -229,18 +232,18 @@ class RetryHandler:
                 if not isinstance(e, self.config.retryable_exceptions):
                     # Not a known retryable exception, check if it looks retryable
                     if not self._is_retryable_error(e):
-                        print(f"{operation_name} failed with non-retryable error: {e}")
+                        logger.error(f"{operation_name} failed with non-retryable error: {e}")
                         raise
 
                 # Last attempt failed
                 if attempt == self.config.max_attempts:
-                    print(f"{operation_name} failed after {attempt} attempts")
+                    logger.error(f"{operation_name} failed after {attempt} attempts")
                     break
 
                 # Calculate delay with exponential backoff
                 delay_ms = self._calculate_delay(attempt)
 
-                print(
+                logger.warning(
                     f"{operation_name} attempt {attempt}/{self.config.max_attempts} "
                     f"failed: {e}. Retrying in {delay_ms}ms..."
                 )

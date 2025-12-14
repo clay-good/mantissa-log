@@ -12,6 +12,9 @@ from enum import Enum
 from dataclasses import dataclass, asdict
 import boto3
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class HealthStatus(Enum):
@@ -180,7 +183,7 @@ class IntegrationHealthMonitor:
             })
 
         except Exception as e:
-            print(f'Error updating health metrics: {e}')
+            logger.error(f'Error updating health metrics: {e}')
 
     def _determine_status(
         self,
@@ -253,7 +256,7 @@ class IntegrationHealthMonitor:
             )
 
         except Exception as e:
-            print(f'Error fetching health metrics: {e}')
+            logger.error(f'Error fetching health metrics: {e}')
             return None
 
     def get_all_health(self, user_id: str) -> Dict[str, HealthMetrics]:
@@ -294,7 +297,7 @@ class IntegrationHealthMonitor:
             return health_map
 
         except Exception as e:
-            print(f'Error fetching all health metrics: {e}')
+            logger.error(f'Error fetching all health metrics: {e}')
             return {}
 
     def get_recent_failures(
@@ -338,7 +341,7 @@ class IntegrationHealthMonitor:
             return sorted(failures, key=lambda x: x['timestamp'], reverse=True)
 
         except Exception as e:
-            print(f'Error fetching recent failures: {e}')
+            logger.error(f'Error fetching recent failures: {e}')
             return []
 
     def reset_metrics(self, user_id: str, integration_id: str):
@@ -357,7 +360,7 @@ class IntegrationHealthMonitor:
                 Key={'pk': pk, 'sk': sk}
             )
         except Exception as e:
-            print(f'Error resetting metrics: {e}')
+            logger.error(f'Error resetting metrics: {e}')
 
 
 def check_integration_health(

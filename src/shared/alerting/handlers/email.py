@@ -5,9 +5,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List, Optional
 import json
+import logging
 
 from .base import AlertHandler
 from ...detection.alert_generator import Alert
+
+logger = logging.getLogger(__name__)
 
 
 class EmailHandler(AlertHandler):
@@ -78,7 +81,7 @@ class EmailHandler(AlertHandler):
                 return self._send_via_smtp(alert)
 
         except Exception as e:
-            print(f"Error sending email: {e}")
+            logger.error(f"Error sending email: {e}")
             return False
 
     def _send_via_smtp(self, alert: Alert) -> bool:
@@ -105,7 +108,7 @@ class EmailHandler(AlertHandler):
             return True
 
         except smtplib.SMTPException as e:
-            print(f"SMTP error: {e}")
+            logger.error(f"SMTP error: {e}")
             return False
 
     def _send_via_ses(self, alert: Alert) -> bool:
@@ -134,7 +137,7 @@ class EmailHandler(AlertHandler):
             return response['ResponseMetadata']['HTTPStatusCode'] == 200
 
         except ClientError as e:
-            print(f"SES error: {e}")
+            logger.error(f"SES error: {e}")
             return False
 
     def _create_message(self, alert: Alert) -> MIMEMultipart:

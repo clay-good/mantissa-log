@@ -4,6 +4,7 @@ import JiraWizard from './JiraWizard';
 import PagerDutyWizard from './PagerDutyWizard';
 import EmailWizard from './EmailWizard';
 import WebhookWizard from './WebhookWizard';
+import { useAuthStore } from '../../stores/authStore';
 
 /**
  * Unified Integration Wizard Modal
@@ -12,6 +13,7 @@ import WebhookWizard from './WebhookWizard';
  */
 export default function IntegrationWizardModal({ integrationType, onComplete, onCancel }) {
   const [saving, setSaving] = useState(false);
+  const { user } = useAuthStore();
 
   const handleComplete = async (integrationConfig) => {
     setSaving(true);
@@ -21,7 +23,7 @@ export default function IntegrationWizardModal({ integrationType, onComplete, on
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: 'user-123', // Get from auth context in production
+          user_id: user?.userId || user?.username,
           integrations: {
             [integrationConfig.type]: {
               enabled: true,

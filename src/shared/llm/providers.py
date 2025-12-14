@@ -267,10 +267,20 @@ class GoogleProvider(LLMProvider):
             }
         )
         latency = (time.time() - start) * 1000
-        
-        # Estimate tokens (Gemini doesn't provide exact counts)
-        input_tokens = len(prompt.split()) * 1.3  # Rough estimate
-        output_tokens = len(response.text.split()) * 1.3
+
+        # Get token counts using Gemini's count_tokens API
+        try:
+            input_token_count = model_obj.count_tokens(prompt)
+            input_tokens = input_token_count.total_tokens
+
+            output_token_count = model_obj.count_tokens(response.text)
+            output_tokens = output_token_count.total_tokens
+        except Exception:
+            # Fallback to estimation if count_tokens fails
+            # Using ~4 chars per token (more accurate than word-based)
+            input_tokens = len(prompt) // 4
+            output_tokens = len(response.text) // 4
+
         total_tokens = int(input_tokens + output_tokens)
         
         pricing = self.PRICING.get(model_name, self.PRICING['gemini-pro'])

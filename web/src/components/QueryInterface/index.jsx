@@ -1,17 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQueryGeneration, useQueryResults } from '../../hooks/useQuery'
 import ConversationalQueryInput from './ConversationalQueryInput'
 import SQLEditor from './SQLEditor'
 import ResultsTable from './ResultsTable'
+import QueryHistory from './QueryHistory'
 import RuleFromQuery from '../RulesManager/RuleFromQuery'
 import { useConversation } from '../../context/ConversationContext'
+import { useAuthStore } from '../../stores/authStore'
 import toast from 'react-hot-toast'
+import { History } from 'lucide-react'
 
 export default function QueryInterface() {
   const [currentQueryId, setCurrentQueryId] = useState(null)
   const [currentSql, setCurrentSql] = useState(null)
   const [originalSql, setOriginalSql] = useState(null)
   const [showRuleModal, setShowRuleModal] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const { user } = useAuthStore()
+  const userId = user?.userId || user?.username
+
+  // Keyboard shortcut for history (Ctrl+H)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault()
+        setShowHistory(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const { generate, isGenerating, data: queryData } = useQueryGeneration()
   const { addMessage, getCurrentSession } = useConversation()
@@ -73,13 +91,34 @@ export default function QueryInterface() {
     toast.success('Detection rule created successfully!')
   }
 
+  const handleSelectFromHistory = (query) => {
+    // Set the SQL from history
+    setCurrentSql(query.sql)
+    setOriginalSql(query.sql)
+
+    // If the query was previously successful, we can optionally re-run it
+    if (query.natural_language) {
+      toast.success(`Loaded query: ${query.natural_language.substring(0, 50)}...`)
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="mb-2 text-2xl font-bold text-mono-950 dark:text-mono-50">Natural Language Query</h1>
-        <p className="text-mono-600 dark:text-mono-400">
-          Ask questions about your logs in plain English
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 text-2xl font-bold text-mono-950 dark:text-mono-50">Natural Language Query</h1>
+          <p className="text-mono-600 dark:text-mono-400">
+            Ask questions about your logs in plain English
+          </p>
+        </div>
+        <button
+          onClick={() => setShowHistory(true)}
+          className="btn-secondary flex items-center space-x-2"
+          title="View query history (Ctrl+H)"
+        >
+          <History className="w-4 h-4" />
+          <span>History</span>
+        </button>
       </div>
 
       <div className="card">
@@ -169,6 +208,14 @@ export default function QueryInterface() {
           onSuccess={handleRuleCreated}
         />
       )}
+
+      {/* Query History Modal */}
+      <QueryHistory
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        onSelectQuery={handleSelectFromHistory}
+        userId={userId}
+      />
     </div>
   )
 }

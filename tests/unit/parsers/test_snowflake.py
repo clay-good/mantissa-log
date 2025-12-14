@@ -761,5 +761,6 @@ class TestSnowflakeParserEdgeCases:
         }
         result = parser.parse(event)
 
-        # Warehouse should not be in result if None
-        assert 'warehouse' not in result.get('snowflake', {}) or result['snowflake'].get('warehouse', {}).get('name') != None
+        # When WAREHOUSE_NAME is None, warehouse dict is empty (no 'name' key)
+        warehouse = result.get('snowflake', {}).get('warehouse', {})
+        assert 'name' not in warehouse or warehouse.get('name') is None

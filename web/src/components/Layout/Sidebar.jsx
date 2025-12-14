@@ -5,6 +5,8 @@ import {
   ShieldCheckIcon,
   BellAlertIcon,
   Cog6ToothIcon,
+  AdjustmentsHorizontalIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
@@ -12,7 +14,9 @@ const navigation = [
   { name: 'Dashboard', to: '/', icon: HomeIcon },
   { name: 'Query', to: '/query', icon: MagnifyingGlassIcon },
   { name: 'Rules', to: '/rules', icon: ShieldCheckIcon },
+  { name: 'Tuning', to: '/tuning', icon: AdjustmentsHorizontalIcon },
   { name: 'Alerts', to: '/alerts', icon: BellAlertIcon },
+  { name: 'Costs', to: '/costs', icon: CurrencyDollarIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 

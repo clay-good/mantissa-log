@@ -8,8 +8,6 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timedelta
 from src.shared.detection.executors.athena import AthenaQueryExecutor
-from src.shared.detection.executors.bigquery import BigQueryExecutor
-from src.shared.detection.executors.synapse import SynapseExecutor
 from src.shared.detection.executors.config import (
     CloudProvider,
     CloudProviderConfig,
@@ -20,6 +18,23 @@ from src.shared.detection.executors.config import (
 )
 from src.shared.detection.engine import DetectionEngine
 from src.shared.detection.rule import RuleLoader
+
+# Optional imports - skip tests if not available
+try:
+    import google.cloud.bigquery
+    from src.shared.detection.executors.bigquery import BigQueryExecutor
+    HAS_BIGQUERY = True
+except ImportError:
+    HAS_BIGQUERY = False
+    BigQueryExecutor = None
+
+try:
+    import pyodbc
+    from src.shared.detection.executors.synapse import SynapseExecutor
+    HAS_SYNAPSE = True
+except ImportError:
+    HAS_SYNAPSE = False
+    SynapseExecutor = None
 
 
 pytestmark = pytest.mark.integration
@@ -69,6 +84,7 @@ class TestMultiCloudQueryExecution:
         assert result.row_count == 1
         assert result.data[0]['eventname'] == 'ConsoleLogin'
 
+    @pytest.mark.skipif(not HAS_BIGQUERY, reason="google-cloud-bigquery not installed")
     @patch('google.cloud.bigquery.Client')
     def test_bigquery_query_execution(self, mock_bigquery_client):
         """Test query execution on GCP BigQuery."""
@@ -95,6 +111,7 @@ class TestMultiCloudQueryExecution:
         assert result.row_count == 1
         assert result.data[0]['eventname'] == 'ConsoleLogin'
 
+    @pytest.mark.skipif(not HAS_SYNAPSE, reason="pyodbc not installed")
     @patch('pyodbc.connect')
     def test_synapse_query_execution(self, mock_connect):
         """Test query execution on Azure Synapse."""
@@ -138,6 +155,7 @@ class TestMultiCloudConfigFactory:
         assert isinstance(executor, AthenaQueryExecutor)
         assert executor.database == 'test_db'
 
+    @pytest.mark.skipif(not HAS_BIGQUERY, reason="google-cloud-bigquery not installed")
     def test_create_gcp_executor(self):
         """Test creating GCP executor from config."""
         config = CloudProviderConfig(
@@ -153,6 +171,7 @@ class TestMultiCloudConfigFactory:
         assert isinstance(executor, BigQueryExecutor)
         assert executor.project_id == 'test-project'
 
+    @pytest.mark.skipif(not HAS_SYNAPSE, reason="pyodbc not installed")
     def test_create_azure_executor(self):
         """Test creating Azure executor from config."""
         config = CloudProviderConfig(
@@ -184,6 +203,7 @@ class TestMultiCloudCostEstimation:
         # Should return some positive cost estimate
         assert cost > 0
 
+    @pytest.mark.skipif(not HAS_BIGQUERY, reason="google-cloud-bigquery not installed")
     @patch('google.cloud.bigquery.Client')
     def test_bigquery_cost_estimation(self, mock_bigquery_client):
         """Test BigQuery cost estimation with dry run."""
@@ -205,6 +225,7 @@ class TestMultiCloudCostEstimation:
         # 5 GB should have measurable cost
         assert cost > 0
 
+    @pytest.mark.skipif(not HAS_SYNAPSE, reason="pyodbc not installed")
     def test_synapse_cost_estimation(self):
         """Test Synapse cost estimation."""
         executor = SynapseExecutor(
@@ -218,6 +239,7 @@ class TestMultiCloudCostEstimation:
         assert cost == 0.01
 
 
+@pytest.mark.skipif(not HAS_BIGQUERY or not HAS_SYNAPSE, reason="google-cloud-bigquery or pyodbc not installed")
 class TestMultiCloudValidation:
     """Test query validation across cloud providers."""
 
@@ -303,6 +325,7 @@ class TestMultiCloudConnectionTesting:
 
         assert result is True
 
+    @pytest.mark.skipif(not HAS_BIGQUERY, reason="google-cloud-bigquery not installed")
     @patch('google.cloud.bigquery.Client')
     def test_bigquery_connection_test(self, mock_bigquery_client):
         """Test BigQuery connection testing."""
@@ -321,6 +344,7 @@ class TestMultiCloudConnectionTesting:
 
         assert result is True
 
+    @pytest.mark.skipif(not HAS_SYNAPSE, reason="pyodbc not installed")
     @patch('pyodbc.connect')
     def test_synapse_connection_test(self, mock_connect):
         """Test Synapse connection testing."""

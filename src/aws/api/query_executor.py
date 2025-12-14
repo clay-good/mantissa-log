@@ -5,10 +5,35 @@ Executes Athena queries and handles result retrieval.
 """
 
 import json
+import logging
 import time
 import boto3
+import sys
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+# Add shared modules to path
+sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
+
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+from auth.rate_limiter import get_rate_limiter, RateLimitExceeded, RateLimitConfig, rate_limit_response
+
+logger = logging.getLogger(__name__)
+
+# Use strict rate limits for Athena queries (expensive operation)
+_rate_limiter = None
+
+def _get_rate_limiter():
+    """Get or create rate limiter singleton."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        config = RateLimitConfig.strict()  # 10/min, 100/hour, 1000/day
+        _rate_limiter = get_rate_limiter("aws")
+        _rate_limiter.config = config
+    return _rate_limiter
+logger.setLevel(logging.INFO)
 
 
 class AthenaQueryExecutor:
@@ -156,7 +181,7 @@ class QueryExecutorAPI:
     def lambda_handler(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         """
         Lambda handler for query execution API.
-        
+
         POST /api/query/execute
         {
             "query": "SELECT * FROM cloudtrail_logs LIMIT 10",
@@ -164,48 +189,65 @@ class QueryExecutorAPI:
             "wait": true
         }
         """
+        # Handle CORS preflight
+        http_method = event.get('httpMethod')
+        if http_method == 'OPTIONS':
+            return cors_preflight_response(event)
+
         try:
+            # Authenticate user from Cognito JWT claims
+            try:
+                user_id = get_authenticated_user_id(event)
+            except AuthenticationError:
+                return self._error_response(event, 'Authentication required', 401)
+
+            # Check rate limit
+            try:
+                rate_limiter = _get_rate_limiter()
+                rate_limiter.check_rate_limit(user_id, "query_execute")
+            except RateLimitExceeded as e:
+                logger.warning(f"Rate limit exceeded for user {user_id}")
+                return rate_limit_response(e.retry_after, get_cors_headers(event))
+
             body = json.loads(event.get('body', '{}'))
-            
+
             query = body.get('query')
             database = body.get('database', 'mantissa_log')
             wait = body.get('wait', True)
-            
+
             if not query:
-                return self._error_response('Query is required', 400)
-            
+                return self._error_response(event, 'Query is required', 400)
+
             result = self.executor.execute_query(
                 query=query,
                 database=database,
                 wait=wait
             )
-            
-            return self._success_response(result)
-            
+
+            return self._success_response(event, result)
+
         except Exception as e:
-            print(f"Error executing query: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return self._error_response(str(e), 500)
-    
-    def _success_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Return success response."""
+            logger.error(f"Error executing query: {str(e)}", exc_info=True)
+            return self._error_response(event, 'Internal server error', 500)
+
+    def _success_response(self, event: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+        """Return success response with secure CORS headers."""
         return {
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps(data)
         }
-    
-    def _error_response(self, message: str, status_code: int) -> Dict[str, Any]:
-        """Return error response."""
+
+    def _error_response(self, event: Dict[str, Any], message: str, status_code: int) -> Dict[str, Any]:
+        """Return error response with secure CORS headers."""
         return {
             'statusCode': status_code,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({'error': message})
         }

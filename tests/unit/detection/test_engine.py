@@ -42,10 +42,8 @@ def sample_rule():
         author="Test",
         created="2025-01-27",
         modified="2025-01-27",
-        version="1.0.0",
         severity="high",
         query=QueryConfig(
-            type="sql",
             sql="SELECT * FROM test WHERE timestamp >= '${time_window_start}' AND timestamp < '${time_window_end}'",
             parameters={"threshold": 10}
         ),

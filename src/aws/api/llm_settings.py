@@ -2,9 +2,26 @@
 LLM Settings API
 
 Manages user LLM provider configurations and API keys.
+
+.. deprecated::
+    This handler is deprecated in favor of `src/aws/lambda/llm_settings_api_handler.py`
+    which provides additional features including:
+    - GET /llm/models - Available models endpoint
+    - GET /llm/usage - Usage statistics endpoint
+    - More robust provider management via LLMProviderManager
+
+    Please migrate to the lambda handler. This file will be removed in a future release.
 """
 
+import warnings
+warnings.warn(
+    "llm_settings.py is deprecated. Use llm_settings_api_handler.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -16,48 +33,58 @@ from botocore.exceptions import ClientError
 # Add shared utilities to path
 sys.path.append(str(Path(__file__).parent.parent.parent / 'shared'))
 
+from auth import get_authenticated_user_id, AuthenticationError
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler for LLM settings management.
-    
+
     Routes:
-    - GET /api/llm-settings/{userId}
-    - PUT /api/llm-settings/{userId}
-    - POST /api/llm-settings/{userId}/test
+    - GET /api/llm-settings
+    - PUT /api/llm-settings
+    - POST /api/llm-settings/test
     """
     try:
         http_method = event.get('httpMethod', 'GET')
         path = event.get('path', '')
-        path_params = event.get('pathParameters', {})
-        user_id = path_params.get('userId')
-        
-        if not user_id:
-            return error_response('userId is required', 400)
-        
+
+        # Handle CORS preflight
+        if http_method == 'OPTIONS':
+            return cors_preflight_response(event)
+
+        # Authenticate user from JWT
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return error_response(event, 'Authentication required', 401)
+
         if http_method == 'GET':
-            return get_llm_settings(user_id)
+            return get_llm_settings(event, user_id)
         elif http_method == 'PUT':
             body = json.loads(event.get('body', '{}'))
-            return update_llm_settings(user_id, body)
+            return update_llm_settings(event, user_id, body)
         elif http_method == 'POST' and path.endswith('/test'):
             body = json.loads(event.get('body', '{}'))
-            return test_llm_connection(user_id, body)
+            return test_llm_connection(event, user_id, body)
         else:
-            return error_response('Method not allowed', 405)
-            
+            return error_response(event, 'Method not allowed', 405)
+
     except Exception as e:
-        print(f"Error in LLM settings API: {str(e)}")
+        logger.error(f"Error in LLM settings API: {str(e)}")
         import traceback
         traceback.print_exc()
-        return error_response(str(e), 500)
+        return error_response(event, str(e), 500)
 
 
-def get_llm_settings(user_id: str) -> Dict[str, Any]:
+def get_llm_settings(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """Get user's LLM settings (without API keys)."""
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(get_settings_table_name())
-    
+
     try:
         response = table.get_item(
             Key={
@@ -65,45 +92,45 @@ def get_llm_settings(user_id: str) -> Dict[str, Any]:
                 'setting_type': 'llm_preferences'
             }
         )
-        
+
         if 'Item' not in response:
             # Return defaults
-            return success_response({
+            return success_response(event, {
                 'preferences': get_default_preferences(),
                 'hasApiKeys': {}
             })
-        
+
         settings = response['Item']
         preferences = settings.get('preferences', get_default_preferences())
-        
+
         # Check which API keys are configured
         has_api_keys = {}
         for provider in ['anthropic', 'openai', 'google', 'bedrock']:
             has_api_keys[provider] = check_api_key_exists(user_id, provider)
-        
-        return success_response({
+
+        return success_response(event, {
             'preferences': preferences,
             'hasApiKeys': has_api_keys
         })
-        
+
     except ClientError as e:
-        print(f"DynamoDB error: {str(e)}")
-        return error_response('Failed to retrieve settings', 500)
+        logger.error(f"DynamoDB error: {str(e)}")
+        return error_response(event, 'Failed to retrieve settings', 500)
 
 
-def update_llm_settings(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+def update_llm_settings(event: Dict[str, Any], user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Update user's LLM settings."""
     preferences = data.get('preferences', {})
     api_keys = data.get('apiKeys', {})
-    
+
     # Validate preferences
     if not validate_preferences(preferences):
-        return error_response('Invalid preferences', 400)
-    
+        return error_response(event, 'Invalid preferences', 400)
+
     # Store preferences in DynamoDB
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(get_settings_table_name())
-    
+
     try:
         table.put_item(
             Item={
@@ -114,36 +141,36 @@ def update_llm_settings(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
     except ClientError as e:
-        print(f"DynamoDB error: {str(e)}")
-        return error_response('Failed to save preferences', 500)
-    
+        logger.error(f"DynamoDB error: {str(e)}")
+        return error_response(event, 'Failed to save preferences', 500)
+
     # Store API keys in AWS Secrets Manager
     for provider, api_key in api_keys.items():
         if api_key and api_key.strip():
             store_api_key(user_id, provider, api_key)
-    
-    return success_response({
+
+    return success_response(event, {
         'message': 'Settings updated successfully',
         'preferences': preferences
     })
 
 
-def test_llm_connection(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+def test_llm_connection(event: Dict[str, Any], user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Test connection to LLM provider."""
     provider = data.get('provider')
-    
+
     if not provider:
-        return error_response('provider is required', 400)
-    
+        return error_response(event, 'provider is required', 400)
+
     if provider not in ['anthropic', 'openai', 'google', 'bedrock']:
-        return error_response('Invalid provider', 400)
-    
+        return error_response(event, 'Invalid provider', 400)
+
     # Get API key
     api_key = get_api_key(user_id, provider)
-    
+
     if not api_key and provider != 'bedrock':
-        return error_response(f'No API key configured for {provider}', 400)
-    
+        return error_response(event, f'No API key configured for {provider}', 400)
+
     # Test connection
     try:
         if provider == 'anthropic':
@@ -155,18 +182,18 @@ def test_llm_connection(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         elif provider == 'bedrock':
             result = test_bedrock()
         else:
-            return error_response('Provider not supported', 400)
-        
-        return success_response({
+            return error_response(event, 'Provider not supported', 400)
+
+        return success_response(event, {
             'success': True,
             'provider': provider,
             'message': result.get('message', 'Connection successful'),
             'model': result.get('model'),
             'latency_ms': result.get('latency_ms')
         })
-        
+
     except Exception as e:
-        return success_response({
+        return success_response(event, {
             'success': False,
             'provider': provider,
             'error': str(e)
@@ -353,25 +380,25 @@ def get_timestamp() -> str:
     return datetime.utcnow().isoformat() + 'Z'
 
 
-def success_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Return success response."""
+def success_response(event: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+    """Return success response with secure CORS headers."""
     return {
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps(data)
     }
 
 
-def error_response(message: str, status_code: int) -> Dict[str, Any]:
-    """Return error response."""
+def error_response(event: Dict[str, Any], message: str, status_code: int) -> Dict[str, Any]:
+    """Return error response with secure CORS headers."""
     return {
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'error': message})
     }

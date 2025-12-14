@@ -16,21 +16,7 @@ The system translates your questions into optimized SQL, executes them across yo
 
 **Built for log aggregation with a focus on security detections.**
 
----
-
-## Current Implementation Status
-
-| Cloud Provider | Status | Notes |
-|----------------|--------|-------|
-| **AWS** | Infrastructure Complete | 14 Terraform modules, 25 Lambda handlers, full API |
-| **GCP** | Infrastructure Complete | Cloud Functions, BigQuery integration, Cloud Run frontend |
-| **Azure** | Infrastructure Complete | Azure Functions, Synapse Analytics, Static Web Apps |
-
-**Important**: While infrastructure code is complete, no production deployments have been independently verified. Test thoroughly before production use.
-
----
-
-## Cost Comparison (Theoretical)
+## Cost Comparison 
 
 **Traditional SIEM (Splunk/Datadog/Sumo Logic):**
 - Typical cost: $150,000-$300,000/year for enterprise
@@ -64,10 +50,17 @@ The system translates your questions into optimized SQL, executes them across yo
 - Alert deduplication and state management
 
 ### Alert Routing
-- Slack, PagerDuty, Jira, Email, and Webhook integrations
+- Slack, PagerDuty, Jira, Email, ServiceNow, Microsoft Teams, and Webhook integrations
 - LLM-powered alert enrichment with 5W1H context
 - PII/PHI redaction for external destinations
 - Configurable severity-based routing
+
+### Context Enrichment
+- IP Geolocation: MaxMind GeoIP2 with fallback to free IP-API
+- Threat Intelligence: VirusTotal and AbuseIPDB integration
+- User Context: Google Workspace, Azure Entra ID, Okta lookups
+- Asset Context: AWS, Azure, GCP native asset inventory
+- Behavioral Baselines: User/asset behavior deviation detection
 
 ### Data Collectors
 - **Cloud Native**: AWS CloudTrail, VPC Flow Logs, GuardDuty, GCP Audit Logs, Azure Activity Logs
@@ -82,10 +75,17 @@ The system translates your questions into optimized SQL, executes them across yo
 - Query builder with SQL visualization
 - Detection rule management
 - Integration configuration wizards
+- Light/dark mode toggle
+
+### Security
+- Authentication middleware for Cognito JWT validation
+- CORS configuration with environment-based origin whitelist
+- SQL injection protection in query executors
+- Lazy initialization utilities for cold start optimization
 
 ---
 
-## Limitations (Read Before Using)
+## Limitations
 
 ### What This Project Is NOT
 
@@ -95,7 +95,6 @@ The system translates your questions into optimized SQL, executes them across yo
    - No dashboards or visualizations (by design - use external BI tools)
    - No case management (use Jira, ServiceNow, etc.)
    - No SOAR/automated remediation
-   - No threat intelligence platform integration
    - No compliance reporting
 
 3. **Not Managed/SaaS**: You deploy and manage all infrastructure yourself. Requires cloud infrastructure expertise.
@@ -104,9 +103,15 @@ The system translates your questions into optimized SQL, executes them across yo
 
 5. **Not High-Availability by Default**: Basic infrastructure without HA/DR configuration. You must add this.
 
-### Technical Limitations
+### Security Configuration Required
 
-- **Test Suite**: Current test results show 77 failures and 12 errors out of ~1,075 tests. Most are assertion updates for parser edge cases, but you should investigate before production use.
+- **CORS Origin Configuration Required**: Authentication and CORS have been applied to API handlers, but you MUST configure the `CORS_ALLOWED_ORIGIN` environment variable with your application domain before production deployment. Without this, the default is permissive (`*`).
+
+- **API Gateway Authorizer Required**: Lambda handlers validate JWT claims from API Gateway, but you must configure your API Gateway with a Cognito authorizer to populate these claims.
+
+- **API Keys in Environment Variables**: Some handlers read API keys from environment variables rather than Secrets Manager. Review and move sensitive credentials to your cloud's secret manager.
+
+### Technical Limitations
 
 - **LLM Dependency**: Requires LLM API keys. Query quality depends on model capability. API costs are unpredictable.
 
@@ -114,7 +119,7 @@ The system translates your questions into optimized SQL, executes them across yo
 
 - **SQL Generation**: LLM-generated SQL may occasionally be incorrect or suboptimal. Always review before executing expensive queries.
 
-- **Cold Starts**: Serverless architecture has cold start latency. First query of a session may be slow.
+- **Cold Starts**: Serverless architecture has cold start latency. First query of a session may be slow. Lazy initialization utilities (`src/shared/utils/lazy_init.py`) are available for reducing cold start times.
 
 - **Query Limits**: Maximum 10,000 rows returned. 120-second query timeout. Deep subqueries limited to 3 levels.
 
@@ -124,35 +129,23 @@ The system translates your questions into optimized SQL, executes them across yo
 
 - **Browser Support**: Modern browsers only. No mobile optimization.
 
-- **GCP Function Count**: GCP has 5 Cloud Functions vs 25 AWS Lambda handlers. GCP uses a consolidated collector design rather than individual functions per source.
-
 - **Jira Description Format**: Jira tickets use Atlassian Document Format (ADF) which may not render wiki markup as expected in all Jira versions.
 
-- **No Log Retention Management**: You must configure S3/GCS/Azure Blob lifecycle policies separately. No built-in log rotation or archival.
+- **No Log Retention Management UI**: You must configure S3/GCS/Azure Blob lifecycle policies separately. Terraform modules exist for retention but no UI management.
 
 - **No User Management UI**: User management requires direct Cognito/Identity Platform/Azure AD configuration. No admin UI for user provisioning.
 
-- **Single Region**: Infrastructure templates deploy to a single region. Multi-region requires manual configuration.
-
-- **No IP Geolocation**: MaxMind GeoIP integration is not implemented. IP-based geographic queries require external enrichment.
-
-- **No Threat Intelligence**: VirusTotal, AbuseIPDB, and other threat intel integrations return placeholder data. You must implement your own TI lookups or use external services.
+- **Single Region**: Infrastructure templates deploy to a single region. Multi-region Terraform modules exist but require manual configuration.
 
 - **Hardcoded Pricing**: Cloud cost estimates use hardcoded 2024 pricing constants. Actual costs may differ from estimates.
 
-- **Generic Exception Handling**: Some error handlers catch broad exceptions which may mask specific failure causes. Check logs for detailed errors.
+- **Web UI User Context**: User ID is obtained from the auth store. Falls back to 'anonymous' if not authenticated.
 
-- **DLQ Retry Logic**: Dead letter queue handler logs failures but does not implement automatic retry. Manual intervention required for failed messages.
+- **Enrichment Requires API Keys**: Geolocation requires MaxMind or IPInfo API keys. Threat intel requires VirusTotal and/or AbuseIPDB API keys. Without keys, enrichment returns limited data or errors.
 
-- **Placeholder Enrichment Functions**: IP reputation, user context, and geolocation lookups in alert enrichment return placeholder data. Integrate with your own data sources.
+- **Behavioral Baselines Cold Start**: Behavioral analysis requires historical data to establish baselines. New deployments have no baseline data.
 
-- **Suppression Analytics**: The `get_suppression_stats()` function in alert deduplication returns placeholder data. Requires a separate suppression log table to track actual suppression counts.
-
-- **Web UI Profile/Security Settings**: The Settings page has placeholder components for Profile Settings and Security Settings marked "coming soon". User management is done via Cognito/Identity Platform/Azure AD directly.
-
-- **View Recent Failures Modal**: The integration health status "View Recent Failures" button is not implemented. Check CloudWatch/Cloud Logging for failure details.
-
-- **Hardcoded User ID**: Some frontend components use a hardcoded `userId: 'current-user'` instead of getting it from the auth context. Works for single-user deployments but may cause issues in multi-user scenarios.
+- **Suppression Analytics Placeholder**: The `get_suppression_stats()` function returns placeholder data. Requires a separate suppression log table.
 
 ### Operational Concerns
 
@@ -165,14 +158,6 @@ The system translates your questions into optimized SQL, executes them across yo
 - **Support**: Community support only. No SLA, no vendor backing.
 
 - **Import Path Sensitivity**: Some Lambda handlers use `sys.path` manipulation for imports. Deployment packaging must preserve directory structure.
-
-- **Test Configuration**: pytest.ini references a legacy `lambda_functions` directory path. Coverage reports may not include all Lambda handler code. Update paths if needed.
-
-- **Redacted Sender Placeholder**: The `_send_to_integration()` method in `redacted_sender.py` returns a placeholder success response instead of actually sending alerts. PII/PHI redaction is applied but payloads are not forwarded to integrations. You must integrate with the validators or implement actual sending.
-
-- **Print Statements for Logging**: 99 instances of `print()` are used instead of proper logging across 25 files in `src/shared/`. Errors logged this way may not appear in CloudWatch/Cloud Logging. Consider replacing with `logging.error()` for production.
-
-- **Google Gemini Token Estimation**: Token counts for Google Gemini use `word_count * 1.3` estimation. Actual token usage differs significantly. Cost calculations for Gemini will be inaccurate.
 
 ---
 
@@ -188,6 +173,9 @@ The system translates your questions into optimized SQL, executes them across yo
 | `ENABLE_LLM_CACHE` | Enable LLM query pattern caching | `true` | No |
 | `SCHEMA_VERSION` | Schema version for cache invalidation | `v1` | No |
 | `RULES_PATH` | Path to Sigma detection rules | `rules/sigma` | No |
+| `CORS_ALLOWED_ORIGIN` | Allowed CORS origin (required for security) | `*` (insecure default) | Yes (production) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins | - | No |
+| `MANTISSA_DEV_MODE` | Enable development mode (bypasses auth) | `false` | No |
 
 ### AWS-Specific
 
@@ -242,6 +230,17 @@ The system translates your questions into optimized SQL, executes them across yo
 | `GOOGLE_API_KEY` | Google | Gemini API key | Yes (if using Google) |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI | Azure OpenAI key | Yes (if using Azure OpenAI) |
 | `GOOGLE_CLOUD_PROJECT` | Vertex AI | GCP project ID | Yes (if using Vertex AI) |
+
+### Enrichment Configuration
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `MAXMIND_DB_PATH` | Path to MaxMind GeoIP2 database file | No |
+| `MAXMIND_ACCOUNT_ID` | MaxMind account ID for web service | No |
+| `MAXMIND_LICENSE_KEY` | MaxMind license key | No |
+| `IPINFO_TOKEN` | IPInfo.io API token | No |
+| `VIRUSTOTAL_API_KEY` | VirusTotal API key | No |
+| `ABUSEIPDB_API_KEY` | AbuseIPDB API key | No |
 
 ### Collector-Specific (Examples)
 
@@ -326,10 +325,18 @@ bash scripts/deploy-azure.sh
 ```
 mantissa-log/
 |-- src/
-|   |-- shared/           # Cloud-agnostic core (parsers, detection, LLM, alerting)
-|   |-- aws/              # AWS Lambda handlers and Athena integration
-|   |-- gcp/              # GCP Cloud Functions and BigQuery integration
-|   |-- azure/            # Azure Functions and Synapse integration
+|   |-- shared/           # Cloud-agnostic core
+|   |   |-- alerting/     # Alert routing (7 handlers)
+|   |   |-- auth/         # Authentication middleware
+|   |   |-- detection/    # Detection engine, Sigma conversion
+|   |   |-- enrichment/   # Geolocation, threat intel, user/asset context
+|   |   |-- llm/          # LLM providers (6), caching, query generation
+|   |   |-- parsers/      # Log parsers (20)
+|   |   |-- redaction/    # PII/PHI redaction
+|   |   |-- utils/        # Cost calculator, lazy initialization
+|   |-- aws/              # AWS Lambda handlers (25) and Athena integration
+|   |-- gcp/              # GCP Cloud Functions (7) and BigQuery integration
+|   |-- azure/            # Azure Functions (18) and Synapse integration
 |-- infrastructure/
 |   |-- aws/terraform/    # 14 Terraform modules for AWS
 |   |-- gcp/terraform/    # GCP Terraform configuration
@@ -338,7 +345,7 @@ mantissa-log/
 |-- rules/sigma/          # 591 Sigma detection rules
 |-- tests/                # Unit, integration, and E2E tests (39 files)
 |-- scripts/              # Deployment and utility scripts
-|-- docs/                 # Documentation
+|-- docs/                 # Documentation (25 files)
 ```
 
 ---
@@ -347,15 +354,16 @@ mantissa-log/
 
 | Component | Count |
 |-----------|-------|
-| AWS Lambda Handlers | 25 |
-| Azure Functions | 16 (12 collectors + 4 core) |
-| GCP Cloud Functions | 5 (4 core + consolidated collector) |
+| AWS Lambda Handlers | 27 |
+| Azure Functions | 18 (6 core + 12 collectors) |
+| GCP Cloud Functions | 7 |
 | LLM Providers | 6 |
-| Alert Handlers | 5 |
+| Alert Handlers | 7 (Slack, PagerDuty, Jira, Email, ServiceNow, Teams, Webhook) |
 | Sigma Detection Rules | 591 |
-| Log Source Parsers | 22 |
+| Log Source Parsers | 20 |
 | Test Files | 39 |
-| AWS Terraform Modules | 12 |
+| AWS Terraform Modules | 14 |
+| Documentation Files | 25 |
 
 ---
 
@@ -369,10 +377,9 @@ pip install -r requirements.txt
 PYTHONPATH=. pytest tests/ -v
 
 # Current test status:
-# - Passed: ~964
-# - Failed: 77 (mostly parser assertion updates)
-# - Errors: 12 (QueryConfig signature changes)
-# - Skipped: 22
+# - Passed: 1187
+# - Skipped: 30 (optional dependencies)
+# - Failed: 0
 ```
 
 ---
@@ -389,7 +396,6 @@ PYTHONPATH=. pytest tests/ -v
 - [Collector Secrets Configuration](docs/configuration/collector-secrets.md)
 - [API Reference](docs/api/api-reference.md)
 - [Operations Runbook](docs/operations/runbook.md)
-- [Contributing Guide](docs/development/contributing.md)
 
 ---
 
@@ -423,26 +429,3 @@ Routing --> Slack/PagerDuty/Email/Webhook
 - **On-Premises Support**: Cloud-native focus only
 - **Real-Time ML Streaming**: Serverless architecture not suited for streaming ML
 
----
-
-## Contributing
-
-Contributions welcome. Please read the contributing guidelines before submitting PRs.
-
-- Report bugs via GitHub Issues
-- Security vulnerabilities: See SECURITY.md
-- Pull requests require review and passing tests
-
----
-
-## License
-
-This project is licensed under the MIT License. See LICENSE for details.
-
----
-
-## Disclaimer
-
-This software is provided "as is" without warranty of any kind. Use at your own risk. The maintainers are not responsible for any damages, costs, or security incidents resulting from use of this software.
-
-Security tools should be thoroughly tested and validated in your environment before production use. This project has not been audited by third-party security firms.

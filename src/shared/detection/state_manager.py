@@ -1,9 +1,12 @@
 """State management for alert deduplication and tracking."""
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 import json
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class StateManager:
@@ -201,7 +204,7 @@ class DynamoDBStateManager(StateManager):
             return True
 
         except Exception as e:
-            print(f"Error checking suppression: {e}")
+            logger.error(f"Error checking suppression: {e}")
             return False
 
     def suppress_alert(self, suppression_key: str, duration: timedelta) -> None:
@@ -226,7 +229,7 @@ class DynamoDBStateManager(StateManager):
                 }
             )
         except Exception as e:
-            print(f"Error suppressing alert: {e}")
+            logger.error(f"Error suppressing alert: {e}")
 
     def get_alert_history(self, suppression_key: str, limit: int = 10) -> list:
         """Get alert history for a suppression key.
@@ -255,7 +258,7 @@ class DynamoDBStateManager(StateManager):
             return [item.get('data', {}) for item in items]
 
         except Exception as e:
-            print(f"Error getting alert history: {e}")
+            logger.error(f"Error getting alert history: {e}")
             return []
 
     def record_alert(self, suppression_key: str, alert_data: Dict[str, Any]) -> None:
@@ -284,7 +287,7 @@ class DynamoDBStateManager(StateManager):
                 }
             )
         except Exception as e:
-            print(f"Error recording alert: {e}")
+            logger.error(f"Error recording alert: {e}")
 
 
 class RedisStateManager(StateManager):
@@ -349,7 +352,7 @@ class RedisStateManager(StateManager):
         try:
             return client.exists(key) > 0
         except Exception as e:
-            print(f"Error checking suppression: {e}")
+            logger.error(f"Error checking suppression: {e}")
             return False
 
     def suppress_alert(self, suppression_key: str, duration: timedelta) -> None:
@@ -369,7 +372,7 @@ class RedisStateManager(StateManager):
                 datetime.utcnow().isoformat()
             )
         except Exception as e:
-            print(f"Error suppressing alert: {e}")
+            logger.error(f"Error suppressing alert: {e}")
 
     def get_alert_history(self, suppression_key: str, limit: int = 10) -> list:
         """Get alert history for a suppression key.
@@ -389,7 +392,7 @@ class RedisStateManager(StateManager):
             items = client.lrange(key, 0, limit - 1)
             return [json.loads(item) for item in items]
         except Exception as e:
-            print(f"Error getting alert history: {e}")
+            logger.error(f"Error getting alert history: {e}")
             return []
 
     def record_alert(self, suppression_key: str, alert_data: Dict[str, Any]) -> None:
@@ -416,4 +419,4 @@ class RedisStateManager(StateManager):
             # Set expiry (30 days)
             client.expire(key, 30 * 24 * 60 * 60)
         except Exception as e:
-            print(f"Error recording alert: {e}")
+            logger.error(f"Error recording alert: {e}")

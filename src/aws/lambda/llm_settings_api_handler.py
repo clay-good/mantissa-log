@@ -6,6 +6,7 @@ Manages user preferences for LLM providers, API keys, and model selection.
 """
 
 import json
+import logging
 import os
 import sys
 from typing import Dict, Any
@@ -21,6 +22,17 @@ from llm.provider_manager import (
     ProviderConfig
 )
 
+# Import authentication and CORS utilities
+from auth import (
+    get_authenticated_user_id,
+    AuthenticationError,
+    AuthorizationError,
+)
+from auth.cors import get_cors_headers, cors_preflight_response
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -33,59 +45,68 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /llm/models - Get available models
     - GET /llm/usage - Get usage statistics
     """
-    try:
-        path = event.get('path', '')
-        method = event.get('httpMethod', 'GET')
-        body = json.loads(event.get('body', '{}')) if event.get('body') else {}
-        params = event.get('queryStringParameters') or {}
+    # Handle CORS preflight
+    method = event.get('httpMethod', 'GET')
+    if method == 'OPTIONS':
+        return cors_preflight_response(event)
 
-        # Route to appropriate handler
+    try:
+        # Authenticate user from Cognito JWT claims
+        try:
+            user_id = get_authenticated_user_id(event)
+        except AuthenticationError:
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
+                'body': json.dumps({'error': 'Authentication required'})
+            }
+
+        path = event.get('path', '')
+        body = json.loads(event.get('body', '{}')) if event.get('body') else {}
+
+        # Route to appropriate handler (pass authenticated user_id)
         if path == '/llm/settings' and method == 'GET':
-            return handle_get_settings(params)
+            return handle_get_settings(event, user_id)
         elif path == '/llm/settings' and method == 'POST':
-            return handle_save_settings(body)
+            return handle_save_settings(event, user_id, body)
         elif path == '/llm/test-connection' and method == 'POST':
-            return handle_test_connection(body)
+            return handle_test_connection(event, user_id, body)
         elif path == '/llm/models' and method == 'GET':
-            return handle_get_models(params)
+            return handle_get_models(event)
         elif path == '/llm/usage' and method == 'GET':
-            return handle_get_usage(params)
+            return handle_get_usage(event, user_id)
         else:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    **get_cors_headers(event)
+                },
                 'body': json.dumps({'error': 'Not found'})
             }
 
     except Exception as e:
-        print(f'Error in LLM settings API handler: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.error(f'Error in LLM settings API handler: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Internal server error'})
         }
 
 
-def handle_get_settings(params: Dict[str, str]) -> Dict[str, Any]:
+def handle_get_settings(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Get user's LLM settings.
 
-    Query parameters:
-    - user_id: User ID
+    Note: user_id is extracted from authenticated JWT.
     """
-    user_id = params.get('user_id')
-
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
-
     manager = LLMProviderManager()
     settings = manager.get_user_settings(user_id)
 
@@ -132,19 +153,18 @@ def handle_get_settings(params: Dict[str, str]) -> Dict[str, Any]:
         'statusCode': 200,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            **get_cors_headers(event)
         },
         'body': json.dumps({'settings': settings_data})
     }
 
 
-def handle_save_settings(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_save_settings(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Save user's LLM settings.
 
     Request body:
     {
-        "user_id": "user-123",
         "settings": {
             "providers": {
                 "anthropic": {
@@ -162,14 +182,19 @@ def handle_save_settings(body: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     settings_data = body.get('settings')
 
-    if not all([user_id, settings_data]):
+    if not settings_data:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing required fields'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing settings'})
         }
 
     manager = LLMProviderManager()
@@ -228,7 +253,7 @@ def handle_save_settings(body: Dict[str, Any]) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
                 'message': 'Settings saved successfully',
@@ -237,45 +262,47 @@ def handle_save_settings(body: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        print(f'Error saving settings: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.error(f'Error saving settings: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
-                'error': f'Failed to save settings: {str(e)}'
+                'error': 'Failed to save settings'
             })
         }
 
 
-def handle_test_connection(body: Dict[str, Any]) -> Dict[str, Any]:
+def handle_test_connection(event: Dict[str, Any], user_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
     """
     Test connection to an LLM provider.
 
     Request body:
     {
-        "user_id": "user-123",
         "provider": "anthropic",
         "api_key": "sk-ant-...",  # Optional, uses stored key if not provided
         "model": "claude-3-5-sonnet-20241022",
         "region": "us-east-1"  # For Bedrock only
     }
+
+    Note: user_id is extracted from authenticated JWT, not request body.
     """
-    user_id = body.get('user_id')
     provider_name = body.get('provider')
     api_key = body.get('api_key')
     model_id = body.get('model')
     region = body.get('region')
 
-    if not all([user_id, provider_name]):
+    if not provider_name:
         return {
             'statusCode': 400,
-            'body': json.dumps({'error': 'Missing required fields'})
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
+            'body': json.dumps({'error': 'Missing provider'})
         }
 
     try:
@@ -283,6 +310,10 @@ def handle_test_connection(body: Dict[str, Any]) -> Dict[str, Any]:
     except ValueError:
         return {
             'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+                **get_cors_headers(event)
+            },
             'body': json.dumps({'error': f'Invalid provider: {provider_name}'})
         }
 
@@ -301,37 +332,36 @@ def handle_test_connection(body: Dict[str, Any]) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps(result)
         }
 
     except Exception as e:
-        print(f'Error testing connection: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.error(f'Error testing connection: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({
                 'success': False,
-                'error': str(e),
+                'error': 'Connection test failed',
                 'message': 'Connection test failed'
             })
         }
 
 
-def handle_get_models(params: Dict[str, str]) -> Dict[str, Any]:
+def handle_get_models(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get available models for all providers or a specific provider.
 
     Query parameters:
     - provider: Optional provider filter
     """
+    params = event.get('queryStringParameters') or {}
     provider_filter = params.get('provider')
 
     manager = LLMProviderManager()
@@ -344,6 +374,10 @@ def handle_get_models(params: Dict[str, str]) -> Dict[str, Any]:
             except ValueError:
                 return {
                     'statusCode': 400,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        **get_cors_headers(event)
+                    },
                     'body': json.dumps({'error': f'Invalid provider: {provider_filter}'})
                 }
         else:
@@ -367,40 +401,35 @@ def handle_get_models(params: Dict[str, str]) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({'models': models})
         }
 
     except Exception as e:
-        print(f'Error getting models: {e}')
+        logger.error(f'Error getting models: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Failed to get models'})
         }
 
 
-def handle_get_usage(params: Dict[str, str]) -> Dict[str, Any]:
+def handle_get_usage(event: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Get LLM usage statistics for a user.
 
     Query parameters:
-    - user_id: User ID
     - days: Number of days to look back (default 30)
-    """
-    user_id = params.get('user_id')
-    days = int(params.get('days', 30))
 
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing user_id'})
-        }
+    Note: user_id is extracted from authenticated JWT.
+    """
+    params = event.get('queryStringParameters') or {}
+    days = int(params.get('days', 30))
 
     manager = LLMProviderManager()
 
@@ -411,19 +440,19 @@ def handle_get_usage(params: Dict[str, str]) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
             'body': json.dumps({'usage': usage_stats})
         }
 
     except Exception as e:
-        print(f'Error getting usage: {e}')
+        logger.error(f'Error getting usage: {e}', exc_info=True)
 
         return {
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                **get_cors_headers(event)
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Failed to get usage statistics'})
         }

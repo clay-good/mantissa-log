@@ -186,7 +186,8 @@ class TestVPCFlowLogsParser:
 
         with pytest.raises(ParserError) as exc_info:
             parser.parse(short_entry)
-        assert "insufficient fields" in str(exc_info.value).lower()
+        # Error message indicates missing required fields
+        assert "missing required fields" in str(exc_info.value).lower()
 
 
 class TestVPCFlowLogsParserProtocols:

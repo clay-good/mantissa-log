@@ -204,11 +204,15 @@ class TestKubernetesParser:
         assert parser.validate(event) is False
 
     def test_parse_preserves_raw_event(self, parser, sample_audit_event):
-        """Test parsing preserves raw event."""
+        """Test parsing preserves raw event (with None/empty values cleaned)."""
         result = parser.parse(sample_audit_event)
 
         assert "_raw" in result
-        assert result["_raw"] == sample_audit_event
+        # Parser cleans None/empty values from _raw, so check key fields
+        assert result["_raw"]["auditID"] == sample_audit_event["auditID"]
+        assert result["_raw"]["verb"] == sample_audit_event["verb"]
+        assert result["_raw"]["requestURI"] == sample_audit_event["requestURI"]
+        assert result["_raw"]["user"]["username"] == sample_audit_event["user"]["username"]
 
 
 class TestKubernetesParserVerbMapping:

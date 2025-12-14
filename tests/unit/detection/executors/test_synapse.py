@@ -3,6 +3,10 @@
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
+
+# Skip all tests if pyodbc is not installed
+pytest.importorskip("pyodbc", reason="pyodbc not installed")
+
 from src.shared.detection.executors.synapse import SynapseExecutor
 from src.shared.detection.executors.base import (
     QueryResult,
