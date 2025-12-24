@@ -1,0 +1,54 @@
+title: Slow Database Queries Detected
+id: apm-traces-slow-database-queries-001
+status: stable
+description: Detects database operations exceeding latency threshold, which may indicate missing indexes, lock contention, or query optimization needs
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  selection:
+    operation_name|contains:
+      - 'db.'
+      - 'sql.'
+      - 'mongo.'
+      - 'redis.'
+      - 'postgres'
+      - 'mysql'
+      - 'dynamodb'
+      - 'cassandra'
+      - 'elasticsearch'
+  condition: selection where duration_ms > 1000
+
+fields:
+  - operation_name
+  - service_name
+  - duration_ms
+  - attributes.db.statement
+  - attributes.db.system
+  - attributes.db.name
+  - attributes.db.operation
+  - trace_id
+  - span_id
+
+falsepositives:
+  - Complex analytical queries (expected to be slow)
+  - Bulk operations
+  - First queries after cold start
+  - Database maintenance operations
+
+level: medium
+
+tags:
+  - database
+  - performance
+  - latency
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/specs/semconv/database/
+  - https://use-the-index-luke.com/

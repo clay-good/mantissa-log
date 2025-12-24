@@ -1,0 +1,44 @@
+title: Service Error Rate Spike
+id: apm-traces-error-rate-spike-001
+status: stable
+description: Detects when error rate exceeds threshold within time window, indicating service instability or upstream dependency failures
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  selection:
+    kind: server
+  timeframe: 5m
+  condition: selection | aggregate by service_name where (count(status='error') / count(*)) > 0.05
+
+fields:
+  - service_name
+  - operation_name
+  - error_count
+  - total_count
+  - error_rate
+  - status_message
+  - attributes.error.type
+
+falsepositives:
+  - Deployments with breaking changes
+  - External dependency outages
+  - Planned maintenance
+  - Load testing activities
+
+level: high
+
+tags:
+  - reliability
+  - errors
+  - slo
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/concepts/signals/traces/
+  - https://sre.google/sre-book/service-level-objectives/

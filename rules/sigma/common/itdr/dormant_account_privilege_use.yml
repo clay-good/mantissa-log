@@ -1,0 +1,80 @@
+title: Dormant Account Using Privileged Access
+id: itdr-common-dormant-privilege-001
+status: stable
+description: |
+  Detects when a dormant account (inactive 30+ days) uses privileged
+  or administrative access. This is a critical indicator of compromise
+  as legitimate dormant accounts should not suddenly need admin access.
+
+  This combination of dormancy + privilege use is extremely suspicious
+  and warrants immediate investigation.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection_auth:
+    event_type: 'AUTH_SUCCESS'
+  selection_privilege:
+    event_type:
+      - 'PRIVILEGE_GRANT'
+      - 'ADMIN_ACTION'
+      - 'PRIVILEGE_USE'
+  condition: selection_auth or selection_privilege
+  # Post-processing: check if account was dormant AND used privileges
+  timeframe: 24h
+
+fields:
+  - user_email
+  - source_ip
+  - source_geo.country
+  - event_type
+  - event_action
+  - role_name
+  - provider
+  - application_name
+  - '@timestamp'
+
+falsepositives:
+  - Emergency break-glass account activation (documented)
+  - IT audit using dedicated admin accounts
+  # Note: Even these should be investigated and documented
+
+level: critical
+
+tags:
+  - attack.initial_access
+  - attack.privilege_escalation
+  - attack.persistence
+  - attack.t1078      # Valid Accounts
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - itdr
+  - identity
+  - dormant_account
+  - privilege_escalation
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://attack.mitre.org/techniques/T1098/
+
+custom:
+  itdr_category: account_anomaly
+  itdr_subcategory: dormant_privilege
+  provider: common
+  detection_type: post_processing
+  always_critical: true
+  investigation_priority: immediate
+  recommended_action: |
+    1. IMMEDIATELY suspend the account
+    2. Terminate all active sessions
+    3. Audit all actions taken by the account
+    4. Check for privilege grants or policy changes
+    5. Verify through multiple channels if legitimate
+    6. Review access logs for data exfiltration
+    7. Check for persistence mechanisms created
+    8. Initiate incident response procedures

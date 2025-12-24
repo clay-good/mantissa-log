@@ -1,0 +1,79 @@
+title: Microsoft 365 OAuth App Consent Detection
+id: itdr-m365-oauth-consent-001
+status: stable
+description: |
+  Detects OAuth application consent events in Microsoft 365 that may
+  indicate illicit consent grant attacks. Monitors for applications
+  requesting high-risk permissions like mail access or file access.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: management_activity
+
+detection:
+  selection:
+    Operation:
+      - 'Consent to application'
+      - 'Add OAuth2PermissionGrant'
+      - 'Update application'
+  filter_permissions:
+    ModifiedProperties.NewValue|contains:
+      - 'Mail.'
+      - 'Files.'
+      - 'User.Read.All'
+      - 'Directory.'
+      - 'offline_access'
+  condition: selection and filter_permissions
+  timeframe: 24h
+
+fields:
+  - UserId
+  - Operation
+  - Workload
+  - ObjectId
+  - ModifiedProperties
+  - ClientIP
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate business applications
+  - IT-approved integrations
+  - Microsoft first-party applications
+  - Productivity tool onboarding
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1550.001  # Application Access Token
+  - attack.t1528      # Steal Application Access Token
+  - itdr
+  - identity
+  - oauth
+
+references:
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://docs.microsoft.com/en-us/microsoft-365/security/office-365-security/detect-and-remediate-illicit-consent-grants
+
+custom:
+  itdr_category: token_theft
+  itdr_subcategory: oauth_consent
+  provider: microsoft365
+  risk_permissions:
+    - Mail.Read
+    - Mail.ReadWrite
+    - Mail.Send
+    - Files.Read.All
+    - Files.ReadWrite.All
+    - User.Read.All
+    - Directory.Read.All
+  recommended_action: |
+    1. Review the application requesting consent
+    2. Check application publisher verification
+    3. Verify with user if consent was intentional
+    4. If suspicious, remove application consent
+    5. Review tenant's Enterprise Applications

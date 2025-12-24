@@ -1,0 +1,79 @@
+title: Okta MFA Fatigue Attack
+id: itdr-okta-mfa-fatigue-001
+status: stable
+description: |
+  Detects MFA fatigue (push bombing) attacks against Okta users.
+  Triggers when 5+ MFA challenges occur for the same user within 5 minutes.
+  Critical if followed by eventual success (user gave in to the fatigue).
+  This technique was used in high-profile attacks against Uber and Cisco.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection_challenge:
+    event.action:
+      - 'user.authentication.auth_via_mfa'
+      - 'system.push.send_factor_verify_push'
+  selection_result:
+    event.outcome:
+      - 'failure'
+      - 'success'
+  condition: selection_challenge | count() by user.email >= 5
+  timeframe: 5m
+
+fields:
+  - user.email
+  - user.name
+  - event.action
+  - event.outcome
+  - okta.authenticationContext.authenticationProvider
+  - okta.authenticationContext.credentialType
+  - okta.client.device
+  - okta.client.userAgent.rawUserAgent
+  - source.ip
+  - source.geo.country_name
+  - source.geo.city_name
+  - '@timestamp'
+
+falsepositives:
+  - User with connectivity issues causing retry
+  - Okta Verify app reinstallation
+  - Device change with re-enrollment
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1621  # Multi-Factor Authentication Request Generation
+  - attack.t1078  # Valid Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1621/
+  - https://developer.okta.com/docs/reference/api/system-log/
+  - https://www.uber.com/newsroom/security-update/
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_fatigue
+  provider: okta
+  detection_thresholds:
+    mfa_challenge_count: 5
+    time_window_minutes: 5
+  mfa_actions:
+    push_send: "system.push.send_factor_verify_push"
+    push_verify: "user.authentication.auth_via_mfa"
+    push_deny: "user.mfa.factor.deactivate"
+  recommended_action: |
+    1. Contact the user immediately through a verified channel
+    2. If attack confirmed, disable the user account temporarily
+    3. Force password reset
+    4. Review session logs for post-compromise activity
+    5. Consider implementing number matching for Okta Verify
+    6. Review and strengthen MFA policies

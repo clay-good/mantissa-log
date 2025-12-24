@@ -1,0 +1,90 @@
+title: Okta MFA Bypass Detection
+id: itdr-okta-mfa-bypass-001
+status: stable
+description: |
+  Detects MFA bypass attempts in Okta including:
+  - MFA disabled after failed login attempts
+  - Login from new device without MFA challenge
+  - MFA method changes (potential SIM swap or takeover)
+  - Suspicious MFA factor enrollment
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection_mfa_disable:
+    event.action:
+      - 'user.mfa.factor.deactivate'
+      - 'user.mfa.factor.reset_all'
+  selection_mfa_change:
+    event.action:
+      - 'user.mfa.factor.activate'
+      - 'user.mfa.factor.update'
+  selection_bypass_indicator:
+    # Login without MFA when MFA should be required
+    event.action: 'user.session.start'
+    event.outcome: 'success'
+    okta.authenticationContext.credentialType: 'PASSWORD'
+  condition: selection_mfa_disable or selection_mfa_change or selection_bypass_indicator
+  timeframe: 24h
+
+fields:
+  - user.email
+  - user.name
+  - event.action
+  - event.outcome
+  - okta.target.type
+  - okta.target.displayName
+  - okta.authenticationContext.credentialType
+  - okta.debugContext.debugData.factor
+  - source.ip
+  - source.geo.country_name
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate MFA re-enrollment by IT
+  - User device replacement
+  - Organizational MFA policy changes
+  - Self-service password reset flows
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.defense_evasion
+  - attack.t1556.006  # Modify Authentication Process: MFA
+  - attack.t1078      # Valid Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1556/006/
+  - https://developer.okta.com/docs/reference/api/system-log/
+  - https://sec.okta.com/articles/2022/08/detecting-mfa-fatigue-attacks
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_bypass
+  provider: okta
+  mfa_bypass_patterns:
+    - MFA deactivated after failed attempts
+    - New phone factor added (SIM swap indicator)
+    - MFA method changed to weaker type
+    - Login without expected MFA prompt
+  mfa_factor_types:
+    push: "Okta Verify Push"
+    token: "Token/OTP"
+    sms: "SMS (weak)"
+    email: "Email (weak)"
+    call: "Voice Call (weak)"
+  recommended_action: |
+    1. Verify MFA change was authorized by user
+    2. Check for prior failed login attempts
+    3. Review if change came from unusual location/device
+    4. If SIM swap suspected, contact user via non-phone method
+    5. Temporarily disable account if compromise suspected
+    6. Force re-enrollment with verified identity

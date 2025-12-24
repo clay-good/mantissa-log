@@ -1,0 +1,84 @@
+title: Concurrent Session Usage from Multiple Locations
+id: itdr-common-session-concurrent-001
+status: stable
+description: |
+  Detects when the same session ID is being used simultaneously from
+  multiple IP addresses or locations. This is definitive evidence of
+  session token theft, as a single session cannot legitimately exist
+  in two places at once.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    session_id|exists: true
+  condition: selection
+  # Post-processing groups by session_id and checks for multiple IPs
+  # within a short time window (e.g., 5 minutes)
+  timeframe: 5m
+
+fields:
+  - session_id
+  - user_email
+  - source_ip
+  - source_geo.country
+  - source_geo.city
+  - device_fingerprint
+  - user_agent
+  - provider
+  - event_type
+  - '@timestamp'
+
+falsepositives:
+  - Load balancer logging issues (same session, different internal IPs)
+  - Misconfigured logging showing proxy IPs
+  # Note: True concurrent usage from different external IPs is never legitimate
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.lateral_movement
+  - attack.t1539  # Steal Web Session Cookie
+  - attack.t1550.001  # Use Alternate Authentication Material
+  - itdr
+  - identity
+  - session_hijacking
+  - token_theft
+
+references:
+  - https://attack.mitre.org/techniques/T1539/
+  - https://attack.mitre.org/techniques/T1550/001/
+
+custom:
+  itdr_category: session_attack
+  itdr_subcategory: concurrent_usage
+  provider: common
+  detection_type: post_processing
+  detection_window_minutes: 5
+  detection_logic: |
+    1. Group events by session_id within time window
+    2. Extract unique source IPs per session
+    3. If session has activity from 2+ distinct IPs within window:
+       - Definitive session theft
+       - One of the IPs is the attacker
+    4. Determine which IP is legitimate (matches session origin)
+  concurrent_analysis:
+    time_window: "5 minutes"
+    min_distinct_ips: 2
+    exclude_private_ips: true
+    exclude_known_proxies: true
+  recommended_action: |
+    1. IMMEDIATELY terminate the session
+    2. Identify which IP is the attacker (usually the new one)
+    3. Block the attacker IP if possible
+    4. Force password reset for the user
+    5. Review all actions from both IPs
+    6. Check for data exfiltration
+    7. Investigate token theft vector
+    8. Declare security incident

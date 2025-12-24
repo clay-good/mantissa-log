@@ -1,0 +1,75 @@
+title: Identity Event Tagged for Unusual Login Time Analysis
+id: itdr-common-unusual-login-time-001
+status: stable
+description: |
+  Meta-rule that tags successful authentication events for unusual login time
+  analysis. The actual check against the user's behavioral baseline happens
+  in post-processing by the UnusualTimeDetector, which compares event
+  timestamps against the user's typical login hours and days.
+
+  Suspicious patterns:
+  - Logins during night hours (midnight to 6 AM in user's timezone)
+  - Logins on weekends when user normally works weekdays
+  - First-ever login at a particular hour
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    event_type: 'AUTH_SUCCESS'
+  condition: selection
+
+fields:
+  - user_email
+  - source_ip
+  - source_geo.country
+  - source_geo.city
+  - device_fingerprint
+  - user_agent
+  - provider
+  - '@timestamp'
+
+falsepositives:
+  - On-call personnel working outside normal hours
+  - International travelers in different timezones
+  - Executives and senior staff with irregular schedules
+  - Remote workers in different timezones than office
+  - Automated service accounts
+
+level: medium
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078  # Valid Accounts
+  - itdr
+  - identity
+  - behavioral
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://www.sans.org/white-papers/behavioral-analytics/
+
+custom:
+  itdr_category: behavioral_anomaly
+  itdr_subcategory: unusual_login_time
+  provider: common
+  detection_type: post_processing
+  time_thresholds:
+    night_hours: [0, 1, 2, 3, 4, 5]  # Midnight to 6 AM
+    weekend_days: [5, 6]  # Saturday = 5, Sunday = 6
+  deviation_severity:
+    high: 0.9  # Never logs in at this time
+    medium: 0.7  # Rarely logs in at this time
+    low: 0.5  # Occasionally logs in at this time
+  recommended_action: |
+    1. Verify login is from legitimate user
+    2. Check if user has on-call responsibilities
+    3. Verify if user is traveling internationally
+    4. Review session for suspicious activity
+    5. Consider step-up authentication for unusual times

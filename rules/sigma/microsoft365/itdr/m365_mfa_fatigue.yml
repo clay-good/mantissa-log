@@ -1,0 +1,75 @@
+title: Microsoft 365 MFA Fatigue Attack
+id: itdr-m365-mfa-fatigue-001
+status: stable
+description: |
+  Detects MFA fatigue (push bombing) attacks against Microsoft 365 users.
+  Triggers when 5+ MFA challenges occur for the same user within 5 minutes.
+  Monitors for repeated authentication failures with MFA requirement errors.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: audit
+
+detection:
+  selection:
+    Operation:
+      - 'UserLoginFailed'
+    LogonError|contains:
+      - 'MFA'
+      - 'StrongAuthentication'
+      - 'MultiFactor'
+  condition: selection | count(UserId) by UserId >= 5
+  timeframe: 5m
+
+fields:
+  - UserId
+  - ClientIP
+  - Operation
+  - ResultStatus
+  - LogonError
+  - Workload
+  - UserAgent
+  - ClientInfoString
+  - '@timestamp'
+
+falsepositives:
+  - Microsoft Authenticator app issues
+  - Network connectivity problems
+  - Conditional Access policy changes
+  - User device issues
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1621  # Multi-Factor Authentication Request Generation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1621/
+  - https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema
+  - https://www.microsoft.com/en-us/security/blog/2022/08/15/protecting-against-mfa-fatigue-attacks/
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_fatigue
+  provider: microsoft365
+  detection_thresholds:
+    mfa_challenge_count: 5
+    time_window_minutes: 5
+  m365_mfa_errors:
+    - "StrongAuthenticationRequired"
+    - "MultifactorAuthenticationRequired"
+    - "DeviceAuthenticationRequired"
+  recommended_action: |
+    1. Contact user through verified channel
+    2. Review unified audit log for source IPs
+    3. If attack confirmed, revoke all user sessions
+    4. Force password reset and MFA re-registration
+    5. Enable number matching in Microsoft Authenticator
+    6. Consider Conditional Access with sign-in risk policy

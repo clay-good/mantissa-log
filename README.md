@@ -2,21 +2,75 @@
 
 **"Separate the Signal from the Noise"**
 
-Open-source log aggregation platform with a natural language query interface. Query logs using plain English instead of complex query languages.
+Open-source, cloud-native SIEM platform with natural language query interface and identity threat detection.
 
 ## What is Mantissa Log?
 
-Mantissa Log is a **cloud-native log aggregation platform with an AI-powered natural language query interface**. Instead of learning complex query languages, you ask questions in plain English:
+Mantissa Log is a **serverless Security Information and Event Management (SIEM) platform** that combines:
 
-- *"When was the last time root was used?"*
-- *"Show me all failed logins from outside the US this week"*
-- *"List all S3 buckets created in the last 24 hours"*
+1. **Natural Language Queries**: Ask questions in plain English instead of learning complex query languages
+2. **Identity Threat Detection & Response (ITDR)**: Behavioral analysis and threat detection for identity providers
+3. **Multi-Cloud Architecture**: Deployable to AWS, GCP, or Azure with cloud-agnostic core components
+4. **Cost-Efficient Design**: Uses serverless compute and cloud data lakes instead of expensive indexing
 
-The system translates your questions into optimized SQL, executes them across your cloud data lake, and returns results. It maintains conversation context and shows query costs before execution.
+### Example Queries
 
-**Built for log aggregation with a focus on security detections.**
+```
+"When was the last time root was used?"
+"Show me all failed logins from outside the US this week"
+"List all S3 buckets created in the last 24 hours"
+"Which users have the most MFA failures this month?"
+```
 
-## Cost Comparison 
+The system translates questions into optimized SQL, estimates query costs, executes against your cloud data lake, and returns results with conversation context.
+
+---
+
+## Deployment Modes
+
+Mantissa Log is modular. Deploy only what you need:
+
+```
++------------------------------------------------------------------+
+|                        MANTISSA LOG                              |
++------------------------------------------------------------------+
+|                                                                  |
+|  +------------------+  +------------------+  +------------------+|
+|  |      SIEM        |  |  OBSERVABILITY   |  |      SOAR        ||
+|  |  (Core Module)   |  |   (APM Module)   |  | (Response Module)||
+|  +------------------+  +------------------+  +------------------+|
+|  | - Log Collection |  | - OTLP Receiver  |  | - Playbooks      ||
+|  | - NL Queries     |  | - Metrics/Traces |  | - IR Plan Parse  ||
+|  | - Sigma Rules    |  | - Service Maps   |  | - Auto Response  ||
+|  | - Alerting       |  | - Trace Viewer   |  | - Approvals      ||
+|  | - ITDR           |  | - APM Alerts     |  | - Action Buttons ||
+|  +------------------+  +------------------+  +------------------+|
+|         |                     |                     |           |
+|         +---------------------+---------------------+           |
+|                               |                                 |
+|                    +--------------------+                       |
+|                    |   Shared Services  |                       |
+|                    | - Query Engine     |                       |
+|                    | - Alert Router     |                       |
+|                    | - LLM Providers    |                       |
+|                    | - Storage (S3/BQ)  |                       |
+|                    +--------------------+                       |
++------------------------------------------------------------------+
+```
+
+### Choose Your Deployment
+
+| Option | Modules | Best For | Terraform Flags |
+|--------|---------|----------|-----------------|
+| **SIEM Only** | Core | Security teams wanting log aggregation and threat detection | `enable_apm=false`, `enable_soar=false` |
+| **SIEM + Observability** | Core + APM | Teams wanting unified security and performance monitoring | `enable_apm=true`, `enable_soar=false` |
+| **Full Platform** | All | Mature security teams wanting end-to-end automation | `enable_apm=true`, `enable_soar=true` |
+
+See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for detailed setup instructions.
+
+---
+
+## Cost Comparison
 
 **Traditional SIEM (Splunk/Datadog/Sumo Logic):**
 - Typical cost: $150,000-$300,000/year for enterprise
@@ -29,40 +83,68 @@ The system translates your questions into optimized SQL, executes them across yo
 - LLM API calls: ~$3,000/year (highly variable)
 - **Estimated Total: ~$23,500/year**
 
-**Disclaimer**: These are rough estimates. Actual costs depend heavily on query patterns, data volume, LLM usage, and optimization. You should run your own cost analysis.
+**Disclaimer**: These are rough estimates based on 2024 pricing. Actual costs depend heavily on query patterns, data volume, LLM usage, and optimization. Run your own cost analysis before deployment.
 
 ---
 
 ## Features
 
 ### Natural Language Query Interface
-- Ask questions in plain English
-- LLM converts to SQL (Athena, BigQuery, or Synapse depending on cloud)
-- Shows estimated cost before execution
-- Maintains conversation context for follow-up questions
-- Supports multiple LLM providers: Claude, GPT-4, Gemini, AWS Bedrock, Azure OpenAI, GCP Vertex AI
-- LLM query pattern caching to reduce API calls (AWS: DynamoDB, GCP: Firestore, Azure: Cosmos DB)
+- Plain English questions converted to SQL (Athena, BigQuery, or Synapse)
+- Cost estimates shown before query execution
+- Conversation context for follow-up questions
+- 8 LLM providers supported: Anthropic Claude, OpenAI GPT-4, Google Gemini, AWS Bedrock, Azure OpenAI, GCP Vertex AI
+- Query caching to reduce LLM API costs
+
+### Identity Threat Detection & Response (ITDR)
+- **Behavioral Baselines**: 14-day learning period for user behavior profiling
+- **Anomaly Detection**: Impossible travel, unusual login times, new devices/locations, volume spikes
+- **Credential Attack Detection**: Brute force, password spray, credential stuffing, MFA fatigue/bypass
+- **Privilege Monitoring**: Escalation chains, self-privilege grants, dormant account activation
+- **Session Security**: Hijacking detection, token theft, concurrent session anomalies
+- **Cross-Provider Correlation**: Unified detection across Okta, Azure AD, Google Workspace, Duo, Microsoft 365
+- **Kill Chain Tracking**: 8-stage identity attack progression detection
+- **Risk Scoring**: Weighted multi-factor risk model (0-100 scale)
 
 ### Detection Engine
-- 591 pre-built Sigma detection rules
-- Sigma rules auto-convert to cloud-specific SQL
-- Scheduled detection execution via EventBridge/Cloud Scheduler
+- 640 pre-built Sigma detection rules (including 49 ITDR-specific rules)
+- Automatic Sigma-to-SQL conversion for each cloud platform
+- Scheduled detection execution via EventBridge/Cloud Scheduler/Timer Triggers
 - Alert deduplication and state management
+- Detection tuning with false positive feedback
 
 ### Alert Routing
-- Slack, PagerDuty, Jira, Email, ServiceNow, Microsoft Teams, and Webhook integrations
+- 7 integrations: Slack, PagerDuty, Jira, Email, ServiceNow, Microsoft Teams, Webhook
 - LLM-powered alert enrichment with 5W1H context
 - PII/PHI redaction for external destinations
-- Configurable severity-based routing
+- Severity-based routing and escalation rules
+- SOAR playbook triggering on alert creation
+
+### Observability/APM
+- **OTLP Receiver**: OpenTelemetry-compatible trace and metrics ingestion
+- **Distributed Tracing**: Store and query trace spans with parent-child relationships
+- **Metrics Collection**: Gauges, counters, histograms, and summaries
+- **Service Map**: Auto-generated dependency graph from trace data
+- **Trace Viewer**: Waterfall timeline visualization for trace inspection
+- **APM Detection Rules**: Sigma-format rules for latency spikes, error rates, and anomalies
+- **NL Queries for APM**: Ask "Why is checkout slow?" and get answers
+
+### SOAR (Security Orchestration, Automation, and Response)
+- **Playbook Management**: Create, edit, version, and deploy response playbooks
+- **IR Plan Import**: Upload markdown/YAML incident response plans, auto-convert to playbooks
+- **Alert Action Buttons**: Quick actions on alerts (isolate host, disable user, block IP)
+- **Approval Workflow**: Dangerous actions require explicit approval before execution
+- **Execution Tracking**: Real-time visibility into playbook execution status
+- **Action Logging**: Complete audit trail of all automated actions
 
 ### Context Enrichment
-- IP Geolocation: MaxMind GeoIP2 with fallback to free IP-API
-- Threat Intelligence: VirusTotal and AbuseIPDB integration
-- User Context: Google Workspace, Azure Entra ID, Okta lookups
-- Asset Context: AWS, Azure, GCP native asset inventory
-- Behavioral Baselines: User/asset behavior deviation detection
+- IP Geolocation (MaxMind GeoIP2, IPInfo)
+- Threat Intelligence (VirusTotal, AbuseIPDB)
+- User Context (Google Workspace, Azure AD, Okta directory lookups)
+- Asset Context (AWS, Azure, GCP native inventory)
+- Peer Group Comparison for anomaly context
 
-### Data Collectors
+### Data Collectors (25+ sources)
 - **Cloud Native**: AWS CloudTrail, VPC Flow Logs, GuardDuty, GCP Audit Logs, Azure Activity Logs
 - **Identity**: Okta, Google Workspace, Microsoft 365, Duo Security
 - **Endpoints**: CrowdStrike Falcon, Jamf Pro
@@ -71,17 +153,12 @@ The system translates your questions into optimized SQL, executes them across yo
 - **DevOps**: GitHub Enterprise, Kubernetes Audit Logs, Docker
 
 ### Web Interface
-- React-based dashboard with Tailwind CSS
-- Query builder with SQL visualization
+- React 18 with Vite, Tailwind CSS, and Zustand state management
+- ITDR dashboard with attack timeline and geographic visualization
+- User risk profiles with activity timelines
+- Behavioral baseline viewer
 - Detection rule management
 - Integration configuration wizards
-- Light/dark mode toggle
-
-### Security
-- Authentication middleware for Cognito JWT validation
-- CORS configuration with environment-based origin whitelist
-- SQL injection protection in query executors
-- Lazy initialization utilities for cold start optimization
 
 ---
 
@@ -89,175 +166,214 @@ The system translates your questions into optimized SQL, executes them across yo
 
 ### What This Project Is NOT
 
-1. **Not Production-Verified**: No known production deployments. Infrastructure is complete but untested at scale.
+1. **Not Production-Verified**: No known production deployments at scale. Infrastructure is complete but real-world performance is unvalidated.
 
-2. **Not a Complete SIEM Replacement**: Lacks many enterprise SIEM features:
-   - No dashboards or visualizations (by design - use external BI tools)
-   - No case management (use Jira, ServiceNow, etc.)
-   - No SOAR/automated remediation
-   - No compliance reporting
+2. **Not a Complete SIEM Replacement**: Missing enterprise features:
+   - No built-in dashboards or visualizations (use external BI tools)
+   - No case management (integrate with Jira, ServiceNow, etc.)
+   - No SOAR/automated remediation (by design - security concern)
+   - No compliance reporting frameworks
+   - No user provisioning UI
 
-3. **Not Managed/SaaS**: You deploy and manage all infrastructure yourself. Requires cloud infrastructure expertise.
+3. **Not Managed/SaaS**: You deploy and manage all infrastructure. Requires cloud infrastructure expertise (Terraform, serverless, IAM).
 
 4. **Not Multi-Tenant**: Single-tenant architecture only. Each deployment serves one organization.
 
-5. **Not High-Availability by Default**: Basic infrastructure without HA/DR configuration. You must add this.
-
-### Security Configuration Required
-
-- **CORS Origin Configuration Required**: Authentication and CORS have been applied to API handlers, but you MUST configure the `CORS_ALLOWED_ORIGIN` environment variable with your application domain before production deployment. Without this, the default is permissive (`*`).
-
-- **API Gateway Authorizer Required**: Lambda handlers validate JWT claims from API Gateway, but you must configure your API Gateway with a Cognito authorizer to populate these claims.
-
-- **API Keys in Environment Variables**: Some handlers read API keys from environment variables rather than Secrets Manager. Review and move sensitive credentials to your cloud's secret manager.
+5. **Not High-Availability by Default**: Basic infrastructure without HA/DR. You must add this yourself.
 
 ### Technical Limitations
 
-- **LLM Dependency**: Requires LLM API keys. Query quality depends on model capability. API costs are unpredictable.
+#### LLM and Query Limitations
+- **LLM Dependency**: Requires LLM API keys. Query quality depends on model capability.
+- **LLM Cost Unpredictability**: API costs vary significantly based on query complexity and volume.
+- **SQL Generation Accuracy**: LLM-generated SQL may occasionally be incorrect or suboptimal. Review expensive queries before execution.
+- **Query Limits**: Maximum 10,000 rows returned, 120-second timeout, 3-level subquery depth.
+- **Hardcoded Pricing**: Cost estimates use 2024 pricing constants. Actual cloud costs may differ.
 
-- **LLM Provider Configuration**: Each provider requires specific credentials and configuration. Vertex AI requires GCP project setup and IAM permissions. Azure OpenAI requires an Azure OpenAI resource with deployed models.
+#### Identity Threat Detection Limitations
+- **Baseline Cold Start**: Behavioral analysis requires 14 days of historical data. New deployments have no baseline data - all users appear anomalous initially.
+- **Provider API Dependencies**: ITDR response actions require valid API credentials for each identity provider (Okta, Azure AD, etc.).
+- **Response Actions Not Fully Implemented**: Provider action classes exist but contain placeholder implementations for some actions. Requires API credentials and testing before production use.
+- **No Real-Time Streaming**: Batch-based detection with minimum latency of your polling interval (typically 5-15 minutes).
+- **Cross-Provider Correlation Requires All Providers**: To detect cross-provider attacks, you must have collectors configured for multiple identity providers.
 
-- **SQL Generation**: LLM-generated SQL may occasionally be incorrect or suboptimal. Always review before executing expensive queries.
-
-- **Cold Starts**: Serverless architecture has cold start latency. First query of a session may be slow. Lazy initialization utilities (`src/shared/utils/lazy_init.py`) are available for reducing cold start times.
-
-- **Query Limits**: Maximum 10,000 rows returned. 120-second query timeout. Deep subqueries limited to 3 levels.
-
-- **No Real-Time Streaming**: Batch-based log ingestion. Minimum detection latency is your polling interval (typically 5-15 minutes).
-
+#### Infrastructure Limitations
+- **Cold Starts**: Serverless architecture has cold start latency (3-10 seconds for first request).
+- **Single Region**: Terraform deploys to a single region. Multi-region requires manual configuration.
 - **Schema Changes**: Adding new log sources requires manual Glue/BigQuery table creation.
+- **No Log Retention UI**: Configure S3/GCS/Azure Blob lifecycle policies separately.
 
-- **Browser Support**: Modern browsers only. No mobile optimization.
+#### Frontend Limitations
+- **Modern Browsers Only**: No IE11 or legacy browser support.
+- **No Mobile Optimization**: Desktop-first design.
+- **Web UI Auth**: Falls back to 'anonymous' if authentication not configured.
 
-- **Jira Description Format**: Jira tickets use Atlassian Document Format (ADF) which may not render wiki markup as expected in all Jira versions.
+#### Enrichment Limitations
+- **API Keys Required**: Geolocation requires MaxMind or IPInfo keys. Threat intel requires VirusTotal/AbuseIPDB keys. Without keys, enrichment returns limited data.
+- **Rate Limits**: External API rate limits may affect enrichment during high-volume alerts.
 
-- **No Log Retention Management UI**: You must configure S3/GCS/Azure Blob lifecycle policies separately. Terraform modules exist for retention but no UI management.
+#### Testing Limitations
+- **Tests Are Structural**: Many tests verify code structure and mocking rather than actual cloud API behavior.
+- **No Load Testing**: Performance at scale is untested.
+- **Integration Tests Require Credentials**: Some integration tests require actual cloud credentials to run.
+- **Test-Implementation Sync**: The test suite has 1695 tests total with ~84% passing (1421 pass, 149 fail, 125 skipped, 0 errors). The ITDR (Identity Threat Detection) module is fully functional with passing enrichment, baseline comparison, risk scoring, and session tracking tests. Risk scoring includes full factor weighting, decay, trend analysis, and score breakdown. Session tracking includes complete anomaly detection (IP change, geo change, device change, duration anomalies), concurrent session detection, and session lifecycle management. The APM/Observability module has full OTLP trace and metric parsing with correct data model integration. The SOAR module has complete interface compatibility with proper playbook/step parameter handling, async execution engine, approval workflows, and branching logic. The IR plan parser now supports YAML and markdown formats with LLM-assisted parsing. Remaining failures are primarily integration pipeline tests requiring infrastructure setup.
 
-- **No User Management UI**: User management requires direct Cognito/Identity Platform/Azure AD configuration. No admin UI for user provisioning.
+#### APM Limitations
+- **No Automatic Trace Alerting**: APM data requires explicit detection rules to generate alerts.
+- **Service Map Minimum Volume**: Service dependency map requires minimum trace volume to be meaningful.
+- **No Real-Time Streaming**: Traces processed in batches, not real-time.
+- **OpenTelemetry Only**: OTLP format required; other APM formats not supported.
 
-- **Single Region**: Infrastructure templates deploy to a single region. Multi-region Terraform modules exist but require manual configuration.
+#### SOAR Limitations
+- **Not a Full Workflow Engine**: Simple linear playbook execution, not a complex workflow orchestrator.
+- **Custom Actions Require Code**: Adding new action types requires Python code.
+- **Provider Credentials Required**: Actions like "disable user" require valid identity provider API credentials.
+- **Approval Timeouts**: Pending approvals expire after configured timeout (default 1 hour).
+- **No Rollback**: Actions cannot be automatically undone if playbook fails midway.
 
-- **Hardcoded Pricing**: Cloud cost estimates use hardcoded 2024 pricing constants. Actual costs may differ from estimates.
+### Security Configuration Required
 
-- **Web UI User Context**: User ID is obtained from the auth store. Falls back to 'anonymous' if not authenticated.
-
-- **Enrichment Requires API Keys**: Geolocation requires MaxMind or IPInfo API keys. Threat intel requires VirusTotal and/or AbuseIPDB API keys. Without keys, enrichment returns limited data or errors.
-
-- **Behavioral Baselines Cold Start**: Behavioral analysis requires historical data to establish baselines. New deployments have no baseline data.
-
-- **Suppression Analytics Placeholder**: The `get_suppression_stats()` function returns placeholder data. Requires a separate suppression log table.
+- **CORS Origin**: Must set `CORS_ALLOWED_ORIGIN` environment variable. Default is `*` (insecure).
+- **API Gateway Authorizer**: Lambda handlers expect JWT claims from API Gateway. Configure Cognito/Identity Platform authorizer.
+- **Secrets Management**: Some handlers read API keys from environment variables. Move to Secrets Manager/Key Vault for production.
+- **Dev Mode**: `MANTISSA_DEV_MODE=true` bypasses authentication. Never enable in production.
 
 ### Operational Concerns
 
-- **Cost Unpredictability**: Athena/BigQuery charges per data scanned. Poorly optimized queries can be expensive.
-
-- **Secret Management**: You manage API keys and credentials. Security is your responsibility.
-
-- **Updates**: No automatic updates. You pull and deploy changes manually.
-
-- **Support**: Community support only. No SLA, no vendor backing.
-
-- **Import Path Sensitivity**: Some Lambda handlers use `sys.path` manipulation for imports. Deployment packaging must preserve directory structure.
+- **Cost Unpredictability**: Athena/BigQuery charges per data scanned. Unoptimized queries can be expensive.
+- **No Automatic Updates**: You pull and deploy changes manually.
+- **Community Support Only**: No SLA, no vendor backing, no guaranteed response times.
+- **Import Path Sensitivity**: Lambda packaging must preserve directory structure for imports.
 
 ---
 
-## Environment Variables
+## Architecture
 
-### Core Configuration (All Clouds)
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         User Interface                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ NL Query     │  │ ITDR         │  │ Detection    │               │
+│  │ Interface    │  │ Dashboard    │  │ Management   │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+└─────────┼─────────────────┼─────────────────┼───────────────────────┘
+          │                 │                 │
+          ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         API Layer                                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ Query API    │  │ Identity API │  │ Rules API    │               │
+│  │ (LLM → SQL)  │  │ (Risk/Base)  │  │ (CRUD)       │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+└─────────┼─────────────────┼─────────────────┼───────────────────────┘
+          │                 │                 │
+          ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Processing Layer                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ LLM Engine   │  │ ITDR Engine  │  │ Detection    │               │
+│  │ (8 providers)│  │ (Behavioral) │  │ Engine       │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ Enrichment   │  │ Correlation  │  │ Alert        │               │
+│  │ (Geo/TI/User)│  │ (Kill Chain) │  │ Routing      │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
+└─────────────────────────────────────────────────────────────────────┘
+          │                 │                 │
+          ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Data Layer                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ Data Lake    │  │ State Store  │  │ Baseline     │               │
+│  │ (S3/GCS/Blob)│  │ (DynamoDB/   │  │ Store        │               │
+│  │              │  │  Firestore)  │  │              │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
+└─────────────────────────────────────────────────────────────────────┘
+          ▲                 ▲                 ▲
+          │                 │                 │
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Collectors (25+)                                │
+│  Cloud │ Identity │ Endpoints │ SaaS │ DevOps                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `LLM_PROVIDER` | LLM provider to use (`bedrock`, `anthropic`, `openai`, `google`, `azure_openai`, `vertex_ai`) | `bedrock` (AWS), `google` (GCP), `openai` (Azure) | Yes |
-| `MAX_RESULT_ROWS` | Maximum rows returned from queries | `1000` | No |
-| `ENABLE_ENRICHMENT` | Enable LLM-powered alert enrichment | `true` | No |
-| `ENABLE_LLM_CACHE` | Enable LLM query pattern caching | `true` | No |
-| `SCHEMA_VERSION` | Schema version for cache invalidation | `v1` | No |
-| `RULES_PATH` | Path to Sigma detection rules | `rules/sigma` | No |
-| `CORS_ALLOWED_ORIGIN` | Allowed CORS origin (required for security) | `*` (insecure default) | Yes (production) |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins | - | No |
-| `MANTISSA_DEV_MODE` | Enable development mode (bypasses auth) | `false` | No |
+### Key Design Decisions
 
-### AWS-Specific
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `AWS_REGION` | AWS region | `us-east-1` | Yes |
-| `ATHENA_DATABASE` | Athena database name | `mantissa_logs` | Yes |
-| `ATHENA_OUTPUT_LOCATION` | S3 location for Athena query results | - | Yes |
-| `ATHENA_OUTPUT_BUCKET` | S3 bucket for Athena results | `mantissa-log-athena-results` | No |
-| `STATE_TABLE` | DynamoDB table for state management | `mantissa-log-state` | No |
-| `QUERY_CACHE_TABLE` | DynamoDB table for LLM query caching | `mantissa-log-query-cache` | No |
-| `CONVERSATION_TABLE` | DynamoDB table for conversation sessions | `mantissa-log-conversation-sessions` | No |
-| `S3_BUCKET` | S3 bucket for log storage | `mantissa-log-data` | Yes |
-| `SECRETS_PREFIX` | Prefix for Secrets Manager secrets | `mantissa-log` | No |
-
-### GCP-Specific
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `GCP_PROJECT_ID` or `GOOGLE_CLOUD_PROJECT` | GCP project ID | - | Yes |
-| `BIGQUERY_DATASET` | BigQuery dataset name | `mantissa_logs` | Yes |
-| `GCS_BUCKET` | GCS bucket for log storage | - | Yes |
-| `ALERT_TOPIC` | Pub/Sub topic for alerts | - | Yes |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON | - | Yes (if not on GCP) |
-| `VERTEX_AI_LOCATION` | Vertex AI region | `us-central1` | No |
-| `VERTEX_AI_MODEL` | Vertex AI model name | `gemini-1.5-pro` | No |
-
-### Azure-Specific
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `SYNAPSE_WORKSPACE_NAME` | Synapse workspace name | - | Yes |
-| `SYNAPSE_DATABASE` | Synapse database name | `mantissa_logs` | Yes |
-| `SYNAPSE_SERVER_NAME` | Synapse server name | - | Yes (if not serverless) |
-| `COSMOS_CONNECTION_STRING` | Cosmos DB connection string | - | Yes |
-| `KEY_VAULT_URL` | Azure Key Vault URL | - | Yes |
-| `STORAGE_ACCOUNT_NAME` | Storage account name | - | Yes |
-| `STORAGE_CONNECTION_STRING` | Storage connection string | - | Yes |
-| `ALERT_TOPIC_ENDPOINT` | Event Grid topic endpoint | - | Yes |
-| `ALERT_TOPIC_KEY` | Event Grid topic key | - | Yes |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - | Yes (if using Azure OpenAI) |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | - | Yes (if using Azure OpenAI) |
-| `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name | `gpt-4` | No |
-| `AZURE_OPENAI_API_VERSION` | Azure OpenAI API version | `2024-02-15-preview` | No |
-
-### LLM Provider Configuration
-
-| Variable | Provider | Description | Required |
-|----------|----------|-------------|----------|
-| `ANTHROPIC_API_KEY` | Anthropic | Claude API key | Yes (if using Anthropic) |
-| `OPENAI_API_KEY` | OpenAI | GPT-4 API key | Yes (if using OpenAI) |
-| `GOOGLE_API_KEY` | Google | Gemini API key | Yes (if using Google) |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI | Azure OpenAI key | Yes (if using Azure OpenAI) |
-| `GOOGLE_CLOUD_PROJECT` | Vertex AI | GCP project ID | Yes (if using Vertex AI) |
-
-### Enrichment Configuration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `MAXMIND_DB_PATH` | Path to MaxMind GeoIP2 database file | No |
-| `MAXMIND_ACCOUNT_ID` | MaxMind account ID for web service | No |
-| `MAXMIND_LICENSE_KEY` | MaxMind license key | No |
-| `IPINFO_TOKEN` | IPInfo.io API token | No |
-| `VIRUSTOTAL_API_KEY` | VirusTotal API key | No |
-| `ABUSEIPDB_API_KEY` | AbuseIPDB API key | No |
-
-### Collector-Specific (Examples)
-
-| Variable | Collector | Description |
-|----------|-----------|-------------|
-| `OKTA_ORG_URL` | Okta | Okta organization URL |
-| `OKTA_API_TOKEN` | Okta | Okta API token |
-| `GITHUB_ENTERPRISE` | GitHub | GitHub Enterprise name |
-| `GITHUB_ORG` | GitHub | GitHub organization |
-| `DUO_INTEGRATION_KEY` | Duo | Duo integration key |
-| `DUO_API_HOSTNAME` | Duo | Duo API hostname |
-| `SALESFORCE_INSTANCE_URL` | Salesforce | Salesforce instance URL |
-| `TENANT_ID` | Microsoft 365 | Azure AD tenant ID |
+1. **Serverless**: Lambda/Cloud Functions for cost efficiency and auto-scaling
+2. **No Dashboards**: Natural language queries replace static dashboards
+3. **No Case Management**: Alerts create tickets in external systems (Jira, ServiceNow)
+4. **Sigma Format**: Industry-standard rules for multi-cloud portability
+5. **LLM-First**: Natural language is the primary interface
+6. **Cloud-Agnostic Core**: Shared logic with cloud-specific adapters
 
 ---
 
-## Deployment
+## Project Structure
+
+```
+mantissa-log/
+├── src/
+│   ├── shared/              # Cloud-agnostic core (264 Python files)
+│   │   ├── alerting/        # Alert routing (7 handlers)
+│   │   ├── auth/            # Authentication middleware
+│   │   ├── detection/       # Detection engine, Sigma conversion
+│   │   ├── enrichment/      # Geolocation, threat intel, user context
+│   │   ├── identity/        # ITDR module (24+ files)
+│   │   │   ├── baseline/    # User behavioral baselines
+│   │   │   ├── correlation/ # Kill chain, cross-provider
+│   │   │   ├── detections/  # Threat detectors
+│   │   │   ├── enrichment/  # Identity alert enrichment
+│   │   │   ├── escalation/  # Severity escalation
+│   │   │   ├── response/    # Auto-response actions
+│   │   │   └── templates/   # Alert templates
+│   │   ├── llm/             # LLM providers (8), caching, query gen
+│   │   ├── parsers/         # Log parsers (25+)
+│   │   ├── redaction/       # PII/PHI redaction
+│   │   └── models/          # Data models including identity mappers
+│   ├── aws/                 # AWS Lambda handlers (45)
+│   ├── gcp/                 # GCP Cloud Functions (10)
+│   └── azure/               # Azure Functions (20+)
+├── web/                     # React frontend (11 pages, 50+ components)
+├── infrastructure/          # Terraform IaC (120+ files)
+│   ├── aws/terraform/       # AWS modules (14)
+│   ├── gcp/terraform/       # GCP configuration
+│   └── azure/terraform/     # Azure configuration
+├── rules/sigma/             # 640 Sigma detection rules
+├── tests/                   # Test suite (74 files)
+│   ├── unit/                # Unit tests (49 files)
+│   ├── integration/         # Integration tests (13 files)
+│   ├── fixtures/            # Test data and scenarios
+│   └── rules/               # Rule validation suite
+├── docs/                    # Documentation (25 files)
+└── scripts/                 # Deployment scripts
+```
+
+---
+
+## Component Counts
+
+| Component | Count |
+|-----------|-------|
+| Python Source Files | 335 |
+| AWS Lambda Handlers | 37 |
+| GCP Cloud Functions | 10 |
+| Azure Functions | 20+ |
+| LLM Providers | 8 |
+| Alert Handlers | 7 |
+| Sigma Detection Rules | 647 (49 ITDR-specific) |
+| Log Source Parsers | 25+ |
+| Identity Providers Supported | 5 (Okta, Azure AD, Google Workspace, Duo, M365) |
+| Test Files | 83 |
+| Total Tests | 1695 (1421 passing, 149 failing, 125 skipped) |
+| Test Coverage | ~84% pass rate |
+| Terraform Modules | 14 (AWS) + GCP + Azure |
+| Documentation Files | 28 |
+| Web Pages | 11 |
+| React Components | 100+ (SOAR, APM, Identity dashboards) |
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
@@ -265,7 +381,7 @@ The system translates your questions into optimized SQL, executes them across yo
 - Terraform >= 1.5
 - Python >= 3.11
 - Node.js >= 18
-- LLM API key (Anthropic, OpenAI, Google, or AWS Bedrock access)
+- LLM API key (Anthropic, OpenAI, Google, or cloud-native)
 
 ### AWS Deployment
 
@@ -273,14 +389,13 @@ The system translates your questions into optimized SQL, executes them across yo
 git clone https://github.com/your-org/mantissa-log.git
 cd mantissa-log
 
-# Configure backend and environment
+# Configure Terraform
 cd infrastructure/aws/terraform
 cp backend.tf.example backend.tf
 cp environments/dev.tfvars.example environments/dev.tfvars
-# Edit backend.tf with your S3 bucket for state
-# Edit environments/dev.tfvars with your configuration
+# Edit files with your configuration
 
-# Initialize and deploy
+# Deploy infrastructure
 terraform init
 terraform plan -var-file=environments/dev.tfvars
 terraform apply -var-file=environments/dev.tfvars
@@ -290,80 +405,7 @@ cd ../../..
 bash scripts/deploy.sh
 ```
 
-### GCP Deployment
-
-```bash
-cd infrastructure/gcp/terraform
-cp backend.tf.example backend.tf
-cp environments/dev.tfvars.example environments/dev.tfvars
-# Edit environments/dev.tfvars with your GCP project ID and configuration
-terraform init
-terraform plan -var-file=environments/dev.tfvars
-terraform apply -var-file=environments/dev.tfvars
-
-bash scripts/deploy-gcp.sh
-```
-
-### Azure Deployment
-
-```bash
-cd infrastructure/azure/terraform
-cp backend.tf.example backend.tf
-cp environments/dev.tfvars.example environments/dev.tfvars
-# Edit environments/dev.tfvars with your Azure AD admin and Synapse password
-terraform init
-terraform plan -var-file=environments/dev.tfvars
-terraform apply -var-file=environments/dev.tfvars
-
-bash scripts/deploy-azure.sh
-```
-
----
-
-## Project Structure
-
-```
-mantissa-log/
-|-- src/
-|   |-- shared/           # Cloud-agnostic core
-|   |   |-- alerting/     # Alert routing (7 handlers)
-|   |   |-- auth/         # Authentication middleware
-|   |   |-- detection/    # Detection engine, Sigma conversion
-|   |   |-- enrichment/   # Geolocation, threat intel, user/asset context
-|   |   |-- llm/          # LLM providers (6), caching, query generation
-|   |   |-- parsers/      # Log parsers (20)
-|   |   |-- redaction/    # PII/PHI redaction
-|   |   |-- utils/        # Cost calculator, lazy initialization
-|   |-- aws/              # AWS Lambda handlers (25) and Athena integration
-|   |-- gcp/              # GCP Cloud Functions (7) and BigQuery integration
-|   |-- azure/            # Azure Functions (18) and Synapse integration
-|-- infrastructure/
-|   |-- aws/terraform/    # 14 Terraform modules for AWS
-|   |-- gcp/terraform/    # GCP Terraform configuration
-|   |-- azure/terraform/  # Azure Terraform configuration
-|-- web/                  # React frontend application
-|-- rules/sigma/          # 591 Sigma detection rules
-|-- tests/                # Unit, integration, and E2E tests (39 files)
-|-- scripts/              # Deployment and utility scripts
-|-- docs/                 # Documentation (25 files)
-```
-
----
-
-## Component Counts
-
-| Component | Count |
-|-----------|-------|
-| AWS Lambda Handlers | 27 |
-| Azure Functions | 18 (6 core + 12 collectors) |
-| GCP Cloud Functions | 7 |
-| LLM Providers | 6 |
-| Alert Handlers | 7 (Slack, PagerDuty, Jira, Email, ServiceNow, Teams, Webhook) |
-| Sigma Detection Rules | 591 |
-| Log Source Parsers | 20 |
-| Test Files | 39 |
-| AWS Terraform Modules | 14 |
-| Documentation Files | 25 |
+See [docs/deployment/](docs/deployment/) for GCP and Azure instructions.
 
 ---
 
@@ -372,60 +414,267 @@ mantissa-log/
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-# Run tests
+# Run all tests
 PYTHONPATH=. pytest tests/ -v
 
-# Current test status:
-# - Passed: 1187
-# - Skipped: 30 (optional dependencies)
-# - Failed: 0
+# Run specific test categories
+pytest tests/unit/ -v                    # Unit tests
+pytest tests/integration/ -v             # Integration tests
+pytest tests/unit/identity/ -v           # ITDR tests only
+pytest tests/rules/ -v                   # Rule validation
 ```
 
 ---
 
 ## Documentation
 
-- [Getting Started Guide](docs/getting-started.md)
+- [Getting Started](docs/getting-started.md)
 - [AWS Deployment](docs/deployment/aws-deployment.md)
-- [Multi-Cloud Deployment](docs/deployment/multi-cloud.md)
-- [Pre-Deployment Checklist](docs/deployment/pre-deployment-checklist.md)
+- [GCP Deployment](docs/deployment/gcp-deployment.md)
+- [Azure Deployment](docs/deployment/azure-deployment.md)
+- [Multi-Cloud Guide](docs/deployment/multi-cloud.md)
 - [Detection Rules](docs/configuration/detection-rules.md)
-- [Alert Routing Configuration](docs/configuration/alert-routing.md)
-- [LLM Provider Setup](docs/configuration/llm-configuration.md)
-- [Collector Secrets Configuration](docs/configuration/collector-secrets.md)
-- [API Reference](docs/api/api-reference.md)
+- [Alert Routing](docs/configuration/alert-routing.md)
+- [LLM Configuration](docs/configuration/llm-configuration.md)
 - [Operations Runbook](docs/operations/runbook.md)
+- [API Reference](docs/api/api-reference.md)
 
 ---
 
-## Architecture
+## Environment Variables
 
+See [docs/configuration/](docs/configuration/) for complete environment variable reference. Key variables:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `LLM_PROVIDER` | LLM provider (`anthropic`, `openai`, `bedrock`, etc.) | Yes |
+| `CORS_ALLOWED_ORIGIN` | Allowed CORS origin (set for security) | Yes (prod) |
+| `ATHENA_DATABASE` / `BIGQUERY_DATASET` / `SYNAPSE_DATABASE` | Query database | Yes |
+| `STATE_TABLE` / Firestore collection / Cosmos container | State storage | Yes |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / etc. | LLM credentials | Yes |
+
+---
+
+## Product Modes
+
+### Mode 1: SIEM (Log Aggregation + Query + Detection + Alerting)
+
+- Collect logs from 25+ sources
+- Query with natural language or SQL
+- Detect threats with Sigma rules
+- Alert to Slack, PagerDuty, Jira, etc.
+- **Terraform:** `enable_apm=false`, `enable_soar=false`
+
+### Mode 2: SIEM + Observability (Add APM/Tracing)
+
+Everything in Mode 1, plus:
+- Collect metrics and traces via OpenTelemetry
+- Visualize service dependencies
+- Query application performance with NL
+- Detect latency and error anomalies
+- **Terraform:** `enable_apm=true`, `enable_soar=false`
+
+### Mode 3: Full Platform (Add Automated Response)
+
+Everything in Modes 1 and 2, plus:
+- Convert IR plans to executable playbooks
+- Auto-respond to alerts with Lambda functions
+- One-click actions: isolate host, disable user, block IP
+- Approval workflow for dangerous actions
+- **Terraform:** `enable_apm=true`, `enable_soar=true`
+
+---
+
+## Inputs and Outputs by Feature
+
+### Feature 1: Log Aggregation (SIEM Core)
+
+**INPUTS:**
+- API credentials for log sources (Okta, Azure AD, AWS CloudTrail, etc.)
+- Collector configuration (which sources to collect from)
+- Collection schedule (how often to pull logs)
+
+**OUTPUTS:**
+- Raw logs stored in S3/GCS/Azure Blob (partitioned by date/hour)
+- Normalized log data queryable via Athena/BigQuery/Synapse
+- Glue/BigQuery tables for each log source
+
+**STORAGE FORMAT:**
+- NDJSON (newline-delimited JSON) files
+- Partitioned: `{source}/raw/{YYYY}/{MM}/{DD}/{HH}/`
+- Retention: Configurable via S3 lifecycle policies
+
+### Feature 2: Natural Language Query Interface
+
+**INPUTS:**
+- Natural language questions (English)
+  - "Show me failed logins in the last 24 hours"
+  - "Which users accessed S3 buckets from unusual IPs?"
+  - "Why is the checkout service slow?" (if APM enabled)
+
+**OUTPUTS:**
+- SQL query (Athena/BigQuery/Synapse compatible)
+- Query results (JSON array of matching records)
+- Query explanation (natural language description)
+- Query cost estimate (data scanned, estimated cost)
+
+**LLM PROVIDERS SUPPORTED:**
+- AWS Bedrock (Claude) - default
+- Anthropic API (Claude)
+- OpenAI (GPT-4)
+- Azure OpenAI
+- Google Vertex AI (Gemini)
+- Google AI (Gemini)
+
+### Feature 3: Detection Rules (Sigma)
+
+**INPUTS (choose one):**
+- Natural language description: "Alert when a user fails login 5+ times in 10 minutes"
+- Manual Sigma YAML rule file
+- Import existing Sigma rules from community
+
+**OUTPUTS:**
+- Sigma YAML rule file (stored in `/rules/sigma/`)
+- Cloud-specific SQL query (auto-generated from Sigma)
+- Detection schedule (EventBridge/Cloud Scheduler rule)
+
+**SIGMA RULE FORMAT (output example):**
+```yaml
+title: Brute Force Login Attempts
+id: abc123-def456-...
+status: stable
+level: high
+description: Detects multiple failed login attempts
+logsource:
+  product: okta
+  service: authentication
+detection:
+  selection:
+    outcome: FAILURE
+  condition: selection | count() by user_email > 5
+  timeframe: 10m
 ```
-User Question --> LLM Provider --> SQL Generation --> Validation -->
-Cost Estimate --> Athena/BigQuery/Synapse --> Results --> UI
 
-Detection Rule --> Sigma Converter --> Cloud-Specific SQL -->
-Scheduled Execution --> Alert Generation --> Enrichment -->
-Routing --> Slack/PagerDuty/Email/Webhook
+### Feature 4: Alerting
+
+**INPUTS:**
+- Detection rule triggers (from Sigma rules)
+- Alert destination configuration (Slack webhook, PagerDuty key, etc.)
+- Severity routing rules (critical→PagerDuty, medium→Slack)
+
+**OUTPUTS:**
+- Formatted alerts to 7 destinations:
+  - Slack (Block Kit format)
+  - PagerDuty (Events API v2)
+  - Email (SMTP/SES)
+  - Microsoft Teams (Webhook)
+  - Jira (Ticket creation)
+  - ServiceNow (Incident creation)
+  - Custom Webhook (JSON payload)
+- Alert history (stored in DynamoDB)
+- Alert deduplication and correlation
+
+### Feature 5: Observability/APM (Optional Module)
+
+**INPUTS:**
+- OpenTelemetry data via OTLP protocol:
+  - `POST /v1/traces` (distributed traces)
+  - `POST /v1/metrics` (application metrics)
+- Supported formats: JSON, Protobuf
+
+**OUTPUTS:**
+- Trace data stored in S3 (partitioned)
+- Metric data stored in S3 (partitioned)
+- Service dependency map (JSON for visualization)
+- Trace waterfall visualization data
+- APM-specific Sigma rules (latency, error rate detection)
+
+**APM QUERY EXAMPLES:**
+- "Why is checkout slow?" → Latency analysis SQL
+- "Show error traces in the last hour" → Error trace query
+- "What services call payment-api?" → Service map query
+
+### Feature 6: SOAR - Automated Response (Optional Module)
+
+**INPUTS (choose one):**
+- Natural language description: "When credential compromise is detected, terminate sessions, revoke tokens, and create a Jira ticket"
+- Markdown IR (Incident Response) plan document
+- Manual Playbook YAML file
+
+**OUTPUTS:**
+- Playbook YAML file (stored in `/rules/playbooks/`)
+- Python Lambda code (auto-generated, deployable)
+- Execution logs (full audit trail)
+- Approval requests (for dangerous actions)
+
+**PLAYBOOK YAML FORMAT (output example):**
+```yaml
+id: playbook-cred-001
+name: Credential Compromise Response
+version: 1.0.0
+trigger:
+  type: alert
+  conditions:
+    severity: [critical, high]
+    rule_patterns: [credential_*, brute_force*]
+steps:
+  - id: terminate_sessions
+    action_type: terminate_sessions
+    parameters:
+      user_id: "{{ alert.metadata.user_email }}"
+  - id: create_ticket
+    action_type: create_ticket
+    provider: jira
+    parameters:
+      summary: "Credential Compromise: {{ alert.metadata.user_email }}"
 ```
 
-### Key Design Decisions
+**SUPPORTED RESPONSE ACTIONS:**
+- `terminate_sessions` (Okta, Azure AD, Google Workspace)
+- `disable_account`
+- `force_password_reset`
+- `revoke_tokens`
+- `block_ip` (AWS WAF, Cloudflare)
+- `isolate_host` (CrowdStrike)
+- `create_ticket` (Jira, ServiceNow)
+- `notify` (Slack, PagerDuty, Email)
 
-1. **Serverless**: Lambda/Cloud Functions for cost efficiency and scaling
-2. **No Dashboards**: Use natural language queries instead of stale dashboards
-3. **No Case Management**: Alerts create tickets in external systems (Jira, etc.)
-4. **Sigma Format**: Industry-standard detection rules for multi-cloud portability
-5. **LLM-First**: Natural language is the primary interface, not a feature
+### Summary: What the NL Interface Generates
+
+| Natural Language Input | Output Format |
+|----------------------|---------------|
+| "Show me failed logins..." | SQL Query + Results |
+| "Detect brute force attacks..." | Sigma YAML Rule |
+| "When X happens, do Y..." | Playbook YAML + Python Lambda |
+| "Why is service slow?" | SQL Query + Results (APM) |
 
 ---
 
 ## What's NOT Included (By Design)
 
-- **Dashboards/Visualizations**: Use adhoc queries or external BI tools
-- **Case Management**: Use Jira, ServiceNow, Rootly, etc.
-- **SOAR/Automated Remediation**: Out of scope for security and liability reasons
-- **Threat Intelligence Platform**: Integrate with existing TI feeds via log ingestion
-- **On-Premises Support**: Cloud-native focus only
-- **Real-Time ML Streaming**: Serverless architecture not suited for streaming ML
+- **Dashboards/Visualizations**: Use natural language queries or external BI tools
+- **Case Management**: Integrate with Jira, ServiceNow, Rootly, etc.
+- **On-Premises Support**: Cloud-native architecture only
+- **Real-Time ML Streaming**: Serverless batch processing only
+- **Full SOAR Platform**: Basic playbooks only, not enterprise workflow orchestration
 
+---
+
+## Contributing
+
+See [docs/development/contributing.md](docs/development/contributing.md) for contribution guidelines.
+
+---
+
+## License
+
+[MIT License](LICENSE)
+
+---
+
+## Acknowledgments
+
+- [Sigma](https://github.com/SigmaHQ/sigma) for detection rule format
+- [MITRE ATT&CK](https://attack.mitre.org/) for threat framework mappings

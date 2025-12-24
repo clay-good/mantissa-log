@@ -1,0 +1,77 @@
+title: Google Workspace Self-Privilege Grant
+id: itdr-gws-self-privilege-001
+status: stable
+description: |
+  Detects when a user grants themselves elevated privileges in Google Workspace.
+  Self-privilege grants should never occur in normal operations and are
+  a critical indicator of either a compromised admin account or malicious
+  insider activity.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: admin
+
+detection:
+  selection:
+    event.name:
+      - 'ASSIGN_ROLE'
+      - 'ADD_PRIVILEGE'
+      - 'GRANT_ADMIN_PRIVILEGE'
+  condition: selection
+  # Post-processing validates: actor.email == event.parameters.USER_EMAIL or GRANTEE_EMAIL
+  timeframe: 24h
+
+fields:
+  - actor.email
+  - actor.profileId
+  - event.name
+  - event.parameters.ROLE_NAME
+  - event.parameters.ROLE_ID
+  - event.parameters.USER_EMAIL
+  - event.parameters.GRANTEE_EMAIL
+  - ipAddress
+  - '@timestamp'
+
+falsepositives:
+  - Initial domain setup by first super admin
+  - Emergency recovery procedures (documented)
+  # Note: Should still be investigated even if expected
+
+level: critical
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - attack.t1548      # Abuse Elevation Control Mechanism
+  - itdr
+  - identity
+  - privilege
+  - insider_threat
+
+references:
+  - https://attack.mitre.org/techniques/T1098/
+  - https://attack.mitre.org/techniques/T1548/
+  - https://developers.google.com/admin-sdk/reports/v1/appendix/activity/admin
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: self_grant
+  provider: google_workspace
+  detection_logic: |
+    Compare actor.email with event.parameters.USER_EMAIL or GRANTEE_EMAIL
+    If they match (case-insensitive), this is a self-privilege grant
+    Always critical severity regardless of role granted
+  recommended_action: |
+    1. IMMEDIATELY suspend the user account
+    2. Revoke all active sessions and tokens
+    3. Remove the self-granted privilege
+    4. Audit all actions by this user in past 24 hours
+    5. Check for unauthorized data access or exfiltration
+    6. Review admin audit logs for other suspicious changes
+    7. Contact user through verified channel
+    8. Initiate security incident procedures

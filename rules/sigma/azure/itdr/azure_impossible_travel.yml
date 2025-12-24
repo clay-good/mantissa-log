@@ -1,0 +1,81 @@
+title: Azure AD Impossible Travel Detection
+id: itdr-azure-impossible-travel-001
+status: stable
+description: |
+  Detects impossible travel using Azure AD Identity Protection's built-in
+  risk detection. Azure automatically flags sign-ins that occur from
+  geographically distant locations in impossibly short time frames.
+  This rule captures Azure's native impossible travel alerts.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: signinlogs
+
+detection:
+  selection_risk_type:
+    # Azure Identity Protection impossible travel detection
+    properties.riskEventTypes_v2|contains: 'impossibleTravel'
+  selection_atypical:
+    # Also flag atypical travel patterns
+    properties.riskEventTypes_v2|contains: 'atypicalTravelPatterns'
+  condition: selection_risk_type or selection_atypical
+
+fields:
+  - properties.userPrincipalName
+  - properties.ipAddress
+  - properties.location.countryOrRegion
+  - properties.location.city
+  - properties.location.geoCoordinates.latitude
+  - properties.location.geoCoordinates.longitude
+  - properties.riskEventTypes_v2
+  - properties.riskState
+  - properties.riskLevelDuringSignIn
+  - properties.riskLevelAggregated
+  - properties.deviceDetail.browser
+  - properties.deviceDetail.operatingSystem
+  - '@timestamp'
+
+falsepositives:
+  - Corporate VPN with exit nodes in different countries
+  - Users traveling with mobile devices
+  - Shared accounts with legitimate distributed usage
+  - Azure AD Connect sync from different locations
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+  - behavioral
+
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/concept-identity-protection-risks
+  - https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/overview-identity-protection
+
+custom:
+  itdr_category: behavioral_anomaly
+  itdr_subcategory: impossible_travel
+  provider: azure
+  uses_native_detection: true
+  azure_risk_types:
+    impossibleTravel: "Sign-in from geographically distant locations"
+    atypicalTravelPatterns: "Unusual travel patterns detected"
+  azure_risk_levels:
+    none: "No risk detected"
+    low: "Low confidence of account compromise"
+    medium: "Medium confidence of account compromise"
+    high: "High confidence of account compromise"
+  recommended_action: |
+    1. Review Azure AD Identity Protection risk details
+    2. Check if user has legitimate travel history
+    3. Verify VPN usage patterns
+    4. Consider requiring MFA re-verification
+    5. Review Conditional Access policies for risk-based controls
+    6. If confirmed threat, revoke sessions and reset credentials

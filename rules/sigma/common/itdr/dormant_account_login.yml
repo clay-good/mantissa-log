@@ -1,0 +1,96 @@
+title: Dormant Account Activation
+id: itdr-common-dormant-account-001
+status: stable
+description: |
+  Detects successful authentication from accounts that have been inactive
+  for 30 or more days. Dormant accounts are prime targets for attackers
+  because they are often forgotten, may have weak/unchanged passwords,
+  and their compromise may go unnoticed.
+
+  Activity from dormant accounts warrants investigation to determine if
+  it's a returning legitimate user or account compromise.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    event_type: 'AUTH_SUCCESS'
+  condition: selection
+  # Post-processing checks: last_activity > 30 days ago
+  timeframe: 24h
+
+fields:
+  - user_email
+  - source_ip
+  - source_geo.country
+  - source_geo.city
+  - device_fingerprint
+  - user_agent
+  - provider
+  - application_name
+  - '@timestamp'
+
+falsepositives:
+  - Employees returning from extended leave
+  - Seasonal workers or contractors
+  - Accounts used for periodic batch processing
+  - Quarterly or annual audit accounts
+  - Break-glass emergency accounts
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.persistence
+  - attack.t1078      # Valid Accounts
+  - attack.t1078.001  # Valid Accounts: Default Accounts
+  - attack.t1078.002  # Valid Accounts: Domain Accounts
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+  - dormant_account
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://www.cisa.gov/news-events/cybersecurity-advisories/aa21-008a
+
+custom:
+  itdr_category: account_anomaly
+  itdr_subcategory: dormant_activation
+  provider: common
+  detection_type: post_processing
+  dormant_thresholds:
+    standard: 30  # days
+    high_privilege: 14  # days for admin accounts
+    service_account: 7  # days for service accounts
+  severity_escalation:
+    dormant_only: high
+    dormant_plus_new_location: critical
+    dormant_plus_new_device: critical
+    dormant_plus_unusual_time: critical
+    dormant_plus_privilege_use: critical
+    dormant_service_account: critical
+  account_categories:
+    standard_user:
+      dormant_days: 30
+      base_severity: high
+    admin_user:
+      dormant_days: 14
+      base_severity: critical
+    service_account:
+      dormant_days: 7
+      base_severity: critical
+  recommended_action: |
+    1. Verify the user through out-of-band communication
+    2. Check if user was on leave or had legitimate reason for inactivity
+    3. Review the source IP and location for anomalies
+    4. Examine device fingerprint for new/unknown devices
+    5. Check for other suspicious activity in same session
+    6. If user cannot be verified, suspend account immediately
+    7. Force password reset before re-enabling
+    8. Review organization's dormant account cleanup policies

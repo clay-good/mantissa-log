@@ -1,0 +1,80 @@
+title: Google Workspace 2-Step Verification Fatigue Attack
+id: itdr-gws-mfa-fatigue-001
+status: stable
+description: |
+  Detects MFA fatigue attacks against Google Workspace users.
+  Triggers when 5+ 2-Step Verification challenges occur for the same user
+  within 5 minutes. Monitors Google Workspace login audit logs for
+  repeated login challenges.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: login
+
+detection:
+  selection:
+    id.applicationName: 'login'
+    events.name:
+      - 'login_challenge'
+      - 'login_verification'
+      - '2sv_challenge'
+  condition: selection | count() by actor.email >= 5
+  timeframe: 5m
+
+fields:
+  - actor.email
+  - ipAddress
+  - events.name
+  - events.type
+  - events.parameters.login_challenge_method
+  - events.parameters.login_challenge_status
+  - events.parameters.is_suspicious
+  - '@timestamp'
+
+falsepositives:
+  - Google Authenticator app reinstallation
+  - Security key issues
+  - User changing devices
+  - 2-Step Verification enrollment
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1621  # Multi-Factor Authentication Request Generation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1621/
+  - https://developers.google.com/admin-sdk/reports/v1/appendix/activity/login
+  - https://support.google.com/a/answer/175197
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_fatigue
+  provider: google_workspace
+  detection_thresholds:
+    mfa_challenge_count: 5
+    time_window_minutes: 5
+  gws_2sv_methods:
+    - Google Authenticator
+    - Security Key (FIDO2)
+    - Google Prompts
+    - Backup codes
+    - Phone verification
+  gws_challenge_events:
+    login_challenge: "2-Step Verification challenge issued"
+    login_verification: "Verification step required"
+    2sv_challenge: "2-Step Verification prompt"
+  recommended_action: |
+    1. Contact user through verified channel
+    2. Review Login audit logs for source IPs
+    3. If attack confirmed, suspend user account
+    4. Force password reset and 2-Step Verification re-enrollment
+    5. Consider requiring Security Keys for high-risk users
+    6. Enable Advanced Protection Program for executives

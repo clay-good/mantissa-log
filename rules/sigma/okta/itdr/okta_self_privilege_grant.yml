@@ -1,0 +1,94 @@
+title: Okta Self-Privilege Grant
+id: itdr-okta-self-privilege-001
+status: stable
+description: |
+  Detects when a user grants themselves elevated privileges in Okta.
+  Self-privilege grants should never occur in normal operations and
+  are a strong indicator of either a compromised admin account or
+  malicious insider activity.
+
+  This is almost always malicious and warrants immediate investigation.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action:
+      - 'user.role.assign'
+      - 'user.role.grant'
+      - 'group.user_membership.add'
+  filter_self_grant:
+    # Actor email matches target email
+    # Note: Actual comparison done in post-processing
+    okta.target.type: 'User'
+  condition: selection and filter_self_grant
+  # Post-processing validates: okta.actor.alternateId == okta.target.alternateId
+  timeframe: 24h
+
+fields:
+  - user.email
+  - okta.actor.email
+  - okta.actor.alternateId
+  - okta.actor.displayName
+  - event.action
+  - okta.target.type
+  - okta.target.displayName
+  - okta.target.alternateId
+  - source.ip
+  - source.geo.country_name
+  - source.geo.city
+  - '@timestamp'
+
+falsepositives:
+  - Very rare: Initial system setup by super admin
+  - Extremely rare: Emergency break-glass procedures
+  # Note: These should still be investigated
+
+level: critical
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - attack.t1548      # Abuse Elevation Control Mechanism
+  - itdr
+  - identity
+  - privilege
+  - insider_threat
+
+references:
+  - https://attack.mitre.org/techniques/T1098/
+  - https://attack.mitre.org/techniques/T1548/
+  - https://developer.okta.com/docs/reference/api/system-log/
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: self_grant
+  provider: okta
+  detection_logic: |
+    Compare actor.alternateId with target.alternateId
+    If they match, this is a self-privilege grant
+    Always critical severity
+  incident_indicators:
+    - compromised_admin_account
+    - malicious_insider
+    - account_takeover
+  immediate_actions:
+    - Lock the account immediately
+    - Revoke all active sessions
+    - Audit all changes made by this account
+  recommended_action: |
+    1. IMMEDIATELY lock the user account
+    2. Revoke all active sessions and tokens
+    3. Audit all actions taken by this user in the past 24 hours
+    4. Check if this account was recently compromised
+    5. Review authentication logs for anomalies
+    6. Contact user through out-of-band communication
+    7. Restore any unauthorized changes
+    8. Consider security incident declaration

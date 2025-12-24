@@ -1,0 +1,430 @@
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "api-gateway"}},
+          {"key": "service.version", "value": {"stringValue": "2.1.0"}},
+          {"key": "deployment.environment", "value": {"stringValue": "production"}},
+          {"key": "host.name", "value": {"stringValue": "api-gateway-pod-7d8f9c"}}
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.http",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "http.server.request.duration",
+              "description": "Duration of HTTP server requests",
+              "unit": "ms",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 1250,
+                    "sum": 125000,
+                    "bucketCounts": [50, 200, 500, 350, 100, 35, 10, 5],
+                    "explicitBounds": [5, 10, 25, 50, 100, 250, 500, 1000],
+                    "min": 2.5,
+                    "max": 1250.0,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "GET"}},
+                      {"key": "http.route", "value": {"stringValue": "/api/users/{id}"}}
+                    ]
+                  },
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 500,
+                    "sum": 75000,
+                    "bucketCounts": [10, 50, 150, 180, 70, 25, 10, 5],
+                    "explicitBounds": [5, 10, 25, 50, 100, 250, 500, 1000],
+                    "min": 5.0,
+                    "max": 950.0,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "POST"}},
+                      {"key": "http.route", "value": {"stringValue": "/api/orders"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            },
+            {
+              "name": "http.server.active_requests",
+              "description": "Number of active HTTP requests",
+              "unit": "1",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 42,
+                    "attributes": []
+                  }
+                ]
+              }
+            },
+            {
+              "name": "http.server.request.count",
+              "description": "Total number of HTTP requests",
+              "unit": "1",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 15000,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "GET"}}
+                    ]
+                  },
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 5000,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "POST"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            },
+            {
+              "name": "http.server.request.error.count",
+              "description": "Total number of HTTP request errors",
+              "unit": "1",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 150,
+                    "attributes": [
+                      {"key": "http.status_code", "value": {"intValue": 500}}
+                    ]
+                  },
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 75,
+                    "attributes": [
+                      {"key": "http.status_code", "value": {"intValue": 502}}
+                    ]
+                  },
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 300,
+                    "attributes": [
+                      {"key": "http.status_code", "value": {"intValue": 400}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.system",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "process.cpu.utilization",
+              "description": "Process CPU utilization",
+              "unit": "1",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asDouble": 0.45,
+                    "attributes": []
+                  }
+                ]
+              }
+            },
+            {
+              "name": "process.memory.usage",
+              "description": "Process memory usage in bytes",
+              "unit": "By",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 536870912,
+                    "attributes": []
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "user-service"}},
+          {"key": "service.version", "value": {"stringValue": "1.5.0"}},
+          {"key": "deployment.environment", "value": {"stringValue": "production"}},
+          {"key": "host.name", "value": {"stringValue": "user-service-pod-4a5b6c"}}
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.http",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "http.server.request.duration",
+              "description": "Duration of HTTP server requests",
+              "unit": "ms",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 800,
+                    "sum": 40000,
+                    "bucketCounts": [100, 300, 250, 100, 35, 10, 3, 2],
+                    "explicitBounds": [5, 10, 25, 50, 100, 250, 500, 1000],
+                    "min": 3.0,
+                    "max": 800.0,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "GET"}},
+                      {"key": "http.route", "value": {"stringValue": "/users/{id}"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.sqlalchemy",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "db.client.connections.usage",
+              "description": "Database connection pool usage",
+              "unit": "1",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 8,
+                    "attributes": [
+                      {"key": "state", "value": {"stringValue": "used"}}
+                    ]
+                  },
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 12,
+                    "attributes": [
+                      {"key": "state", "value": {"stringValue": "idle"}}
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "db.client.operation.duration",
+              "description": "Duration of database operations",
+              "unit": "ms",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 2500,
+                    "sum": 25000,
+                    "bucketCounts": [500, 1000, 600, 250, 100, 35, 10, 5],
+                    "explicitBounds": [1, 5, 10, 25, 50, 100, 250, 500],
+                    "min": 0.5,
+                    "max": 450.0,
+                    "attributes": [
+                      {"key": "db.system", "value": {"stringValue": "postgresql"}},
+                      {"key": "db.operation", "value": {"stringValue": "SELECT"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            }
+          ]
+        },
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.redis",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "cache.hit.ratio",
+              "description": "Cache hit ratio",
+              "unit": "1",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "timeUnixNano": 1704067260000000000,
+                    "asDouble": 0.85,
+                    "attributes": []
+                  }
+                ]
+              }
+            },
+            {
+              "name": "cache.operation.duration",
+              "description": "Duration of cache operations",
+              "unit": "ms",
+              "summary": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 5000,
+                    "sum": 5000,
+                    "quantileValues": [
+                      {"quantile": 0.5, "value": 0.8},
+                      {"quantile": 0.9, "value": 1.5},
+                      {"quantile": 0.95, "value": 2.0},
+                      {"quantile": 0.99, "value": 5.0}
+                    ],
+                    "attributes": [
+                      {"key": "cache.operation", "value": {"stringValue": "GET"}}
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "payment-service"}},
+          {"key": "service.version", "value": {"stringValue": "3.0.1"}},
+          {"key": "deployment.environment", "value": {"stringValue": "production"}},
+          {"key": "host.name", "value": {"stringValue": "payment-service-pod-9x8y7z"}}
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": {
+            "name": "opentelemetry.instrumentation.http",
+            "version": "0.40.0"
+          },
+          "metrics": [
+            {
+              "name": "http.server.request.duration",
+              "description": "Duration of HTTP server requests",
+              "unit": "ms",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 200,
+                    "sum": 100000,
+                    "bucketCounts": [5, 10, 20, 30, 50, 40, 30, 15],
+                    "explicitBounds": [50, 100, 250, 500, 1000, 2500, 5000, 10000],
+                    "min": 25.0,
+                    "max": 8500.0,
+                    "attributes": [
+                      {"key": "http.method", "value": {"stringValue": "POST"}},
+                      {"key": "http.route", "value": {"stringValue": "/api/payments"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            },
+            {
+              "name": "payment.processing.duration",
+              "description": "Duration of payment processing",
+              "unit": "ms",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "count": 150,
+                    "sum": 60000,
+                    "bucketCounts": [10, 30, 40, 35, 20, 10, 3, 2],
+                    "explicitBounds": [100, 250, 500, 1000, 2000, 3000, 5000, 10000],
+                    "min": 80.0,
+                    "max": 7500.0,
+                    "attributes": [
+                      {"key": "payment.provider", "value": {"stringValue": "stripe"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            },
+            {
+              "name": "payment.success.count",
+              "description": "Count of successful payments",
+              "unit": "1",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 142,
+                    "attributes": []
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            },
+            {
+              "name": "payment.failure.count",
+              "description": "Count of failed payments",
+              "unit": "1",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 8,
+                    "attributes": [
+                      {"key": "failure.reason", "value": {"stringValue": "gateway_timeout"}}
+                    ]
+                  },
+                  {
+                    "startTimeUnixNano": 1704067200000000000,
+                    "timeUnixNano": 1704067260000000000,
+                    "asInt": 3,
+                    "attributes": [
+                      {"key": "failure.reason", "value": {"stringValue": "insufficient_funds"}}
+                    ]
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

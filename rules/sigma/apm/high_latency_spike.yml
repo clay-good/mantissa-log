@@ -1,0 +1,44 @@
+title: Service Latency Spike Detected
+id: apm-traces-high-latency-spike-001
+status: stable
+description: Detects when a service's P95 latency exceeds normal thresholds, indicating potential performance degradation or resource constraints
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  selection:
+    kind: server
+  timeframe: 5m
+  condition: selection | aggregate by service_name, operation_name where p95(duration_ms) > 2000
+
+fields:
+  - service_name
+  - operation_name
+  - avg_duration_ms
+  - p95_duration_ms
+  - p99_duration_ms
+  - request_count
+  - error_count
+
+falsepositives:
+  - Expected during deployments or releases
+  - Known slow operations (batch jobs, reports)
+  - Scheduled maintenance windows
+  - Database migrations
+
+level: medium
+
+tags:
+  - performance
+  - latency
+  - slo
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/concepts/signals/traces/
+  - https://sre.google/sre-book/monitoring-distributed-systems/

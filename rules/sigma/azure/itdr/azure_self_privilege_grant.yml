@@ -1,0 +1,89 @@
+title: Azure AD Self-Privilege Grant
+id: itdr-azure-self-privilege-001
+status: stable
+description: |
+  Detects when a user assigns elevated privileges to themselves in Azure AD.
+  Self-privilege grants should never occur in normal operations and are
+  a critical indicator of compromised admin credentials or insider threat.
+
+  This detection checks if the initiating user is the same as the target
+  user receiving the role assignment.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: auditlogs
+
+detection:
+  selection:
+    properties.operationName:
+      - 'Add member to role'
+      - 'Add eligible member to role'
+      - 'Add scoped member to role'
+  condition: selection
+  # Post-processing validates: initiatedBy.user.userPrincipalName == targetResources.userPrincipalName
+  timeframe: 24h
+
+fields:
+  - properties.initiatedBy.user.userPrincipalName
+  - properties.initiatedBy.user.displayName
+  - properties.initiatedBy.user.id
+  - properties.targetResources.userPrincipalName
+  - properties.targetResources.displayName
+  - properties.targetResources.id
+  - properties.targetResources.modifiedProperties
+  - properties.operationName
+  - properties.result
+  - callerIpAddress
+  - '@timestamp'
+
+falsepositives:
+  - Initial tenant setup by first admin
+  - Break-glass emergency procedures (documented)
+  # Note: Even false positives should be thoroughly investigated
+
+level: critical
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - attack.t1548      # Abuse Elevation Control Mechanism
+  - itdr
+  - identity
+  - privilege
+  - insider_threat
+
+references:
+  - https://attack.mitre.org/techniques/T1098/
+  - https://attack.mitre.org/techniques/T1548/
+  - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-audit-logs
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: self_grant
+  provider: azure
+  detection_logic: |
+    Compare initiatedBy.user.userPrincipalName with targetResources.userPrincipalName
+    Or compare initiatedBy.user.id with targetResources.id
+    If they match, this is a self-privilege grant
+    Always critical severity regardless of role granted
+  pim_considerations: |
+    If using PIM (Privileged Identity Management), self-activation of
+    eligible roles is expected. This rule should filter for:
+    - Direct role assignments (not PIM activations)
+    - Permanent assignments (not time-limited)
+    - Assignments without required approvals
+  recommended_action: |
+    1. IMMEDIATELY lock the user account
+    2. Revoke all active sessions and refresh tokens
+    3. Remove the self-granted role assignment
+    4. Audit all actions taken by this user in past 24 hours
+    5. Check for other unauthorized changes to the tenant
+    6. Review sign-in logs for compromise indicators
+    7. Contact user through verified out-of-band channel
+    8. Consider security incident declaration
+    9. Review PIM policies to prevent bypass

@@ -1,0 +1,50 @@
+title: Unusual Traffic Pattern
+id: apm-traces-unusual-traffic-pattern-001
+status: experimental
+description: Detects unusual request volume compared to baseline, which may indicate DDoS attacks, misconfigured clients, or traffic spikes
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  baseline_comparison: true
+  timeframe: 5m
+  condition: |
+    Request count deviates more than 2 standard deviations from baseline.
+    Calculation:
+    - baseline_rate: Average requests/minute over last 7 days (same hour)
+    - baseline_stddev: Standard deviation of requests/minute
+    - current_rate: Current requests/minute
+    - deviation: abs(current_rate - baseline_rate) / baseline_stddev
+    Triggers when: deviation > 2
+
+fields:
+  - service_name
+  - operation_name
+  - current_rate
+  - baseline_rate
+  - baseline_stddev
+  - deviation
+  - direction
+
+falsepositives:
+  - Marketing campaigns
+  - Product launches
+  - Seasonal traffic patterns
+  - Legitimate viral traffic
+
+level: low
+
+tags:
+  - anomaly
+  - traffic
+  - baseline
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/concepts/signals/traces/
+  - https://en.wikipedia.org/wiki/Standard_deviation

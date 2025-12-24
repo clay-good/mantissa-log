@@ -1,0 +1,92 @@
+[
+  {
+    "name": "event_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for this metric event"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Metric name (e.g., http.server.duration, process.cpu.utilization)"
+  },
+  {
+    "name": "value",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Metric value"
+  },
+  {
+    "name": "metric_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type of metric: gauge, counter, histogram, summary"
+  },
+  {
+    "name": "unit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unit of measurement (ms, bytes, 1 for counts)"
+  },
+  {
+    "name": "labels",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Dimension labels for filtering and grouping"
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the metric was recorded"
+  },
+  {
+    "name": "service_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the service emitting this metric"
+  },
+  {
+    "name": "service_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Version of the service"
+  },
+  {
+    "name": "host_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hostname where the service is running"
+  },
+  {
+    "name": "deployment_environment",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Environment: production, staging, development"
+  },
+  {
+    "name": "bucket_counts",
+    "type": "INT64",
+    "mode": "REPEATED",
+    "description": "Histogram bucket counts"
+  },
+  {
+    "name": "bucket_boundaries",
+    "type": "FLOAT64",
+    "mode": "REPEATED",
+    "description": "Histogram bucket boundaries"
+  },
+  {
+    "name": "quantile_values",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Pre-calculated quantile values (e.g., 0.5: 100, 0.99: 500)"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable description of the metric"
+  }
+]

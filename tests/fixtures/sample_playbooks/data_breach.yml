@@ -1,0 +1,363 @@
+name: Data Breach Response
+description: |
+  Comprehensive response playbook for potential data breach incidents.
+  Coordinates containment, notification, and investigation activities
+  while ensuring compliance with regulatory requirements.
+
+version: "1.0.0"
+status: active
+
+trigger:
+  type: alert
+  conditions:
+    rule_id: "data_*breach*"
+    severity:
+      - critical
+    tags:
+      - data-breach
+      - exfiltration
+      - pii
+
+steps:
+  - id: step-1
+    name: Initial Assessment
+    action_type: send_notification
+    description: Notify incident response team and begin assessment
+    parameters:
+      channel: "#incident-response"
+      message: |
+        :rotating_light: *POTENTIAL DATA BREACH DETECTED*
+
+        *Alert:* {{alert.rule_name}}
+        *Time:* {{alert.timestamp}}
+        *Severity:* {{alert.severity | upper}}
+
+        *Initial Indicators:*
+        - Source: {{alert.source}}
+        - Destination: {{alert.destination}}
+        - Data Volume: {{alert.data_volume | default('Unknown')}}
+        - Data Type: {{alert.data_type | default('Unknown')}}
+
+        Initiating automated response playbook. Stand by for updates.
+      mentions:
+        - "@incident-response-team"
+    on_failure: continue
+
+  - id: step-2
+    name: Block Data Exfiltration Path
+    action_type: block_ip
+    description: Block the destination IP to prevent further data loss
+    parameters:
+      ip_address: "{{alert.destination_ip}}"
+      duration: permanent
+      firewall_zones:
+        - perimeter
+        - dmz
+      reason: "Potential data exfiltration destination"
+      priority: critical
+    requires_approval: required
+    approval_timeout_seconds: 900
+    on_failure: continue
+
+  - id: step-3
+    name: Disable Source Account
+    action_type: disable_user
+    description: Disable the user account associated with the breach
+    parameters:
+      user_id: "{{alert.user_id}}"
+      reason: "Associated with potential data breach - investigation pending"
+    requires_approval: required
+    approval_timeout_seconds: 900
+    depends_on:
+      - step-2
+    on_failure: continue
+    condition: "{{alert.user_id is defined}}"
+
+  - id: step-4
+    name: Isolate Source System
+    action_type: isolate_host
+    description: Isolate the system from which data was exfiltrated
+    parameters:
+      host_id: "{{alert.source_host}}"
+      isolation_level: full
+      allow_security_tools: true
+      reason: "Data breach investigation"
+    requires_approval: required
+    approval_timeout_seconds: 900
+    depends_on:
+      - step-2
+    on_failure: continue
+    condition: "{{alert.source_host is defined}}"
+
+  - id: step-5
+    name: Preserve Evidence
+    action_type: collect_forensics
+    description: Collect logs and evidence for investigation
+    parameters:
+      host_id: "{{alert.source_host}}"
+      collection_type: comprehensive
+      include:
+        - system_logs
+        - network_logs
+        - application_logs
+        - memory_dump
+      output_bucket: "{{settings.forensics_bucket}}"
+      encrypt: true
+      chain_of_custody: true
+    depends_on:
+      - step-4
+    timeout_seconds: 3600
+    on_failure: continue
+
+  - id: step-6
+    name: Identify Affected Data
+    action_type: run_query
+    description: Query logs to identify what data may have been accessed
+    parameters:
+      query: |
+        SELECT
+          timestamp,
+          source_user,
+          resource_accessed,
+          data_classification,
+          record_count,
+          bytes_transferred
+        FROM data_access_logs
+        WHERE
+          source_ip = '{{alert.source_ip}}'
+          AND destination_ip = '{{alert.destination_ip}}'
+          AND timestamp BETWEEN '{{alert.start_time}}' AND '{{alert.end_time}}'
+        ORDER BY timestamp
+      store_results_as: affected_data
+    depends_on:
+      - step-4
+    on_failure: continue
+
+  - id: step-7
+    name: Create Legal Hold
+    action_type: create_ticket
+    description: Create legal hold request for affected data and systems
+    parameters:
+      system: jira
+      project: LEGAL
+      issue_type: "Legal Hold"
+      priority: Highest
+      title: "Legal Hold - Data Breach Investigation {{alert.id}}"
+      description: |
+        ## Legal Hold Request
+
+        A potential data breach has been detected. Please implement legal hold on the following:
+
+        ### Systems
+        - {{alert.source_host}}
+        - Associated network devices
+
+        ### Data
+        - All data access logs for user {{alert.user_id}}
+        - Network traffic logs to {{alert.destination_ip}}
+        - Email and communications for affected users
+
+        ### Time Period
+        - {{alert.start_time}} to present
+
+        ### Incident Reference
+        - Alert ID: {{alert.id}}
+        - Playbook Execution: {{execution.id}}
+    depends_on:
+      - step-5
+    on_failure: continue
+
+  - id: step-8
+    name: Create Incident Ticket
+    action_type: create_ticket
+    description: Create main incident ticket for tracking
+    parameters:
+      system: jira
+      project: SEC
+      issue_type: "Security Incident"
+      priority: Highest
+      title: "DATA BREACH: {{alert.rule_name}}"
+      description: |
+        ## Data Breach Incident
+
+        **Classification:** Potential Data Breach
+        **Detection Time:** {{alert.timestamp}}
+        **Alert ID:** {{alert.id}}
+
+        ### Summary
+        {{alert.description}}
+
+        ### Affected Systems
+        - Source Host: {{alert.source_host | default('Unknown')}}
+        - Source IP: {{alert.source_ip | default('Unknown')}}
+        - Destination: {{alert.destination_ip}}
+
+        ### Affected User
+        - User ID: {{alert.user_id | default('Unknown')}}
+
+        ### Data Impact Assessment
+        {{#execution.affected_data}}
+        | Time | Resource | Classification | Records |
+        |------|----------|----------------|---------|
+        | {{timestamp}} | {{resource_accessed}} | {{data_classification}} | {{record_count}} |
+        {{/execution.affected_data}}
+
+        ### Automated Actions Taken
+        - [x] Exfiltration path blocked
+        - [x] User account disabled
+        - [x] Source system isolated
+        - [x] Evidence preserved
+        - [x] Legal hold initiated
+
+        ### Required Follow-up
+        - [ ] Executive notification
+        - [ ] Regulatory notification assessment
+        - [ ] Customer notification assessment
+        - [ ] Root cause analysis
+        - [ ] Remediation plan
+      labels:
+        - data-breach
+        - critical
+        - compliance
+        - automated-response
+    depends_on:
+      - step-6
+    on_failure: stop
+
+  - id: step-9
+    name: Page Incident Commander
+    action_type: send_notification
+    description: Page incident commander for breach response
+    parameters:
+      service: pagerduty
+      severity: critical
+      title: "DATA BREACH - Incident Commander Required"
+      description: |
+        Potential data breach detected.
+        Automated containment actions completed.
+        Executive notification required.
+
+        Incident Ticket: {{execution.ticket_id}}
+      routing_key: "{{settings.breach_pagerduty_key}}"
+      dedup_key: "breach_{{alert.id}}"
+    depends_on:
+      - step-8
+    on_failure: continue
+
+  - id: step-10
+    name: Notify Privacy Team
+    action_type: send_notification
+    description: Notify privacy team for regulatory assessment
+    parameters:
+      channel: "#privacy-team"
+      message: |
+        :warning: *DATA BREACH NOTIFICATION*
+
+        A potential data breach has been detected and contained.
+        Privacy team assessment required for regulatory notification obligations.
+
+        *Incident Ticket:* {{execution.ticket_id}}
+        *Data Types:* {{alert.data_type | default('To be determined')}}
+        *Affected Records:* {{execution.affected_data | length}} queries identified
+
+        Please review and advise on notification requirements:
+        - GDPR (72-hour notification)
+        - CCPA/CPRA
+        - State breach notification laws
+        - Contract obligations
+      mentions:
+        - "@privacy-team"
+        - "@dpo"
+    depends_on:
+      - step-8
+    on_failure: continue
+
+  - id: step-11
+    name: Notify Executive Team
+    action_type: send_notification
+    description: Send executive notification email
+    parameters:
+      service: email
+      recipients:
+        - "{{settings.ciso_email}}"
+        - "{{settings.cto_email}}"
+        - "{{settings.legal_counsel_email}}"
+      subject: "[URGENT] Potential Data Breach - Incident {{execution.ticket_id}}"
+      body: |
+        A potential data breach has been detected and automated containment measures have been initiated.
+
+        INCIDENT SUMMARY
+        ----------------
+        Detection Time: {{alert.timestamp}}
+        Incident ID: {{execution.ticket_id}}
+        Severity: CRITICAL
+
+        CURRENT STATUS
+        --------------
+        - Containment: COMPLETE
+        - Investigation: IN PROGRESS
+        - Regulatory Assessment: PENDING
+
+        IMMEDIATE ACTIONS TAKEN
+        -----------------------
+        - Data exfiltration path blocked
+        - Affected user account disabled
+        - Source system isolated
+        - Evidence preservation initiated
+        - Legal hold requested
+
+        NEXT STEPS
+        ----------
+        1. Incident Commander briefing scheduled
+        2. Privacy team assessing notification requirements
+        3. Root cause analysis in progress
+
+        This is an automated notification. The incident response team has been engaged.
+
+        Incident Response Team
+      priority: high
+    depends_on:
+      - step-9
+    on_failure: continue
+
+  - id: step-12
+    name: Schedule Assessment Meeting
+    action_type: run_script
+    description: Schedule incident assessment meeting
+    parameters:
+      script: schedule_meeting.py
+      args:
+        title: "Data Breach Assessment - {{execution.ticket_id}}"
+        duration: 60
+        attendees:
+          - incident-response-team
+          - privacy-team
+          - legal
+        urgency: immediate
+        description: "Emergency meeting to assess data breach incident and determine next steps."
+    depends_on:
+      - step-9
+    on_failure: continue
+
+tags:
+  - data-breach
+  - exfiltration
+  - compliance
+  - critical
+  - automated-response
+
+metadata:
+  author: Security Team
+  created_at: "2024-01-05T00:00:00Z"
+  updated_at: "2024-01-25T00:00:00Z"
+  review_status: approved
+  compliance:
+    - GDPR
+    - CCPA
+    - SOC2
+    - ISO27001
+    - HIPAA
+  regulatory_requirements:
+    gdpr_notification_hours: 72
+    requires_dpo_notification: true
+    requires_executive_notification: true

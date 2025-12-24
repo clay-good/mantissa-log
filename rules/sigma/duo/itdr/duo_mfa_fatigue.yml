@@ -1,0 +1,85 @@
+title: Duo Security MFA Fatigue Attack
+id: itdr-duo-mfa-fatigue-001
+status: stable
+description: |
+  Detects MFA fatigue (push bombing) attacks through Duo Security.
+  Triggers when 5+ push notifications are sent to the same user within 5 minutes,
+  especially critical if followed by eventual approval.
+  Monitors for multiple push denials followed by approval (user gave in).
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: duo
+  service: authentication
+
+detection:
+  selection:
+    factor: 'push'
+    result:
+      - 'DENIED'
+      - 'SUCCESS'
+      - 'FRAUD'
+  condition: selection | count() by user.name >= 5
+  timeframe: 5m
+
+fields:
+  - user.name
+  - user.key
+  - result
+  - reason
+  - factor
+  - integration.name
+  - access_device.ip
+  - access_device.location.country
+  - access_device.location.city
+  - access_device.hostname
+  - auth_device.name
+  - auth_device.location.country
+  - '@timestamp'
+
+falsepositives:
+  - Duo Mobile app issues
+  - Network connectivity problems
+  - User accidentally denying then retrying
+  - Device Bluetooth/NFC issues
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1621  # Multi-Factor Authentication Request Generation
+  - attack.t1556.006  # Modify Authentication Process: MFA
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1621/
+  - https://duo.com/docs/adminapi#authentication-logs
+  - https://duo.com/blog/how-duo-helps-protect-against-mfa-fatigue-attacks
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_fatigue
+  provider: duo
+  detection_thresholds:
+    mfa_challenge_count: 5
+    time_window_minutes: 5
+  duo_push_results:
+    SUCCESS: "User approved the push"
+    DENIED: "User denied the push"
+    FRAUD: "User reported fraud (most critical)"
+    TIMEOUT: "Push expired without response"
+  duo_fatigue_patterns:
+    - Multiple DENIED followed by SUCCESS (user gave in)
+    - FRAUD report (user recognized attack)
+    - Many timeouts (user ignoring)
+  recommended_action: |
+    1. Contact user immediately through verified channel
+    2. If FRAUD reported, investigate immediately
+    3. Revoke active sessions
+    4. Force password reset
+    5. Enable Verified Duo Push with number matching
+    6. Review Duo Trust Monitor for related anomalies
+    7. Consider Risk-Based Authentication policies

@@ -1,0 +1,4 @@
+functions-framework==3.*
+google-cloud-firestore>=2.0.0
+google-cloud-pubsub>=2.0.0
+flask>=2.0.0

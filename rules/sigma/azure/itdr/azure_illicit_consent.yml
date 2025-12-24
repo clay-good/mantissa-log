@@ -1,0 +1,112 @@
+title: Azure AD Illicit OAuth Consent Grant
+id: itdr-azure-illicit-consent-001
+status: stable
+description: |
+  Detects OAuth consent grants to potentially malicious or suspicious
+  applications in Azure AD. Illicit consent grant attacks trick users
+  into granting OAuth permissions to attacker-controlled applications,
+  allowing persistent access to user data without credentials.
+
+  This is a common phishing vector where attackers create apps with
+  names similar to legitimate services.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: auditlogs
+
+detection:
+  selection:
+    properties.operationName:
+      - 'Consent to application'
+      - 'Add OAuth2PermissionGrant'
+      - 'Add delegated permission grant'
+  filter_suspicious_permissions:
+    # Check for dangerous permission scopes
+    properties.targetResources.modifiedProperties.newValue|contains:
+      - 'Mail.Read'
+      - 'Mail.ReadWrite'
+      - 'Files.Read'
+      - 'Files.ReadWrite'
+      - 'User.Read.All'
+      - 'Directory.Read.All'
+      - 'offline_access'
+      - 'openid'
+  condition: selection and filter_suspicious_permissions
+  timeframe: 24h
+
+fields:
+  - properties.initiatedBy.user.userPrincipalName
+  - properties.initiatedBy.user.displayName
+  - properties.targetResources.displayName
+  - properties.targetResources.modifiedProperties
+  - properties.additionalDetails
+  - callerIpAddress
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate third-party application onboarding
+  - IT-approved business applications
+  - Microsoft first-party apps
+  - Enterprise app integrations
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1550.001  # Use Alternate Authentication Material: Application Access Token
+  - attack.t1528      # Steal Application Access Token
+  - attack.t1566.002  # Phishing: Spearphishing Link
+  - itdr
+  - identity
+  - oauth
+  - token_theft
+
+references:
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://attack.mitre.org/techniques/T1528/
+  - https://docs.microsoft.com/en-us/microsoft-365/security/office-365-security/detect-and-remediate-illicit-consent-grants
+  - https://www.microsoft.com/security/blog/2021/07/14/microsoft-discovers-threat-actor-targeting-saas-apps/
+
+custom:
+  itdr_category: token_theft
+  itdr_subcategory: illicit_consent
+  provider: azure
+  high_risk_permissions:
+    critical:
+      - "Mail.ReadWrite.All"
+      - "Files.ReadWrite.All"
+      - "Directory.ReadWrite.All"
+      - "User.ReadWrite.All"
+      - "Application.ReadWrite.All"
+      - "RoleManagement.ReadWrite.Directory"
+    high:
+      - "Mail.Read"
+      - "Mail.ReadWrite"
+      - "Files.Read.All"
+      - "Files.ReadWrite"
+      - "User.Read.All"
+      - "Directory.Read.All"
+      - "offline_access"
+    medium:
+      - "Calendars.Read"
+      - "Contacts.Read"
+      - "Sites.Read.All"
+  phishing_app_indicators:
+    - name_contains_microsoft_variant
+    - name_contains_office_variant
+    - unverified_publisher
+    - recently_created_app
+    - suspicious_redirect_uri
+  recommended_action: |
+    1. Identify the OAuth application receiving consent
+    2. Check if application is verified/known
+    3. Review all permissions granted
+    4. Contact user to verify intentional consent
+    5. If suspicious, revoke the consent grant immediately
+    6. Review Azure AD Enterprise Applications
+    7. Check for data access from the application
+    8. Consider blocking unverified publishers

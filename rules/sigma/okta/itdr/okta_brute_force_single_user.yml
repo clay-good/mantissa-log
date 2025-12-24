@@ -1,0 +1,60 @@
+title: Okta Brute Force Attack - Single User
+id: itdr-okta-brute-force-single-user-001
+status: stable
+description: |
+  Detects brute force attack targeting a single user account.
+  Triggers when 5 or more failed login attempts occur for the same user
+  within 15 minutes, indicating a targeted credential attack.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action: 'user.session.start'
+    event.outcome: 'failure'
+  condition: selection | count(user.email) by user.email >= 5
+  timeframe: 15m
+
+fields:
+  - user.email
+  - user.name
+  - source.ip
+  - source.geo.country_name
+  - source.geo.city_name
+  - '@timestamp'
+  - okta.outcome.reason
+  - okta.client.device
+  - okta.client.userAgent.rawUserAgent
+
+falsepositives:
+  - Users with forgotten passwords making multiple attempts
+  - Password manager sync issues
+  - Misconfigured automated systems
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.t1110.001  # Brute Force: Password Guessing
+  - attack.t1078      # Valid Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://developer.okta.com/docs/reference/api/system-log/
+
+custom:
+  itdr_category: credential_attack
+  itdr_subcategory: brute_force
+  provider: okta
+  recommended_action: |
+    1. Review source IPs for geographic anomalies
+    2. Check if user account should be temporarily locked
+    3. Verify if attack coincides with leaked credential databases
+    4. Consider implementing progressive lockout policies

@@ -1,0 +1,110 @@
+[
+  {
+    "name": "event_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for this span event"
+  },
+  {
+    "name": "trace_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the entire trace (32 hex chars)"
+  },
+  {
+    "name": "span_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for this span (16 hex chars)"
+  },
+  {
+    "name": "parent_span_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Parent span ID if this is a child span (null for root spans)"
+  },
+  {
+    "name": "operation_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the operation (e.g., GET /api/users, process_order)"
+  },
+  {
+    "name": "service_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the service that emitted this span"
+  },
+  {
+    "name": "kind",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Span kind: client, server, internal, producer, consumer"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Span status: ok, error, unset"
+  },
+  {
+    "name": "status_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if status is error"
+  },
+  {
+    "name": "start_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the span started"
+  },
+  {
+    "name": "end_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When the span ended"
+  },
+  {
+    "name": "duration_ms",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Span duration in milliseconds"
+  },
+  {
+    "name": "attributes",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Span attributes (tags) for filtering"
+  },
+  {
+    "name": "events",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Span events (logs within the span)"
+  },
+  {
+    "name": "links",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Links to other traces/spans"
+  },
+  {
+    "name": "resource_service_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Version of the service"
+  },
+  {
+    "name": "resource_host_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hostname where the service is running"
+  },
+  {
+    "name": "resource_deployment_environment",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Environment: production, staging, development"
+  }
+]

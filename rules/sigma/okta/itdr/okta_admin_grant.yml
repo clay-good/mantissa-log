@@ -1,0 +1,97 @@
+title: Okta Admin Role Assignment
+id: itdr-okta-admin-grant-001
+status: stable
+description: |
+  Detects when an admin role is assigned to a user in Okta. Admin role
+  assignments should be rare and carefully controlled. Unexpected admin
+  grants could indicate privilege escalation attacks, insider threats,
+  or compromised admin accounts being used to create persistence.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action:
+      - 'user.role.assign'
+      - 'user.role.grant'
+      - 'group.user_membership.add'
+  filter_admin_roles:
+    # Role being assigned is an admin role
+    okta.target.displayName|contains:
+      - 'Admin'
+      - 'Administrator'
+      - 'Super'
+      - 'Organization'
+  condition: selection and filter_admin_roles
+  timeframe: 24h
+
+fields:
+  - user.email
+  - okta.actor.email
+  - okta.actor.displayName
+  - event.action
+  - okta.target.type
+  - okta.target.displayName
+  - okta.target.alternateId
+  - source.ip
+  - source.geo.country_name
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate admin onboarding by IT
+  - Organizational role changes
+  - Temporary admin access for maintenance
+  - New team leads receiving admin privileges
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - attack.t1098.001  # Additional Cloud Credentials
+  - itdr
+  - identity
+  - privilege
+
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://attack.mitre.org/techniques/T1098/
+  - https://developer.okta.com/docs/reference/api/system-log/
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: admin_grant
+  provider: okta
+  high_privilege_roles:
+    - "Super Admin"
+    - "Organization Admin"
+    - "Application Admin"
+    - "Group Admin"
+    - "Help Desk Admin"
+    - "Read-Only Admin"
+    - "API Access Management Admin"
+  severity_mapping:
+    super_admin_grant: critical
+    org_admin_grant: critical
+    app_admin_grant: high
+    group_admin_grant: high
+    other_admin_grant: medium
+  escalation_triggers:
+    - granted_outside_business_hours
+    - granter_is_newly_admin
+    - target_is_dormant_account
+    - granter_from_new_location
+  recommended_action: |
+    1. Verify admin grant was authorized through proper channels
+    2. Check if granter has legitimate authority to assign admins
+    3. Review if target user has need for admin access
+    4. Examine source IP and location for anomalies
+    5. Check for other privilege escalation indicators
+    6. If unauthorized, immediately revoke the admin role

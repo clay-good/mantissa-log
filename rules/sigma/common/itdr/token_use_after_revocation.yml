@@ -1,0 +1,87 @@
+title: Token Use After Revocation
+id: itdr-common-token-replay-001
+status: stable
+description: |
+  Detects when an OAuth or API token continues to be used after it was
+  revoked. This indicates token theft where the attacker obtained the
+  token before revocation and is still attempting to use it, or improper
+  token invalidation on the provider side.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection_revocation:
+    event_type:
+      - 'TOKEN_REVOKED'
+      - 'token.revoke'
+      - 'system.api_token.revoke'
+  selection_usage:
+    event_type:
+      - 'TOKEN_USED'
+      - 'API_CALL'
+      - 'token.use'
+  condition: selection_revocation or selection_usage
+  # Post-processing correlates: token usage after revocation event
+  timeframe: 24h
+
+fields:
+  - token_id
+  - user_email
+  - source_ip
+  - source_geo.country
+  - event_type
+  - event_action
+  - provider
+  - application_name
+  - '@timestamp'
+
+falsepositives:
+  - Race conditions in distributed systems (very short window)
+  - Cached tokens still being validated
+  - Clock skew between systems
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1550.001  # Application Access Token
+  - attack.t1528      # Steal Application Access Token
+  - itdr
+  - identity
+  - token_theft
+  - token_replay
+
+references:
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://attack.mitre.org/techniques/T1528/
+  - https://oauth.net/2/token-revocation/
+
+custom:
+  itdr_category: token_theft
+  itdr_subcategory: token_replay
+  provider: common
+  detection_type: post_processing
+  detection_logic: |
+    1. Track all token revocation events with timestamps
+    2. For each revoked token, monitor for usage events
+    3. If usage occurs after revocation + grace period: alert
+    4. Grace period: 60 seconds (for distributed system delays)
+  grace_period_seconds: 60
+  severity_by_delay:
+    under_1_minute: high
+    1_to_5_minutes: critical
+    over_5_minutes: critical
+  recommended_action: |
+    1. Force invalidate the token at the IdP level
+    2. Identify all systems that may have cached the token
+    3. Review all activity from the token after revocation
+    4. Check for data access or privilege escalation
+    5. Investigate how token was stolen
+    6. Force password reset for the user
+    7. Review token management practices

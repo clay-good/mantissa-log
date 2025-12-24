@@ -1,0 +1,107 @@
+title: Microsoft 365 Admin Role Assignment
+id: itdr-m365-admin-grant-001
+status: stable
+description: |
+  Detects when an admin role is assigned in Microsoft 365 via the
+  admin portal or Exchange Online. Covers Exchange admin roles,
+  SharePoint admin, Teams admin, and other M365-specific roles.
+
+  Works in conjunction with Azure AD role monitoring for comprehensive
+  privilege escalation detection.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: management_activity
+
+detection:
+  selection:
+    Operation:
+      - 'Add-RoleGroupMember'
+      - 'New-RoleGroupMember'
+      - 'Add member to role'
+      - 'Set-User'
+  filter_admin_context:
+    # Check for admin-related role groups
+    RoleGroup|contains:
+      - 'Admin'
+      - 'Administrator'
+      - 'Management'
+      - 'Security'
+      - 'Compliance'
+      - 'Organization'
+  condition: selection and filter_admin_context
+  timeframe: 24h
+
+fields:
+  - UserId
+  - UserKey
+  - Operation
+  - Workload
+  - RoleGroup
+  - ObjectId
+  - Parameters
+  - ClientIP
+  - '@timestamp'
+
+falsepositives:
+  - IT admin onboarding new staff
+  - Role changes during organizational restructuring
+  - Temporary access for compliance audits
+  - Delegation of admin duties
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098      # Account Manipulation
+  - itdr
+  - identity
+  - privilege
+
+references:
+  - https://attack.mitre.org/techniques/T1098/
+  - https://docs.microsoft.com/en-us/microsoft-365/security/office-365-security/permissions-in-the-security-and-compliance-center
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: admin_grant
+  provider: microsoft365
+  high_privilege_roles:
+    - name: "Organization Management"
+      severity: critical
+      service: exchange
+    - name: "Security Administrator"
+      severity: critical
+      service: security_compliance
+    - name: "Compliance Administrator"
+      severity: high
+      service: security_compliance
+    - name: "Exchange Administrator"
+      severity: high
+      service: exchange
+    - name: "SharePoint Administrator"
+      severity: high
+      service: sharepoint
+    - name: "Teams Administrator"
+      severity: high
+      service: teams
+    - name: "eDiscovery Manager"
+      severity: high
+      service: security_compliance
+  severity_by_workload:
+    ExchangeAdmin: high
+    SecurityComplianceCenter: critical
+    SharePoint: high
+    MicrosoftTeams: high
+  recommended_action: |
+    1. Verify role assignment was authorized
+    2. Check if granter has appropriate permissions
+    3. Review target user's need for admin access
+    4. Examine ClientIP for geo anomalies
+    5. Check for related Azure AD role assignments
+    6. If unauthorized, remove role immediately

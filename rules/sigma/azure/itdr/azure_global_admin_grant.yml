@@ -1,0 +1,101 @@
+title: Azure AD Global Administrator Role Assignment
+id: itdr-azure-global-admin-grant-001
+status: stable
+description: |
+  Detects when Global Administrator role is assigned in Azure AD/Entra ID.
+  Global Administrator is the highest privilege role in Azure AD with
+  full control over the tenant. Any assignment of this role should be
+  extremely rare and heavily scrutinized.
+
+  Threat actors frequently target this role for persistence and lateral
+  movement in cloud environments.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: auditlogs
+
+detection:
+  selection:
+    properties.operationName:
+      - 'Add member to role'
+      - 'Add eligible member to role'
+      - 'Add scoped member to role'
+  filter_global_admin:
+    properties.targetResources.modifiedProperties.displayName: 'Role.DisplayName'
+    properties.targetResources.modifiedProperties.newValue|contains:
+      - 'Global Administrator'
+      - 'Company Administrator'  # Legacy name
+  condition: selection and filter_global_admin
+  timeframe: 24h
+
+fields:
+  - properties.initiatedBy.user.userPrincipalName
+  - properties.initiatedBy.user.displayName
+  - properties.targetResources.userPrincipalName
+  - properties.targetResources.displayName
+  - properties.operationName
+  - properties.result
+  - properties.additionalDetails
+  - callerIpAddress
+  - '@timestamp'
+
+falsepositives:
+  - Initial tenant setup
+  - Emergency break-glass account activation
+  - Planned admin succession
+
+level: critical
+
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - attack.t1098.001  # Additional Cloud Credentials
+  - attack.t1098.003  # Additional Cloud Roles
+  - itdr
+  - identity
+  - privilege
+
+references:
+  - https://attack.mitre.org/techniques/T1098/003/
+  - https://docs.microsoft.com/en-us/azure/active-directory/roles/permissions-reference
+  - https://docs.microsoft.com/en-us/azure/active-directory/roles/security-planning
+
+custom:
+  itdr_category: privilege_escalation
+  itdr_subcategory: global_admin_grant
+  provider: azure
+  role_id: "62e90394-69f5-4237-9190-012177145e10"  # Global Admin role ID
+  azure_high_privilege_roles:
+    - role_id: "62e90394-69f5-4237-9190-012177145e10"
+      name: "Global Administrator"
+      severity: critical
+    - role_id: "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3"
+      name: "Application Administrator"
+      severity: high
+    - role_id: "158c047a-c907-4556-b7ef-446551a6b5f7"
+      name: "Cloud Application Administrator"
+      severity: high
+    - role_id: "e8611ab8-c189-46e8-94e1-60213ab1f814"
+      name: "Privileged Role Administrator"
+      severity: critical
+    - role_id: "194ae4cb-b126-40b2-bd5b-6091b380977d"
+      name: "Security Administrator"
+      severity: high
+  escalation_triggers:
+    - assignment_from_pim_bypass
+    - assignment_outside_change_window
+    - assignment_to_external_user
+    - assignment_by_non_global_admin
+  recommended_action: |
+    1. IMMEDIATELY verify this was an authorized change
+    2. Contact the assigning admin through secure channel
+    3. Check if target user has legitimate need for Global Admin
+    4. Review if Privileged Identity Management (PIM) was bypassed
+    5. Audit recent actions by both granter and grantee
+    6. If unauthorized, immediately remove the role assignment
+    7. Force password reset for both accounts
+    8. Review conditional access policies for this role

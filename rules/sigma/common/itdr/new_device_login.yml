@@ -1,0 +1,83 @@
+title: Login from New Device
+id: itdr-common-new-device-001
+status: stable
+description: |
+  Detects authentication from a device not previously seen in the user's
+  behavioral baseline. New devices could indicate a legitimate new laptop/phone
+  or could indicate credential theft being used from attacker's device.
+
+  Analysis compares device fingerprint and user agent against the user's
+  baseline known_devices and known_user_agents sets.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    event_type: 'AUTH_SUCCESS'
+  filter_has_device_info:
+    # At least one of these should be present
+    - device_fingerprint|exists: true
+    - user_agent|exists: true
+  condition: selection and filter_has_device_info
+
+fields:
+  - user_email
+  - source_ip
+  - device_fingerprint
+  - user_agent
+  - source_geo.country
+  - source_geo.city
+  - provider
+  - '@timestamp'
+
+falsepositives:
+  - New laptop/phone issued to employee
+  - Browser updates changing user agent
+  - Using different browser than usual
+  - Guest/shared computer access
+  - Mobile app updates
+
+level: medium
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078  # Valid Accounts
+  - itdr
+  - identity
+  - behavioral
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent
+
+custom:
+  itdr_category: behavioral_anomaly
+  itdr_subcategory: new_device
+  provider: common
+  detection_type: post_processing
+  device_comparison_logic:
+    primary: device_fingerprint
+    fallback: user_agent_hash
+    similarity: browser_family_version
+  severity_escalation:
+    new_device_only: medium
+    new_device_plus_new_location: high
+    new_device_plus_new_country: critical
+    new_device_plus_unusual_time: high
+  user_agent_similarity:
+    same_browser_different_version: not_new
+    same_os_different_browser: new
+    completely_different: new
+  recommended_action: |
+    1. Verify new device with user
+    2. Check if IT recently issued new equipment
+    3. Review if browser was updated
+    4. Examine session for suspicious activity
+    5. Consider device trust policies
+    6. If combined with other anomalies, escalate severity

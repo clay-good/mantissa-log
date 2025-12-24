@@ -1,0 +1,77 @@
+title: Authentication Volume Spike
+id: itdr-common-auth-volume-spike-001
+status: stable
+description: |
+  Detects when a user's authentication activity volume significantly exceeds
+  their baseline. Volume spikes could indicate credential sharing, automation,
+  scripted access, or account compromise.
+
+  Analysis is performed by the VolumeDetector which compares event counts
+  against the user's baseline using z-score calculations.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    event_type:
+      - 'AUTH_SUCCESS'
+      - 'AUTH_FAILURE'
+  condition: selection
+  # Actual volume analysis happens in post-processing
+
+fields:
+  - user_email
+  - source_ip
+  - event_type
+  - provider
+  - application_name
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate automation or scripting
+  - Batch processing operations
+  - User training or onboarding sessions
+  - Shared service accounts
+  - Load testing activities
+
+level: medium
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078  # Valid Accounts
+  - attack.t1110  # Brute Force
+  - itdr
+  - identity
+  - behavioral
+
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://attack.mitre.org/techniques/T1110/
+
+custom:
+  itdr_category: behavioral_anomaly
+  itdr_subcategory: volume_anomaly
+  provider: common
+  detection_type: post_processing
+  thresholds:
+    zscore_threshold: 2.0  # 2 standard deviations
+    min_events_for_detection: 10
+    burst_threshold: 10  # events in 5 minutes
+  severity_mapping:
+    zscore_2_to_3: medium
+    zscore_3_to_4: high
+    zscore_above_4: critical
+    burst_detection: high
+  recommended_action: |
+    1. Review if user has legitimate automation needs
+    2. Check for credential sharing
+    3. Examine source IPs for unusual patterns
+    4. Look for scripted access patterns
+    5. Review accessed applications for sensitivity
+    6. Consider implementing rate limiting

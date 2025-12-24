@@ -1,0 +1,85 @@
+title: Session Token Replay After Logout
+id: itdr-common-session-token-replay-001
+status: stable
+description: |
+  Detects when a session token continues to be used after a logout
+  (SESSION_END) event was recorded. This indicates token theft where
+  the attacker obtained the token before the user logged out, or
+  improper session invalidation.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection_session_end:
+    event_type: 'SESSION_END'
+  selection_activity:
+    event_type:
+      - 'AUTH_SUCCESS'
+      - 'APP_ACCESS'
+      - 'API_CALL'
+      - 'RESOURCE_ACCESS'
+  condition: selection_session_end or selection_activity
+  # Post-processing correlates: session_id used after SESSION_END time
+  timeframe: 24h
+
+fields:
+  - session_id
+  - user_email
+  - source_ip
+  - source_geo.country
+  - event_type
+  - provider
+  - application_name
+  - '@timestamp'
+
+falsepositives:
+  - Race conditions in distributed systems (very short window)
+  - Cached/queued requests completing after logout
+  # Note: Activity minutes after logout is always suspicious
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1539  # Steal Web Session Cookie
+  - attack.t1550.001  # Use Alternate Authentication Material
+  - itdr
+  - identity
+  - session_hijacking
+  - token_replay
+
+references:
+  - https://attack.mitre.org/techniques/T1539/
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://owasp.org/www-community/attacks/Session_fixation
+
+custom:
+  itdr_category: session_attack
+  itdr_subcategory: token_replay
+  provider: common
+  detection_type: post_processing
+  detection_logic: |
+    1. Track all SESSION_END events with their timestamps
+    2. For each session_id, record the logout time
+    3. Monitor for any activity using that session_id after logout
+    4. Grace period: 30 seconds (for request queuing)
+    5. Activity after grace period: definitive token theft/replay
+  grace_period_seconds: 30
+  severity_by_delay:
+    under_1_minute: high  # Could be race condition
+    1_to_5_minutes: critical  # Likely theft
+    over_5_minutes: critical  # Definitive theft
+  recommended_action: |
+    1. Force invalidate the session token at the IdP level
+    2. Review all activity after the logout timestamp
+    3. Check for data access or privilege escalation
+    4. Investigate how token was obtained before logout
+    5. Check if refresh tokens are also compromised
+    6. Force password reset
+    7. Review token storage and handling practices

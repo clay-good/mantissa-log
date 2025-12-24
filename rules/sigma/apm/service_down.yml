@@ -1,0 +1,45 @@
+title: Service Appears Down
+id: apm-traces-service-down-001
+status: stable
+description: Detects when a service stops receiving requests, indicating potential outage or network isolation
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  timeframe: 5m
+  baseline_comparison: true
+  condition: |
+    No spans for service_name in timeframe compared to baseline.
+    Triggers when: current_rate < (baseline_rate * 0.1)
+    Requires: baseline_rate > 1 request/minute (to avoid false positives for rarely-used services)
+
+fields:
+  - service_name
+  - last_seen
+  - last_span_time
+  - expected_rate
+  - current_rate
+  - baseline_rate
+
+falsepositives:
+  - Scheduled maintenance windows
+  - Services with very low traffic patterns
+  - Newly deployed services without baseline
+  - Intentional service shutdown
+
+level: critical
+
+tags:
+  - availability
+  - outage
+  - slo
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/concepts/signals/traces/
+  - https://sre.google/sre-book/service-level-objectives/

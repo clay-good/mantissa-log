@@ -1,0 +1,81 @@
+title: Identity Event Tagged for Impossible Travel Analysis
+id: itdr-common-impossible-travel-001
+status: stable
+description: |
+  Meta-rule that tags successful authentication events with geolocation data
+  for impossible travel analysis. The actual impossible travel detection
+  happens in post-processing by the ImpossibleTravelDetector, which compares
+  consecutive events to calculate required travel velocity.
+
+  Threshold: 800 km/h (approximate commercial flight speed)
+  VPN detection: >5000 km/h indicates likely VPN/proxy usage
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    event_type: 'AUTH_SUCCESS'
+  filter_no_geo:
+    # Require geolocation data
+    source_geo.latitude|exists: true
+    source_geo.longitude|exists: true
+  condition: selection and filter_no_geo
+
+fields:
+  - user_email
+  - source_ip
+  - source_geo.latitude
+  - source_geo.longitude
+  - source_geo.country
+  - source_geo.city
+  - device_fingerprint
+  - user_agent
+  - provider
+  - '@timestamp'
+
+falsepositives:
+  - VPN or proxy usage (detected by velocity >5000 km/h)
+  - Shared/service accounts used by multiple people
+  - Mobile users with rapidly changing network connections
+  - Cloud-based applications with geographically distributed infrastructure
+
+level: high
+
+tags:
+  - attack.initial_access
+  - attack.credential_access
+  - attack.t1078      # Valid Accounts
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+  - behavioral
+
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/concept-identity-protection-risks
+
+custom:
+  itdr_category: behavioral_anomaly
+  itdr_subcategory: impossible_travel
+  provider: common
+  detection_type: post_processing
+  analysis_thresholds:
+    max_human_velocity_kmh: 800
+    vpn_detection_threshold_kmh: 5000
+    min_distance_km: 100
+    min_time_gap_seconds: 60
+  travel_modes:
+    car: 150  # km/h max
+    train: 350  # km/h (high-speed rail)
+    plane: 800  # km/h (commercial)
+  recommended_action: |
+    1. Verify user identity through out-of-band communication
+    2. Check if VPN usage explains the travel pattern
+    3. Review session for post-compromise activity
+    4. Consider requiring step-up authentication
+    5. For shared accounts, verify expected usage pattern

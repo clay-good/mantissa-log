@@ -1,0 +1,72 @@
+title: Duo Security Brute Force Attack
+id: itdr-duo-brute-force-001
+status: stable
+description: |
+  Detects brute force attack through Duo Security MFA.
+  Triggers when 5 or more denied authentication attempts occur
+  for the same user within 15 minutes. Monitors for denied results
+  with invalid_credentials or user_disabled reasons.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: duo
+  service: authentication
+
+detection:
+  selection:
+    result: 'DENIED'
+    reason:
+      - 'invalid_credentials'
+      - 'user_disabled'
+      - 'locked_out'
+      - 'invalid_device'
+      - 'user_not_in_permitted_group'
+  condition: selection | count(user.name) by user.name >= 5
+  timeframe: 15m
+
+fields:
+  - user.name
+  - user.key
+  - access_device.ip
+  - access_device.location.country
+  - access_device.location.city
+  - result
+  - reason
+  - factor
+  - integration.name
+  - '@timestamp'
+
+falsepositives:
+  - Users with device issues
+  - Network connectivity problems
+  - Duo app update required
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.t1110.001  # Brute Force: Password Guessing
+  - attack.t1556.006  # Modify Authentication Process: MFA
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://duo.com/docs/adminapi#authentication-logs
+
+custom:
+  itdr_category: credential_attack
+  itdr_subcategory: brute_force
+  provider: duo
+  duo_denial_reasons:
+    invalid_credentials: "Primary authentication failed"
+    user_disabled: "User is disabled in Duo"
+    locked_out: "User is locked out"
+    invalid_device: "Device not registered"
+  recommended_action: |
+    1. Check Duo admin console for user status
+    2. Review if primary authentication (before Duo) also failed
+    3. Verify user hasn't lost their Duo device
+    4. Consider temporary account lockout

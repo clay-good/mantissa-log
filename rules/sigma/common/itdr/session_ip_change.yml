@@ -1,0 +1,95 @@
+title: Session IP Address Change Detection
+id: itdr-common-session-ip-change-001
+status: stable
+description: |
+  Detects when activity from a session occurs with a different IP address
+  than the session was originally established from. Mid-session IP changes
+  can indicate session hijacking or token theft.
+
+  Some legitimate scenarios exist (mobile networks, VPN connects/disconnects)
+  but significant geographic changes or datacenter IP appearances are
+  highly suspicious.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    # Any activity with a session ID
+    session_id|exists: true
+  condition: selection
+  # Post-processing compares current IP to session's original IP
+  timeframe: 24h
+
+fields:
+  - session_id
+  - user_email
+  - source_ip
+  - source_geo.country
+  - source_geo.city
+  - device_fingerprint
+  - user_agent
+  - provider
+  - event_type
+  - '@timestamp'
+
+falsepositives:
+  - Mobile devices changing networks
+  - VPN connection/disconnection
+  - Corporate proxy/NAT changes
+  - Legitimate roaming between networks
+  - Multi-homed environments
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.lateral_movement
+  - attack.t1539  # Steal Web Session Cookie
+  - attack.t1550.001  # Use Alternate Authentication Material: Application Access Token
+  - itdr
+  - identity
+  - session_hijacking
+
+references:
+  - https://attack.mitre.org/techniques/T1539/
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://owasp.org/www-community/attacks/Session_hijacking_attack
+
+custom:
+  itdr_category: session_attack
+  itdr_subcategory: ip_change
+  provider: common
+  detection_type: post_processing
+  detection_logic: |
+    For each session:
+    1. Track the original IP from session creation
+    2. Monitor all subsequent events for that session_id
+    3. If IP changes significantly, generate alert
+
+    Significance factors:
+    - Different country: Critical
+    - Different city, same country: High
+    - Different IP, same city: Medium (may be NAT/proxy)
+    - Known VPN/datacenter IP appearing: High
+  exclusion_patterns:
+    - mobile_carrier_ip_rotation
+    - known_vpn_exit_nodes
+    - corporate_proxy_ranges
+  severity_mapping:
+    same_country_different_city: medium
+    different_country: critical
+    datacenter_ip_appears: high
+    impossible_travel_within_session: critical
+  recommended_action: |
+    1. Immediately review the session activity
+    2. Check if IP change is geographically reasonable
+    3. Verify if user has VPN or mobile usage patterns
+    4. Look for sensitive actions after IP change
+    5. Consider terminating the session
+    6. If suspicious, force re-authentication
+    7. Review other sessions for same user

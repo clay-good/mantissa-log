@@ -1,0 +1,100 @@
+title: Session Device Fingerprint Change Detection
+id: itdr-common-session-device-change-001
+status: stable
+description: |
+  Detects when activity from a session occurs with a different device
+  fingerprint or user agent than when the session was established.
+  Device changes mid-session should never occur and strongly indicate
+  session token theft.
+
+  This is highly suspicious because:
+  - Sessions are bound to specific clients
+  - Devices cannot change during a session
+  - Token replay attacks manifest this way
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  category: authentication
+  # Applies to all identity providers
+
+detection:
+  selection:
+    # Any activity with session and device info
+    session_id|exists: true
+  filter_has_device:
+    - device_fingerprint|exists: true
+    - user_agent|exists: true
+  condition: selection and filter_has_device
+  # Post-processing compares current device to session's original device
+  timeframe: 24h
+
+fields:
+  - session_id
+  - user_email
+  - source_ip
+  - device_fingerprint
+  - user_agent
+  - user_agent_parsed.browser
+  - user_agent_parsed.os
+  - provider
+  - event_type
+  - '@timestamp'
+
+falsepositives:
+  - Browser extension installations (rare)
+  - Browser updates mid-session (very rare)
+  - Proxy/gateway user agent modifications
+  # Note: These are extremely rare and should still be investigated
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.lateral_movement
+  - attack.t1539  # Steal Web Session Cookie
+  - attack.t1550.001  # Use Alternate Authentication Material: Application Access Token
+  - attack.t1528  # Steal Application Access Token
+  - itdr
+  - identity
+  - session_hijacking
+
+references:
+  - https://attack.mitre.org/techniques/T1539/
+  - https://attack.mitre.org/techniques/T1528/
+  - https://owasp.org/www-community/attacks/Session_hijacking_attack
+
+custom:
+  itdr_category: session_attack
+  itdr_subcategory: device_change
+  provider: common
+  detection_type: post_processing
+  detection_logic: |
+    For each session:
+    1. Record device fingerprint and user agent at session start
+    2. Monitor all subsequent events for that session_id
+    3. If device changes, immediately alert (critical)
+
+    Device comparison:
+    - Device fingerprint: exact match required
+    - User agent: parsed comparison (browser family, OS)
+    - Minor version changes may be acceptable
+    - Major changes (different browser/OS) are theft indicators
+  user_agent_parsing:
+    compare_fields:
+      - browser_family
+      - browser_major_version
+      - os_family
+      - device_type
+    ignore_fields:
+      - browser_minor_version
+      - os_version
+  recommended_action: |
+    1. IMMEDIATELY terminate the session
+    2. Force re-authentication for the user
+    3. Review all actions taken after device change
+    4. Check for data access or exfiltration
+    5. Investigate how token was stolen
+    6. Review other sessions for similar patterns
+    7. Consider security incident declaration

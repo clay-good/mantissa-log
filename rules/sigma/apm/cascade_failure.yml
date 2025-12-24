@@ -1,0 +1,47 @@
+title: Potential Cascade Failure Detected
+id: apm-traces-cascade-failure-001
+status: experimental
+description: Detects when multiple related services show errors simultaneously, indicating a potential cascade failure through the dependency chain
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  timeframe: 2m
+  dependency_analysis: true
+  condition: |
+    3+ services in dependency chain showing elevated errors within timeframe.
+    Requires:
+    - Services must be connected via parent-child span relationships
+    - Each service must have error_rate > 0.1 (10%)
+    - Services must show error increase within same time window
+
+fields:
+  - affected_services
+  - root_service
+  - error_rates
+  - dependency_chain
+  - first_error_time
+  - propagation_time_ms
+
+falsepositives:
+  - Coordinated deployments across services
+  - Shared infrastructure issues (database, message queue)
+  - External dependency affecting multiple services
+  - Configuration changes
+
+level: critical
+
+tags:
+  - cascade
+  - reliability
+  - dependency
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/concepts/signals/traces/
+  - https://sre.google/sre-book/addressing-cascading-failures/

@@ -1,0 +1,84 @@
+title: Azure AD MFA Fatigue Attack
+id: itdr-azure-mfa-fatigue-001
+status: stable
+description: |
+  Detects MFA fatigue (push bombing) attacks against Azure AD users.
+  Triggers when 5+ MFA challenges occur for the same user within 5 minutes.
+  Monitors Azure AD MFA authentication attempts and Microsoft Authenticator
+  push notifications.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: signinlogs
+
+detection:
+  selection:
+    properties.status.errorCode:
+      - 50074  # StrongAuthenticationRequired
+      - 50076  # MFA required, not completed
+      - 50097  # Device authentication required
+      - 500121  # Authentication failed during MFA
+  condition: selection | count(properties.userPrincipalName) by properties.userPrincipalName >= 5
+  timeframe: 5m
+
+fields:
+  - properties.userPrincipalName
+  - properties.ipAddress
+  - properties.status.errorCode
+  - properties.status.failureReason
+  - properties.authenticationDetails
+  - properties.mfaDetail.authMethod
+  - properties.mfaDetail.authDetail
+  - properties.deviceDetail.browser
+  - properties.deviceDetail.operatingSystem
+  - properties.location.countryOrRegion
+  - properties.location.city
+  - '@timestamp'
+
+falsepositives:
+  - Microsoft Authenticator app reinstallation
+  - Network connectivity issues
+  - User device issues
+  - Conditional Access policy testing
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1621  # Multi-Factor Authentication Request Generation
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1621/
+  - https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-mfa-howitworks
+  - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+
+custom:
+  itdr_category: mfa_attack
+  itdr_subcategory: mfa_fatigue
+  provider: azure
+  detection_thresholds:
+    mfa_challenge_count: 5
+    time_window_minutes: 5
+  azure_mfa_error_codes:
+    50074: "Strong authentication required"
+    50076: "MFA required but not completed"
+    50097: "Device authentication required"
+    500121: "MFA authentication failed"
+  azure_mfa_methods:
+    - PhoneAppNotification (Microsoft Authenticator push)
+    - PhoneAppOTP (Authenticator OTP)
+    - TwoWayVoiceMobile (Phone call)
+    - TwoWaySMS (SMS)
+  recommended_action: |
+    1. Contact user through verified channel
+    2. Review Azure AD sign-in logs for source IP
+    3. If attack confirmed, revoke user sessions
+    4. Force password reset and MFA re-registration
+    5. Enable number matching in Microsoft Authenticator
+    6. Consider Risk-based Conditional Access policies

@@ -1,0 +1,62 @@
+title: Azure AD Password Spray Attack - Distributed
+id: itdr-azure-brute-force-distributed-001
+status: stable
+description: |
+  Detects password spray attack against Azure AD where an attacker
+  attempts to login to multiple different user accounts from the same
+  IP address. This is a common technique to avoid account lockout
+  while testing common passwords across many accounts.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: azure
+  service: signinlogs
+
+detection:
+  selection:
+    properties.status.errorCode:
+      - 50126  # Invalid username or password
+      - 50053  # Account is locked
+  condition: selection | count(properties.userPrincipalName) by properties.ipAddress >= 10
+  timeframe: 15m
+
+fields:
+  - properties.ipAddress
+  - properties.userPrincipalName
+  - properties.location.countryOrRegion
+  - properties.location.city
+  - properties.status.errorCode
+  - properties.status.failureReason
+  - properties.appDisplayName
+  - '@timestamp'
+
+falsepositives:
+  - Corporate proxy or NAT gateway
+  - VPN concentrators
+  - Legitimate SSO federation services
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1110.003  # Brute Force: Password Spraying
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1110/003/
+  - https://docs.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+
+custom:
+  itdr_category: credential_attack
+  itdr_subcategory: password_spray
+  provider: azure
+  recommended_action: |
+    1. Block source IP immediately
+    2. Identify all targeted user accounts
+    3. Check if any accounts were successfully compromised
+    4. Review conditional access policies
+    5. Enable Azure AD Identity Protection if not already active

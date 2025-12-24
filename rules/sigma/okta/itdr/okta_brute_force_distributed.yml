@@ -1,0 +1,60 @@
+title: Okta Password Spray Attack - Distributed
+id: itdr-okta-brute-force-distributed-001
+status: stable
+description: |
+  Detects password spray attack where an attacker attempts to login to
+  multiple different user accounts from the same IP address.
+  This pattern indicates the attacker is trying common passwords across
+  many accounts to avoid account lockout.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action: 'user.session.start'
+    event.outcome: 'failure'
+  condition: selection | count(user.email) by source.ip >= 10
+  timeframe: 15m
+
+fields:
+  - source.ip
+  - source.geo.country_name
+  - source.geo.city_name
+  - user.email
+  - '@timestamp'
+  - okta.outcome.reason
+  - okta.client.userAgent.rawUserAgent
+
+falsepositives:
+  - Corporate proxy or NAT gateway causing many users to appear from same IP
+  - Shared workstations in common areas
+  - VPN concentrators
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1110.003  # Brute Force: Password Spraying
+  - attack.t1078      # Valid Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1110/003/
+  - https://developer.okta.com/docs/reference/api/system-log/
+
+custom:
+  itdr_category: credential_attack
+  itdr_subcategory: password_spray
+  provider: okta
+  recommended_action: |
+    1. Immediately block the source IP at firewall/WAF
+    2. Identify all targeted user accounts
+    3. Force password reset for any accounts that may have been compromised
+    4. Review if source IP is a known proxy/VPN/TOR exit node
+    5. Check threat intelligence for IP reputation

@@ -1,0 +1,103 @@
+title: Google Workspace OAuth Token Grant to Third-Party App
+id: itdr-gws-oauth-token-grant-001
+status: stable
+description: |
+  Detects OAuth token grants to third-party applications in Google Workspace.
+  Third-party OAuth apps can gain significant access to user data including
+  Gmail, Drive, and Calendar. Attackers use phishing to trick users into
+  granting OAuth access to malicious apps.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: google_workspace
+  service: token
+
+detection:
+  selection:
+    event.name:
+      - 'authorize'
+      - 'issue_token'
+      - 'consent'
+  filter_dangerous_scopes:
+    event.parameters.scope|contains:
+      - 'gmail'
+      - 'drive'
+      - 'calendar'
+      - 'contacts'
+      - 'admin'
+  condition: selection and filter_dangerous_scopes
+  timeframe: 24h
+
+fields:
+  - actor.email
+  - event.name
+  - event.parameters.client_id
+  - event.parameters.app_name
+  - event.parameters.scope
+  - event.parameters.client_type
+  - ipAddress
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate productivity apps (Zoom, Slack, etc.)
+  - IT-approved business applications
+  - Google first-party apps
+  - Enterprise app integrations
+
+level: medium
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1550.001  # Application Access Token
+  - attack.t1528      # Steal Application Access Token
+  - attack.t1566.002  # Phishing: Spearphishing Link
+  - itdr
+  - identity
+  - oauth
+  - token_theft
+
+references:
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://developers.google.com/identity/protocols/oauth2
+  - https://support.google.com/a/answer/7281227
+
+custom:
+  itdr_category: token_theft
+  itdr_subcategory: oauth_grant
+  provider: google_workspace
+  dangerous_scopes:
+    critical:
+      - "https://mail.google.com/"
+      - "https://www.googleapis.com/auth/gmail.modify"
+      - "https://www.googleapis.com/auth/gmail.compose"
+      - "https://www.googleapis.com/auth/drive"
+      - "https://www.googleapis.com/auth/admin.directory.user"
+    high:
+      - "https://www.googleapis.com/auth/gmail.readonly"
+      - "https://www.googleapis.com/auth/drive.readonly"
+      - "https://www.googleapis.com/auth/calendar"
+      - "https://www.googleapis.com/auth/contacts"
+    medium:
+      - "https://www.googleapis.com/auth/calendar.readonly"
+      - "https://www.googleapis.com/auth/contacts.readonly"
+  app_risk_factors:
+    - unverified_developer
+    - recently_created
+    - name_impersonates_google
+    - suspicious_logo
+    - minimal_user_base
+  severity_escalation:
+    critical_scope_granted: critical
+    high_scope_to_external_app: high
+    unverified_app: high
+  recommended_action: |
+    1. Identify the OAuth application receiving access
+    2. Check if app is on approved third-party list
+    3. Review all scopes granted
+    4. Contact user to verify consent was intentional
+    5. If suspicious, revoke app access in Admin Console
+    6. Review Security > API Controls > Third-party app access
+    7. Consider restricting third-party app access

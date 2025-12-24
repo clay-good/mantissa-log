@@ -1,0 +1,45 @@
+title: External API Degradation
+id: apm-traces-external-api-degradation-001
+status: stable
+description: Detects degraded response from external API calls, indicating potential third-party service issues or network problems
+author: Mantissa Security Team
+date: 2025-01-27
+modified: 2025-01-27
+
+logsource:
+  product: apm
+  service: traces
+
+detection:
+  selection:
+    kind: client
+    attributes.http.url|re: '^https?://(?!localhost|127\\.0\\.0\\.1|10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.).*'
+  condition: selection where duration_ms > 5000 or status = 'error'
+
+fields:
+  - service_name
+  - operation_name
+  - attributes.http.url
+  - attributes.http.method
+  - attributes.http.status_code
+  - duration_ms
+  - status
+  - status_message
+  - trace_id
+
+falsepositives:
+  - Known slow external APIs
+  - File upload/download operations
+  - Long-polling requests
+  - Webhook deliveries with retries
+
+level: medium
+
+tags:
+  - external
+  - dependency
+  - http
+  - apm
+
+references:
+  - https://opentelemetry.io/docs/specs/semconv/http/

@@ -1,0 +1,109 @@
+title: Okta API Token Abuse Detection
+id: itdr-okta-api-token-abuse-001
+status: stable
+description: |
+  Detects potential abuse of Okta API tokens including:
+  - API token used from unusual or new location
+  - API token used for sensitive operations
+  - API token activity patterns indicating automated abuse
+
+  API tokens provide programmatic access to Okta and are high-value
+  targets for attackers seeking persistent access.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: okta
+  service: system
+
+detection:
+  selection:
+    event.action|startswith: 'system.'
+    okta.authenticationContext.authenticationStep: 0  # API token auth
+  filter_api_operations:
+    event.action:
+      - 'system.api_token.create'
+      - 'system.api_token.use'
+      - 'system.org.rate_limit.violation'
+      - 'application.user_membership.add'
+      - 'user.lifecycle.create'
+      - 'user.lifecycle.activate'
+      - 'group.user_membership.add'
+      - 'policy.rule.update'
+  condition: selection or filter_api_operations
+  timeframe: 24h
+
+fields:
+  - event.action
+  - event.outcome
+  - okta.actor.displayName
+  - okta.actor.type
+  - okta.client.ipAddress
+  - okta.client.geographicalContext.country
+  - okta.client.geographicalContext.city
+  - okta.client.userAgent.rawUserAgent
+  - okta.target.displayName
+  - okta.target.type
+  - okta.debugContext.debugData.requestUri
+  - '@timestamp'
+
+falsepositives:
+  - Legitimate automation and scripting
+  - CI/CD pipelines using Okta API
+  - SCIM provisioning integrations
+  - Identity governance tools
+  - Security tools (SIEM, SOAR)
+
+level: medium
+
+tags:
+  - attack.credential_access
+  - attack.persistence
+  - attack.t1550.001  # Application Access Token
+  - attack.t1528      # Steal Application Access Token
+  - attack.t1059      # Command and Scripting Interpreter
+  - itdr
+  - identity
+  - api_token
+
+references:
+  - https://attack.mitre.org/techniques/T1550/001/
+  - https://developer.okta.com/docs/reference/api/system-log/
+  - https://developer.okta.com/docs/guides/create-an-api-token/
+
+custom:
+  itdr_category: token_theft
+  itdr_subcategory: api_token_abuse
+  provider: okta
+  sensitive_api_operations:
+    critical:
+      - "system.api_token.create"
+      - "user.lifecycle.create"
+      - "policy.rule.update"
+      - "policy.rule.create"
+      - "application.lifecycle.create"
+    high:
+      - "user.lifecycle.activate"
+      - "user.lifecycle.unsuspend"
+      - "group.user_membership.add"
+      - "application.user_membership.add"
+      - "user.mfa.factor.deactivate"
+    medium:
+      - "user.lifecycle.suspend"
+      - "user.lifecycle.deactivate"
+      - "group.lifecycle.create"
+  abuse_indicators:
+    - api_token_from_new_ip
+    - api_token_from_foreign_country
+    - rate_limit_violations
+    - bulk_user_operations
+    - after_hours_api_usage
+  recommended_action: |
+    1. Identify which API token is being used
+    2. Check if source IP matches known automation hosts
+    3. Review operations performed via the token
+    4. Verify with token owner if activity is expected
+    5. If suspicious, revoke the API token immediately
+    6. Audit all API tokens in the organization
+    7. Implement IP allowlisting for API tokens

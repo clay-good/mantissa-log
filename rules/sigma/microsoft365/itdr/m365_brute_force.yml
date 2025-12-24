@@ -1,0 +1,68 @@
+title: Microsoft 365 Brute Force Attack
+id: itdr-m365-brute-force-001
+status: stable
+description: |
+  Detects brute force attack against Microsoft 365 services.
+  Triggers when 5 or more failed login attempts occur for the same
+  user within 15 minutes. Monitors for UserLoginFailed events in
+  the Office 365 Management Activity API.
+author: Mantissa ITDR Team
+date: 2025-01-28
+modified: 2025-01-28
+
+logsource:
+  product: microsoft365
+  service: audit
+
+detection:
+  selection:
+    Operation:
+      - 'UserLoginFailed'
+      - 'UserLoggedIn'
+    ResultStatus: 'Failed'
+  condition: selection | count(UserId) by UserId >= 5
+  timeframe: 15m
+
+fields:
+  - UserId
+  - ClientIP
+  - UserAgent
+  - Operation
+  - ResultStatus
+  - Workload
+  - LogonError
+  - '@timestamp'
+
+falsepositives:
+  - Users with forgotten passwords
+  - Outlook/Teams client credential cache issues
+  - Legacy authentication from old applications
+
+level: high
+
+tags:
+  - attack.credential_access
+  - attack.t1110.001  # Brute Force: Password Guessing
+  - attack.t1078.004  # Valid Accounts: Cloud Accounts
+  - itdr
+  - identity
+
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema
+
+custom:
+  itdr_category: credential_attack
+  itdr_subcategory: brute_force
+  provider: microsoft365
+  m365_workloads:
+    - Exchange
+    - SharePoint
+    - OneDrive
+    - Teams
+    - AzureActiveDirectory
+  recommended_action: |
+    1. Check Azure AD sign-in logs for additional context
+    2. Verify if legacy authentication is being used
+    3. Review conditional access policies
+    4. Consider disabling legacy authentication protocols
