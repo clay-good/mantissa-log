@@ -1,116 +1,126 @@
-# Mantissa Log Detection Rules
+# Detection Rules
 
-This directory contains detection rules for the Mantissa Log security platform.
+647 pre-built Sigma detection rules and SOAR playbook definitions for Mantissa Log.
 
 ## Directory Structure
 
 ```
 rules/
-├── authentication/    # Authentication and access-related detections
-├── network/          # Network traffic and connection detections
-├── cloud/            # Cloud configuration and security detections
-└── README.md         # This file
+├── sigma/                    # 647 Sigma YAML detection rules
+│   ├── aws/                  # AWS CloudTrail, GuardDuty rules
+│   ├── azure/                # Azure Activity Log rules
+│   ├── azure_monitor/        # Azure Monitor rules
+│   ├── gcp/                  # GCP Audit Log rules
+│   ├── gcp_logging/          # GCP Cloud Logging rules
+│   ├── okta/                 # Okta identity rules
+│   ├── google_workspace/     # Google Workspace rules
+│   ├── microsoft365/         # Microsoft 365 rules
+│   ├── m365/                 # Microsoft 365 (additional)
+│   ├── duo/                  # Duo Security rules
+│   ├── crowdstrike/          # CrowdStrike endpoint rules
+│   ├── github/               # GitHub audit log rules
+│   ├── kubernetes/           # Kubernetes audit log rules
+│   ├── docker/               # Docker runtime rules
+│   ├── slack/                # Slack audit log rules
+│   ├── onepassword/          # 1Password rules
+│   ├── salesforce/           # Salesforce rules
+│   ├── jamf/                 # Jamf Pro rules
+│   ├── common/               # Cross-source detection rules
+│   └── apm/                  # APM/observability detection rules
+├── playbooks/                # SOAR playbook definitions
+└── examples/                 # Example rule templates
 ```
 
 ## Rule Format
 
-Detection rules are defined in YAML format with the following structure:
+Detection rules use the [Sigma](https://github.com/SigmaHQ/sigma) format. Mantissa Log automatically converts Sigma rules to cloud-specific SQL (Athena, BigQuery, or Synapse) at detection time.
 
 ```yaml
-name: "Rule Name"
-description: "What this rule detects"
-enabled: true
-severity: "critical|high|medium|low|info"
-category: "authentication|network|cloud|data|compliance|threat"
-
-query: |
-  SELECT ...
-  FROM ...
-  WHERE ...
-
-threshold:
-  count: 1
-  window: "5m"
-
-metadata:
-  mitre_attack:
-    - "T1110"
-  tags:
-    - "tag1"
-    - "tag2"
-  false_positives:
-    - "Known FP scenario 1"
-  response_actions:
-    - "Action to take 1"
-    - "Action to take 2"
-  references:
-    - "https://example.com/doc"
+title: Brute Force Login Attempts
+id: abc123-def456-...
+status: stable
+level: high
+description: Detects multiple failed login attempts indicating brute force
+logsource:
+  product: okta
+  service: authentication
+detection:
+  selection:
+    outcome: FAILURE
+  condition: selection | count() by user_email > 5
+  timeframe: 10m
+tags:
+  - attack.credential_access
+  - attack.t1110
+falsepositives:
+  - Users who legitimately forget passwords
 ```
 
-### Required Fields
+## Rule Categories
 
-- `name`: Human-readable rule name
-- `description`: Detailed description of what the rule detects
-- `enabled`: Boolean indicating if rule is active
-- `severity`: One of: critical, high, medium, low, info
-- `category`: Rule category
-- `query`: SQL query to execute (Athena-compatible)
-- `threshold`: Detection threshold configuration
-  - `count`: Minimum number of matches to trigger alert
-  - `window`: Time window for threshold (e.g., "5m", "1h", "1d")
-
-### Optional Fields
-
-- `metadata`: Additional rule metadata
-  - `mitre_attack`: List of MITRE ATT&CK technique IDs
-  - `tags`: List of tags for categorization
-  - `false_positives`: Known false positive scenarios
-  - `response_actions`: Recommended response actions
-  - `references`: Links to documentation
-
-## Available Tables
-
-Rules can query the following Athena tables:
-
-- `cloudtrail`: AWS CloudTrail API events
-- `vpc_flow_logs`: VPC Flow Logs network traffic
-- `guardduty_findings`: AWS GuardDuty threat findings
+| Category | Description |
+|----------|-------------|
+| Identity (ITDR) | Credential attacks, privilege escalation, session hijacking (49 rules) |
+| AWS | CloudTrail, GuardDuty, VPC Flow Logs |
+| Azure | Activity Logs, Azure Monitor |
+| GCP | Audit Logs, Cloud Logging |
+| SaaS | Okta, Google Workspace, M365, Slack, Salesforce, 1Password |
+| Endpoints | CrowdStrike, Jamf |
+| DevOps | GitHub, Kubernetes, Docker |
+| APM | Latency spikes, error rates, anomalies |
 
 ## Testing Rules
 
-### Dry Run (Print SQL)
-
 ```bash
-python3 scripts/test-rule.py rules/authentication/brute_force_login.yaml --mode dry-run
-```
+# Validate all rules
+python scripts/validate-rules.py
 
-### Test Run (Execute Against Athena)
+# Validate Sigma-specific rules
+python scripts/validate-sigma-rules.py
 
-```bash
-python3 scripts/test-rule.py rules/authentication/brute_force_login.yaml \
+# Test a single rule (dry run - print SQL)
+python scripts/test-rule.py rules/sigma/okta/brute_force_login.yml --mode dry-run
+
+# Test against Athena
+python scripts/test-rule.py rules/sigma/okta/brute_force_login.yml \
   --mode test \
   --database mantissa_log \
-  --output-location s3://my-bucket/athena-results/
-```
+  --output-location s3://your-bucket/athena-results/
 
-### Backtest (Historical Analysis)
-
-```bash
-python3 scripts/test-rule.py rules/authentication/brute_force_login.yaml \
+# Backtest over historical data
+python scripts/test-rule.py rules/sigma/okta/brute_force_login.yml \
   --mode backtest \
-  --database mantissa_log \
-  --output-location s3://my-bucket/athena-results/ \
   --days-back 7
 ```
 
-## Rule Validation
+## Writing New Rules
 
-```bash
-python3 scripts/validate-rules.py
+Rules can be created in three ways:
+
+1. **Natural language**: Ask the NL interface to create a rule from a description
+2. **Sigma YAML**: Write a standard Sigma rule file manually
+3. **Import**: Import existing rules from the SigmaHQ community repository
+
+Place new rules in the appropriate source-type subdirectory under `rules/sigma/`.
+
+## SOAR Playbooks
+
+Playbooks define automated response actions triggered by alerts. See `playbooks/` for examples.
+
+```yaml
+id: playbook-cred-001
+name: Credential Compromise Response
+trigger:
+  type: alert
+  conditions:
+    severity: [critical, high]
+    rule_patterns: [credential_*, brute_force*]
+steps:
+  - id: terminate_sessions
+    action_type: terminate_sessions
+    parameters:
+      user_id: "{{ alert.metadata.user_email }}"
+  - id: create_ticket
+    action_type: create_ticket
+    provider: jira
 ```
-
-This checks:
-- Schema compliance
-- SQL syntax
-- Best practices
-- Duplicate detection

@@ -17,6 +17,10 @@ from .health_check_engine import (
     HealthCheckEngine,
     HealthCheckResult,
 )
+from .health_alerting import (
+    HealthAlertGenerator,
+    HealthAlertOutcome,
+)
 
 __all__ = [
     # Data model (Step 1)
@@ -33,4 +37,7 @@ __all__ = [
     # Health check engine (Step 3)
     "HealthCheckEngine",
     "HealthCheckResult",
+    # Health alert generation (Step 4)
+    "HealthAlertGenerator",
+    "HealthAlertOutcome",
 ]

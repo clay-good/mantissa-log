@@ -17,6 +17,7 @@ Thumbs.db
 .claude
 instructions.txt
 spec.md
+coverage.xml
 
 # --------------------
 # Python Specific

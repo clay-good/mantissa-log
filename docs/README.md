@@ -32,10 +32,10 @@
 | Guide | Description |
 |-------|-------------|
 | [Detection Rules](configuration/detection-rules.md) | Writing Sigma detection rules |
-| [Alert Routing](configuration/alert-routing.md) | Slack, PagerDuty, Jira, Email setup |
-| [LLM Providers](configuration/llm-configuration.md) | Claude, GPT-4, Gemini, Bedrock |
-| [Log Sources](configuration/log-sources.md) | CloudTrail, VPC Flow, etc. |
-| [Collector Secrets](configuration/collector-secrets.md) | API keys and credentials |
+| [Alert Routing](configuration/alert-routing.md) | Slack, PagerDuty, Jira, Email, Teams, ServiceNow setup |
+| [LLM Providers](configuration/llm-configuration.md) | Claude, GPT-4, Gemini, Bedrock, Vertex AI |
+| [Log Sources](configuration/log-sources.md) | Collector configuration for 25+ sources |
+| [Collector Secrets](configuration/collector-secrets.md) | API keys and credentials management |
 
 ### Operations
 
@@ -51,6 +51,7 @@
 | [API Reference](api/api-reference.md) | REST API endpoints |
 | [Architecture](architecture/architecture.md) | System design overview |
 | [System Integration](architecture/system-integration.md) | Component interactions |
+| [Module Reference](MODULE_REFERENCE.md) | Shared module documentation |
 
 ### Development
 
@@ -71,8 +72,14 @@ Ask questions in plain English instead of writing SQL:
 - *"Which users created new IAM roles this week?"*
 - *"List S3 buckets with public access"*
 
-### 591 Detection Rules
-Pre-built Sigma rules for AWS, GCP, Azure, Okta, GitHub, and more. Rules auto-convert to cloud-specific SQL.
+### 647 Detection Rules
+Pre-built Sigma rules for AWS, GCP, Azure, Okta, GitHub, Kubernetes, and more. Rules auto-convert to cloud-specific SQL. 49 rules purpose-built for identity threat detection.
+
+### Identity Threat Detection & Response
+Behavioral baselines, anomaly detection, credential attack detection, and cross-provider correlation across Okta, Azure AD, Google Workspace, Duo, and M365.
+
+### Log Source Health Monitoring
+Automatic detection of silent log sources, unexpected gaps, and volume anomalies. Per-source thresholds tuned to upstream API characteristics.
 
 ### Multi-Cloud Support
 - **AWS**: Lambda + Athena + S3
@@ -83,7 +90,7 @@ Pre-built Sigma rules for AWS, GCP, Azure, Okta, GitHub, and more. Rules auto-co
 Route alerts to Slack, PagerDuty, Jira, Email, ServiceNow, or Teams with automatic PII redaction.
 
 ### Context Enrichment
-- IP Geolocation (MaxMind GeoIP2)
+- IP Geolocation (MaxMind GeoIP2, IPInfo)
 - Threat Intelligence (VirusTotal, AbuseIPDB)
 - User Context (Google Workspace, Azure AD, Okta)
 - Asset Inventory (AWS, Azure, GCP native)
@@ -107,5 +114,5 @@ Route alerts to Slack, PagerDuty, Jira, Email, ServiceNow, or Teams with automat
 
 ## Support
 
-- [GitHub Issues](https://github.com/anthropics/claude-code/issues)
+- [GitHub Issues](https://github.com/clay-good/mantissa-log/issues)
 - [Troubleshooting Guide](deployment/troubleshooting.md)

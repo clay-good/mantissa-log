@@ -1,106 +1,76 @@
-# Utility Scripts
+# Scripts
 
-This directory contains utility scripts for development, deployment, and maintenance.
+Deployment, testing, and utility scripts for Mantissa Log.
 
-## Available Scripts
+## Deployment
 
-### Development
+| Script | Description |
+|--------|-------------|
+| `deploy.sh` | Deploy AWS infrastructure and Lambda functions |
+| `deploy-gcp.sh` | Deploy GCP infrastructure and Cloud Functions |
+| `deploy-azure.sh` | Deploy Azure infrastructure and Functions |
+| `deploy-web.sh` | Build and deploy the React frontend |
+| `destroy.sh` | Tear down deployed infrastructure |
+| `update.sh` | Update an existing deployment |
+| `package-lambdas.sh` | Package Lambda functions for deployment |
+| `package-azure-functions.sh` | Package Azure Functions for deployment |
 
-- **setup-dev.sh**: Set up local development environment
-- **generate-sample-data.py**: Generate sample log data for testing
-- **validate-rules.py**: Validate detection rule syntax
+## Testing and Validation
 
-### Deployment
+| Script | Description |
+|--------|-------------|
+| `run-tests.sh` | Run the full test suite |
+| `test-rule.py` | Test a single detection rule (dry-run, test, backtest) |
+| `test-sigma-rules.py` | Run Sigma rule test suite |
+| `validate-rules.py` | Validate detection rule schemas |
+| `validate-sigma-rules.py` | Validate Sigma rule format |
+| `validate-deployment.sh` | Verify a deployment is working correctly |
+| `smoke-test.sh` | Quick smoke test against a live deployment |
 
-- **deploy.sh**: Main deployment script for AWS infrastructure
+## Development and Setup
 
-### Maintenance
+| Script | Description |
+|--------|-------------|
+| `setup-dev.sh` | Set up local development environment |
+| `generate-sample-data.py` | Generate sample log data for testing |
+| `check-env-vars.py` | Verify required environment variables are set |
+| `fix-env-var-names.sh` | Standardize environment variable naming |
 
-- **cost-estimator.py**: Estimate AWS costs based on log volume
+## Utilities
 
-## Script Usage
+| Script | Description |
+|--------|-------------|
+| `security-audit.py` | Run security audit against the codebase |
+| `map-sigmahq-rules.py` | Map SigmaHQ community rules to Mantissa sources |
+| `standardize-collector-secrets.py` | Standardize collector credential configuration |
 
-### setup-dev.sh
-
-Sets up local development environment:
-
-```bash
-./scripts/setup-dev.sh
-```
-
-This script:
-- Checks for required tools (Python, Node.js, Terraform, AWS CLI)
-- Creates Python virtual environment
-- Installs Python dependencies
-- Installs Node.js dependencies
-- Sets up pre-commit hooks
-- Provides next steps
-
-### generate-sample-data.py
-
-Generate sample log data for testing:
-
-```bash
-python scripts/generate-sample-data.py --help
-
-# Generate CloudTrail logs
-python scripts/generate-sample-data.py --type cloudtrail --count 1000 --output tests/fixtures/sample_logs/
-
-# Generate VPC Flow logs
-python scripts/generate-sample-data.py --type vpc-flow --count 5000 --output tests/fixtures/sample_logs/
-```
-
-### validate-rules.py
-
-Validate detection rule syntax:
+## Usage Examples
 
 ```bash
-python scripts/validate-rules.py --help
-
-# Validate single rule
-python scripts/validate-rules.py rules/authentication/brute_force_login.yaml
-
-# Validate all rules
-python scripts/validate-rules.py rules/
-
-# Validate with SQL syntax checking
-python scripts/validate-rules.py rules/ --check-sql
-```
-
-### deploy.sh
-
-Deploy Mantissa Log infrastructure to AWS:
-
-```bash
-./scripts/deploy.sh --help
-
-# Deploy to dev environment
+# Deploy to AWS (dev environment)
 ./scripts/deploy.sh --environment dev
 
-# Deploy to prod environment
-./scripts/deploy.sh --environment prod --auto-approve
-```
+# Deploy to GCP
+./scripts/deploy-gcp.sh
 
-### cost-estimator.py
+# Generate test data
+python scripts/generate-sample-data.py --type cloudtrail --count 1000
 
-Estimate AWS costs:
+# Test a detection rule
+python scripts/test-rule.py rules/sigma/okta/brute_force_login.yml --mode dry-run
 
-```bash
-python scripts/cost-estimator.py --help
+# Validate all rules
+python scripts/validate-rules.py
 
-# Estimate costs for 100GB/day
-python scripts/cost-estimator.py --log-volume 100 --retention-days 365
+# Run smoke tests against a live deployment
+./scripts/smoke-test.sh
 
-# Compare with Datadog pricing
-python scripts/cost-estimator.py --log-volume 100 --retention-days 365 --compare
+# Security audit
+python scripts/security-audit.py
 ```
 
 ## Adding New Scripts
 
-When adding new scripts:
-
 1. Add executable permissions: `chmod +x scripts/your-script.sh`
-2. Include usage documentation in script comments
-3. Add help text (--help flag)
-4. Update this README
-5. Add tests if applicable
+2. Include `--help` flag for usage documentation
+3. Update this README

@@ -340,7 +340,7 @@ The architecture separates cloud-specific code (30%) from shared logic (70%):
 - IAM/permissions setup
 - Serverless function wrappers
 
-Future releases will add GCP and Azure support by implementing cloud-specific adapters while reusing shared components.
+GCP and Azure are supported alongside AWS, each with cloud-specific adapters that reuse the shared components.
 
 ## Monitoring & Observability
 

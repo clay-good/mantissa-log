@@ -1,80 +1,76 @@
 # Test Suite
 
-Comprehensive test suite for Mantissa Log.
+Comprehensive test suite for Mantissa Log (83 test files).
 
-## Test Structure
+## Structure
 
-- **unit/**: Unit tests for individual components
-- **integration/**: Integration tests for component interactions
-- **e2e/**: End-to-end tests for complete workflows
-- **fixtures/**: Test data and expected outputs
+```
+tests/
+├── unit/                    # Unit tests (49 files)
+│   ├── parsers/             # Log parser tests
+│   ├── detection/           # Detection engine tests
+│   ├── identity/            # ITDR behavioral analysis tests
+│   ├── llm/                 # LLM query generation tests
+│   ├── alerting/            # Alert routing tests
+│   └── ...
+├── integration/             # Integration tests (13 files)
+│   ├── aws/                 # AWS service integration
+│   └── detection_pipeline/  # Full detection pipeline
+├── fixtures/                # Test data
+│   ├── sample_logs/         # Example log entries per source
+│   ├── expected_outputs/    # Expected parsed results
+│   └── sample_ir_plans/     # Sample IR plan documents
+└── rules/                   # Detection rule validation tests
+```
 
 ## Running Tests
 
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
 # Run all tests
-pytest
+PYTHONPATH=. pytest tests/ -v
 
-# Run specific test directory
-pytest tests/unit/
+# Run by category
+pytest tests/unit/ -v                    # Unit tests
+pytest tests/integration/ -v             # Integration tests
+pytest tests/unit/identity/ -v           # ITDR tests
+pytest tests/rules/ -v                   # Rule validation
 
-# Run specific test file
-pytest tests/unit/parsers/test_cloudtrail.py
-
-# Run tests matching pattern
-pytest -k "test_parser"
+# Run specific file or pattern
+pytest tests/unit/parsers/test_cloudtrail.py -v
+pytest -k "test_parser" -v
 
 # Run with coverage
 pytest --cov=src --cov-report=html
-
-# Run with verbose output
-pytest -v
+open htmlcov/index.html
 
 # Run in parallel (requires pytest-xdist)
 pytest -n auto
 ```
 
-## Test Categories
+## Test Configuration
 
-### Unit Tests
+Configuration is in `pyproject.toml` under `[tool.pytest.ini_options]`:
+- Test paths: `tests/`
+- Markers: `unit`, `integration`, `e2e`, `slow`, `aws`
+- Coverage: automatic `--cov=src` reporting
 
-Test individual functions and classes in isolation:
+## Mocking
 
-- **parsers/**: Log parser tests
-- **detection/**: Detection engine component tests
-- **llm/**: LLM query generation tests
-- **alerting/**: Alert routing tests
-
-### Integration Tests
-
-Test component interactions:
-
-- **aws/**: AWS service integration tests (requires AWS credentials)
-- **detection_pipeline/**: Full detection pipeline tests
-
-### End-to-End Tests
-
-Test complete user workflows:
-
-- **full_pipeline/**: Complete log ingestion to alert delivery
-
-## Test Fixtures
-
-The `fixtures/` directory contains:
-
-- **sample_logs/**: Example log entries for different sources
-- **expected_outputs/**: Expected parsed results and alert outputs
+- **moto**: Mock AWS services (S3, DynamoDB, Athena, Lambda)
+- **unittest.mock**: Mock Python objects and modules
+- **responses**: Mock HTTP requests to external APIs
 
 ## Writing Tests
-
-### Unit Test Example
 
 ```python
 import pytest
 from src.shared.parsers.cloudtrail import CloudTrailParser
 
 def test_cloudtrail_parser_success():
-    """Test CloudTrail parser with valid event."""
     parser = CloudTrailParser()
     raw_event = {
         "eventTime": "2025-01-27T12:00:00Z",
@@ -87,121 +83,17 @@ def test_cloudtrail_parser_success():
 
     assert result.timestamp == "2025-01-27T12:00:00Z"
     assert result.user == "test-user"
-    assert result.action == "GetObject"
-    assert result.source_ip == "192.168.1.1"
-
-def test_cloudtrail_parser_missing_field():
-    """Test parser handles missing fields gracefully."""
-    parser = CloudTrailParser()
-    raw_event = {"eventTime": "2025-01-27T12:00:00Z"}
-
-    result = parser.parse(raw_event)
-
-    assert result.timestamp == "2025-01-27T12:00:00Z"
-    assert result.user is None
 ```
 
-### Integration Test Example
-
-```python
-import pytest
-import boto3
-from moto import mock_s3, mock_athena
-
-@mock_s3
-@mock_athena
-def test_detection_engine_with_athena():
-    """Test detection engine executes queries against Athena."""
-    # Setup mocked AWS services
-    s3 = boto3.client('s3', region_name='us-east-1')
-    s3.create_bucket(Bucket='test-logs')
-
-    # Run detection engine
-    # ... test implementation
-```
-
-## Test Configuration
-
-Test configuration is in `conftest.py`:
-
-- Pytest fixtures
-- Mock AWS credentials
-- Test database setup
-- Common test utilities
-
-## Mocking
-
-Use these libraries for mocking:
-
-- **moto**: Mock AWS services
-- **unittest.mock**: Mock Python objects
-- **responses**: Mock HTTP requests
-
-## Coverage Requirements
-
-Aim for:
-
-- 80%+ overall coverage
-- 90%+ for shared/parsers and shared/detection
-- 70%+ for AWS-specific code
-- 60%+ for integration tests
-
-View coverage report:
-
-```bash
-pytest --cov=src --cov-report=html
-open htmlcov/index.html
-```
-
-## Continuous Integration
-
-Tests run automatically on:
-
-- Every pull request
-- Commits to main branch
-- Nightly builds
-
-CI runs:
-
-- All unit tests
-- Integration tests (with mocked AWS)
-- Linting and security scans
-- Coverage reporting
-
-## Performance Tests
-
-For performance-critical code:
-
-```python
-import pytest
-
-def test_parser_performance(benchmark):
-    """Test parser performance."""
-    parser = CloudTrailParser()
-    event = {...}
-
-    result = benchmark(parser.parse, event)
-
-    assert benchmark.stats.stats.mean < 0.001  # < 1ms
-```
-
-## Test Data
-
-Generate test data:
-
-```bash
-python scripts/generate-sample-data.py --output tests/fixtures/sample_logs/
-```
-
-## Debugging Tests
+## Debugging
 
 ```bash
 # Drop into debugger on failure
 pytest --pdb
 
-# Drop into debugger on first failure
-pytest -x --pdb
-
-# Show print statements
+# Show print output
 pytest -s
+
+# Stop on first failure
+pytest -x
 ```

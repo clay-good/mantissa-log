@@ -862,8 +862,8 @@ Real CloudTrail logs will start flowing to your log bucket within minutes.
 Continue learning with detailed tutorials:
 
 - **[End-to-End Threat Detection](end-to-end-threat-detection.md)** - Complete workflow demonstration
-- **[Detection Rule Authoring](detection-rule-authoring.md)** - Advanced rule creation *(coming soon)*
-- **[Alert Response Workflow](alert-response-workflow.md)** - Investigation playbooks *(coming soon)*
+- **[Detection Rules Configuration](../configuration/detection-rules.md)** - Writing and managing Sigma rules
+- **[Alert Routing Configuration](../configuration/alert-routing.md)** - Alert destinations and response workflows
 
 ---
 
