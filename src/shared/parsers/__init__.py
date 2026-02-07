@@ -23,6 +23,7 @@ from .onepassword import OnePasswordParser
 from .azure_monitor import AzureMonitorParser
 from .gcp_logging import GCPLoggingParser
 from .gcp_vpc_flow import GCPVPCFlowParser
+from .azure_nsg_flow import AzureNSGFlowParser
 
 __all__ = [
     "ParsedEvent",
@@ -52,4 +53,5 @@ __all__ = [
     "AzureMonitorParser",
     "GCPLoggingParser",
     "GCPVPCFlowParser",
+    "AzureNSGFlowParser",
 ]
