@@ -895,6 +895,90 @@ The deployment script automatically handles cache busting:
 - `index.html` gets no-cache policy
 - CloudFront cache is invalidated after each deployment
 
+## Health Monitoring Resources
+
+The Terraform deployment includes health monitoring infrastructure for all log sources. The following resources are created by the `log_source_health` module:
+
+### Resources Created
+
+| Resource | Purpose |
+|----------|---------|
+| DynamoDB Table (`mantissa-log-source-health`) | Stores health state for all sources |
+| Health Check Lambda | Runs every 5 minutes via EventBridge |
+| Baseline Lambda | Runs daily to compute volume baselines |
+| Health API Lambda | Serves the health monitoring REST API |
+| EventBridge Rules (2) | Schedules for health checks and baselines |
+| CloudWatch Alarms (4) | Monitors health check Lambda errors and duration |
+| API Gateway Routes (7) | REST endpoints under `/health/` |
+
+### Environment Variables
+
+The health monitoring Lambdas use these environment variables (configured automatically by Terraform):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_SOURCE_HEALTH_TABLE` | DynamoDB table name for health state | `mantissa-log-source-health` |
+| `ATHENA_DATABASE` | Athena database for data lake queries | `mantissa_logs` |
+| `ATHENA_OUTPUT_LOCATION` | S3 path for Athena query results | From Terraform output |
+| `TENANT_ID` | Tenant identifier | `default` |
+| `HEALTH_CONFIG_S3_BUCKET` | S3 bucket for custom health configs (optional) | None |
+| `HEALTH_CONFIG_S3_KEY` | S3 key for health config JSON | `config/health_configs.json` |
+| `DEFAULT_DESTINATIONS` | Comma-separated default alert destinations | `slack` |
+| `SEVERITY_ROUTING` | JSON severity-to-destinations mapping | Built-in defaults |
+
+### Verifying Health Monitoring Deployment
+
+```bash
+# Check DynamoDB health table exists
+aws dynamodb describe-table \
+  --table-name mantissa-log-source-health \
+  --query 'Table.TableStatus'
+
+# Check health check Lambda exists
+aws lambda get-function \
+  --function-name mantissa-log-prod-health-check \
+  --query 'Configuration.FunctionName'
+
+# Check EventBridge rules
+aws events list-rules \
+  --name-prefix mantissa-log-source-health
+
+# Manually invoke health check
+aws lambda invoke \
+  --function-name mantissa-log-prod-health-check \
+  --log-type Tail \
+  /dev/stdout
+
+# Check health via API
+API_ENDPOINT=$(cat terraform-outputs.json | jq -r '.api_endpoint.value')
+TOKEN=$(cat terraform-outputs.json | jq -r '.admin_token.value')
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/summary"
+```
+
+### Custom Health Configuration
+
+To customize health thresholds per source, create a JSON file and upload to S3:
+
+```bash
+# Create custom config
+cat > health_configs.json << 'EOF'
+{
+  "okta": {
+    "source_type": "okta",
+    "expected_max_latency_seconds": 600,
+    "silence_threshold_seconds": 7200,
+    "alert_destinations": ["pagerduty", "slack"]
+  }
+}
+EOF
+
+# Upload to S3
+BUCKET=$(cat terraform-outputs.json | jq -r '.health_config_bucket.value')
+aws s3 cp health_configs.json s3://$BUCKET/config/health_configs.json
+```
+
+See [Log Sources Configuration](../configuration/log-sources.md#log-source-health-monitoring-configuration) for all available options.
+
 ## Destroying the Deployment
 
 To completely remove the deployment:

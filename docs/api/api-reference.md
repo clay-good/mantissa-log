@@ -723,6 +723,314 @@ curl -X POST "$API_ENDPOINT/alerts/$ALERT_ID/resolve" \
   }'
 ```
 
+## Health Monitoring Endpoints
+
+Endpoints for monitoring the health of log sources, triggering on-demand checks, managing configurations, and viewing volume history.
+
+### GET /health/sources
+
+List the current health status of all monitored log sources.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `status` | string | No | Comma-separated status filter (e.g., `SILENT,DELAYED`) |
+
+**Response:**
+
+```json
+{
+  "sources": [
+    {
+      "source_type": "okta",
+      "status": "HEALTHY",
+      "last_event_timestamp": "2026-01-15T10:05:00+00:00",
+      "last_check_timestamp": "2026-01-15T10:10:00+00:00",
+      "event_count_current_window": 142,
+      "baseline_hourly_volume": 150.0,
+      "baseline_hourly_stddev": 25.0,
+      "consecutive_failures": 0,
+      "config": {
+        "source_type": "okta",
+        "enabled": true,
+        "expected_max_latency_seconds": 300,
+        "silence_threshold_seconds": 3600
+      }
+    }
+  ],
+  "total": 21
+}
+```
+
+**Example:**
+
+```bash
+# List all sources
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/sources"
+
+# Filter by status
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/sources?status=SILENT,DELAYED"
+```
+
+### GET /health/sources/{source_type}
+
+Get detailed health information for a specific log source.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `source_type` | string | Log source identifier (e.g., `okta`, `cloudtrail`) |
+
+**Response:**
+
+```json
+{
+  "source_type": "okta",
+  "state": {
+    "source_type": "okta",
+    "tenant_id": "default",
+    "status": "HEALTHY",
+    "last_event_timestamp": "2026-01-15T10:05:00+00:00",
+    "last_check_timestamp": "2026-01-15T10:10:00+00:00",
+    "event_count_current_window": 142,
+    "event_count_previous_window": 138,
+    "baseline_hourly_volume": 150.0,
+    "baseline_hourly_stddev": 25.0,
+    "consecutive_failures": 0,
+    "gap_windows": [],
+    "metadata": {}
+  },
+  "config": {
+    "source_type": "okta",
+    "enabled": true,
+    "expected_max_latency_seconds": 300,
+    "silence_threshold_seconds": 3600
+  },
+  "baseline": {
+    "hourly_volume": 150.0,
+    "hourly_stddev": 25.0
+  }
+}
+```
+
+**Example:**
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/sources/okta"
+```
+
+### POST /health/sources/{source_type}/check
+
+Trigger an on-demand health check for a specific source.
+
+**Response:**
+
+```json
+{
+  "source_type": "okta",
+  "old_status": "HEALTHY",
+  "new_status": "HEALTHY",
+  "event_count_current": 142,
+  "event_count_previous": 138,
+  "last_event_timestamp": "2026-01-15T10:05:00+00:00",
+  "baseline_volume": 150.0,
+  "baseline_stddev": 25.0,
+  "z_score": -0.32,
+  "consecutive_failures": 0,
+  "gap_windows": [],
+  "should_alert": false,
+  "detail_message": "Last event 5m ago — within expected latency"
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  "$API_ENDPOINT/health/sources/okta/check"
+```
+
+### PUT /health/sources/{source_type}/config
+
+Update the health monitoring configuration for a source. Merges overrides with the existing configuration.
+
+**Request Body:**
+
+```json
+{
+  "expected_max_latency_seconds": 600,
+  "silence_threshold_seconds": 7200,
+  "volume_anomaly_stddev_threshold": 2.5,
+  "alert_destinations": ["pagerduty", "slack"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "source_type": "okta",
+  "config": {
+    "source_type": "okta",
+    "enabled": true,
+    "expected_max_latency_seconds": 600,
+    "silence_threshold_seconds": 7200,
+    "volume_anomaly_stddev_threshold": 2.5,
+    "alert_destinations": ["pagerduty", "slack"]
+  },
+  "message": "Configuration updated for okta"
+}
+```
+
+**Example:**
+
+```bash
+curl -X PUT "$API_ENDPOINT/health/sources/okta/config" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "expected_max_latency_seconds": 600,
+    "silence_threshold_seconds": 7200
+  }'
+```
+
+### GET /health/sources/{source_type}/history
+
+Get volume history for a source over a time range.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `start_time` | string | No | 24h ago | ISO 8601 start time |
+| `end_time` | string | No | now | ISO 8601 end time |
+| `granularity` | string | No | `hour` | `hour` or `day` |
+
+**Response:**
+
+```json
+{
+  "source_type": "okta",
+  "start_time": "2026-01-14T10:00:00+00:00",
+  "end_time": "2026-01-15T10:00:00+00:00",
+  "granularity": "hour",
+  "baseline": {
+    "hourly_volume": 150.0,
+    "hourly_stddev": 25.0
+  },
+  "history": [
+    {"timestamp": "2026-01-14T10:00:00+00:00", "event_count": 148},
+    {"timestamp": "2026-01-14T11:00:00+00:00", "event_count": 155}
+  ],
+  "current_state": {
+    "status": "HEALTHY",
+    "event_count_current_window": 142,
+    "last_event_timestamp": "2026-01-15T10:05:00+00:00"
+  },
+  "gap_windows": []
+}
+```
+
+**Example:**
+
+```bash
+# Last 24 hours, hourly granularity
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_ENDPOINT/health/sources/okta/history"
+
+# Last 7 days, daily granularity
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_ENDPOINT/health/sources/okta/history?granularity=day&start_time=2026-01-08T00:00:00Z"
+```
+
+### POST /health/sources/{source_type}/acknowledge
+
+Acknowledge a health alert and suppress further alerts for the specified duration.
+
+**Request Body:**
+
+```json
+{
+  "suppression_duration_seconds": 7200,
+  "notes": "Investigating Okta API outage - ticket INC-1234"
+}
+```
+
+**Response:**
+
+```json
+{
+  "source_type": "okta",
+  "acknowledged_by": "user@example.com",
+  "acknowledged_at": "2026-01-15T10:15:00+00:00",
+  "suppression_until": "2026-01-15T12:15:00+00:00",
+  "notes": "Investigating Okta API outage - ticket INC-1234",
+  "message": "Health alert for okta acknowledged. Alerts suppressed until 2026-01-15 12:15:00 UTC."
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST "$API_ENDPOINT/health/sources/okta/acknowledge" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "suppression_duration_seconds": 7200,
+    "notes": "Investigating Okta API outage"
+  }'
+```
+
+### GET /health/summary
+
+Get an aggregate health summary across all monitored sources.
+
+**Response:**
+
+```json
+{
+  "total_sources_monitored": 21,
+  "status_counts": {
+    "HEALTHY": 18,
+    "DELAYED": 1,
+    "SILENT": 1,
+    "VOLUME_ANOMALY": 0,
+    "UNKNOWN": 1
+  },
+  "longest_unhealthy": [
+    {
+      "source_type": "guardduty",
+      "status": "SILENT",
+      "consecutive_failures": 8,
+      "unhealthy_duration_seconds": 14400.0
+    },
+    {
+      "source_type": "salesforce",
+      "status": "DELAYED",
+      "consecutive_failures": 2,
+      "unhealthy_duration_seconds": 600.0
+    }
+  ],
+  "approaching_silence_threshold": [
+    {
+      "source_type": "salesforce",
+      "seconds_until_silent": 750,
+      "last_event_age_seconds": 2850,
+      "silence_threshold_seconds": 3600
+    }
+  ],
+  "checked_at": "2026-01-15T10:15:00+00:00"
+}
+```
+
+**Example:**
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/summary"
+```
+
 ## Error Responses
 
 All endpoints return errors in a consistent format.

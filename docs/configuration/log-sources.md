@@ -732,3 +732,123 @@ Apply changes:
 cd infrastructure/aws/terraform
 terraform apply -var-file="environments/prod.tfvars"
 ```
+
+## Log Source Health Monitoring Configuration
+
+Mantissa Log includes automatic health monitoring for all configured log sources. The health check engine evaluates each source every 5 minutes, detecting latency issues, silence periods, volume anomalies, and data gaps.
+
+### Health Status States
+
+| Status | Meaning |
+|--------|---------|
+| `HEALTHY` | Data is flowing within expected latency thresholds |
+| `DELAYED` | Last event is older than `expected_max_latency_seconds` but within silence threshold |
+| `SILENT` | No data has arrived within the `silence_threshold_seconds` |
+| `VOLUME_ANOMALY` | Data is arriving but volume is abnormally high or low relative to baseline |
+| `UNKNOWN` | Initial state before enough baseline data has been collected |
+
+### Default Health Configuration
+
+Every log source has a default health configuration. The key parameters are:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enabled` | `true` | Whether health monitoring is active |
+| `expected_max_latency_seconds` | Varies per source | Max acceptable delay before status becomes DELAYED |
+| `silence_threshold_seconds` | Varies per source | How long past max latency before status becomes SILENT |
+| `volume_anomaly_stddev_threshold` | `3.0` | Z-score threshold for volume anomaly detection |
+| `volume_drop_percentage_threshold` | `0.5` | Fraction of baseline below which volume is flagged (50% drop) |
+| `volume_spike_percentage_threshold` | `3.0` | Multiple of baseline above which volume is flagged (300%) |
+| `baseline_learning_period_days` | `7` | Days of history for computing volume baselines |
+| `check_interval_seconds` | `300` | How often to run health checks (5 minutes) |
+| `alert_suppression_seconds` | `3600` | Minimum time between repeated alerts for the same source |
+| `alert_destinations` | `[]` | Override alert destinations (empty = use system defaults) |
+| `gap_detection_enabled` | `true` | Whether to detect and report data gaps |
+| `gap_minimum_duration_seconds` | `900` | Minimum gap duration to report (15 minutes) |
+
+### Default Latency Thresholds Per Source
+
+Sources have different default thresholds based on their upstream API delivery characteristics:
+
+| Source | Max Latency | Silence Threshold |
+|--------|-------------|-------------------|
+| `okta` | 300s (5m) | 3600s (1h) |
+| `google_workspace` | 600s (10m) | 3600s (1h) |
+| `microsoft365` | 600s (10m) | 3600s (1h) |
+| `duo` | 300s (5m) | 3600s (1h) |
+| `cloudtrail` | 900s (15m) | 3600s (1h) |
+| `vpc_flow_logs` | 600s (10m) | 3600s (1h) |
+| `guardduty` | 900s (15m) | 7200s (2h) |
+| `gcp_logging` | 300s (5m) | 3600s (1h) |
+| `azure_monitor` | 600s (10m) | 3600s (1h) |
+| `crowdstrike` | 300s (5m) | 3600s (1h) |
+| `jamf` | 600s (10m) | 7200s (2h) |
+| `snowflake` | 900s (15m) | 7200s (2h) |
+| `salesforce` | 600s (10m) | 7200s (2h) |
+| `slack` | 300s (5m) | 3600s (1h) |
+| `onepassword` | 600s (10m) | 7200s (2h) |
+| `github` | 600s (10m) | 7200s (2h) |
+| `kubernetes` | 120s (2m) | 1800s (30m) |
+| `docker` | 120s (2m) | 1800s (30m) |
+| `syslog` | 60s (1m) | 600s (10m) |
+| `json_generic` | 300s (5m) | 3600s (1h) |
+| `otlp` | 120s (2m) | 1800s (30m) |
+
+### Custom Health Configuration
+
+Override defaults by providing a JSON config file in S3 (AWS), GCS (GCP), or Azure Blob Storage (Azure). Only include the fields you want to change — omitted fields retain their defaults.
+
+```json
+{
+  "okta": {
+    "source_type": "okta",
+    "expected_max_latency_seconds": 600,
+    "silence_threshold_seconds": 7200,
+    "alert_destinations": ["pagerduty", "slack"],
+    "volume_anomaly_stddev_threshold": 2.5
+  },
+  "cloudtrail": {
+    "source_type": "cloudtrail",
+    "silence_threshold_seconds": 7200,
+    "gap_minimum_duration_seconds": 1800
+  }
+}
+```
+
+**AWS:** Upload to the S3 bucket specified by `HEALTH_CONFIG_S3_BUCKET`:
+
+```bash
+aws s3 cp health_configs.json s3://$HEALTH_CONFIG_S3_BUCKET/config/health_configs.json
+```
+
+**GCP:** Upload to the GCS bucket specified by `HEALTH_CONFIG_GCS_BUCKET`:
+
+```bash
+gsutil cp health_configs.json gs://$HEALTH_CONFIG_GCS_BUCKET/config/health_configs.json
+```
+
+**Azure:** Upload to the blob container:
+
+```bash
+az storage blob upload \
+  --container-name config \
+  --name health_configs.json \
+  --file health_configs.json
+```
+
+### Health Alert Severity Mapping
+
+Health alerts are mapped to severity levels based on status and consecutive failure count:
+
+| Status | Consecutive Failures | Severity |
+|--------|---------------------|----------|
+| `DELAYED` | < 3 | `low` |
+| `DELAYED` | >= 3 | `medium` |
+| `SILENT` | < 3 | `high` |
+| `SILENT` | >= 3 | `critical` |
+| `VOLUME_ANOMALY` (drop) | any | `medium` |
+| `VOLUME_ANOMALY` (spike) | any | `low` |
+| Gap detected | any | `medium` |
+| Recovery | any | `info` |
+
+Health alerts route through the same [alert routing pipeline](alert-routing.md) as detection alerts, supporting Slack, PagerDuty, Email, and webhook destinations.

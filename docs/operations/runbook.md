@@ -276,6 +276,125 @@ aws cloudwatch put-metric-alarm \
   --comparison-operator GreaterThanThreshold
 ```
 
+## Log Source Health Monitoring
+
+### Overview
+
+Mantissa Log continuously monitors the health of all configured log sources. Two scheduled functions run automatically:
+
+- **Health Check (every 5 minutes):** Evaluates each enabled source for latency, silence, volume anomalies, and data gaps. Generates and routes alerts on status transitions.
+- **Baseline Computation (daily):** Computes hourly volume baselines from the data lake for z-score anomaly detection.
+
+### Health Status States
+
+| Status | Meaning | Operator Action |
+|--------|---------|-----------------|
+| `HEALTHY` | Data flowing within expected latency | No action needed |
+| `DELAYED` | Last event is older than max latency threshold | Investigate collector logs; check upstream API status |
+| `SILENT` | No data received within silence threshold | Immediate investigation required; check credentials, API access, collector function |
+| `VOLUME_ANOMALY` | Volume significantly higher or lower than baseline | Review if change is expected (maintenance, new deployment, incident) |
+| `UNKNOWN` | Insufficient baseline data | Wait for baseline computation (first 7 days) |
+
+### Viewing Health Status
+
+**Web UI:** Navigate to **Source Health** in the sidebar or visit `/health`. The dashboard shows:
+- Summary cards with counts by status
+- Sortable table of all sources with status badges
+- Per-source detail view with volume charts and gap timelines
+
+**API:** Query the health summary endpoint:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$API_ENDPOINT/health/summary"
+```
+
+**AWS CLI:** Check the health check Lambda logs:
+
+```bash
+aws logs tail /aws/lambda/mantissa-log-prod-health-check \
+  --follow --format short
+```
+
+### Responding to Health Alerts
+
+**DELAYED alert:**
+1. Check collector Lambda logs for errors
+2. Verify upstream API credentials are valid
+3. Check if the source API is experiencing an outage
+4. If expected (maintenance window), acknowledge the alert via the UI or API
+
+**SILENT alert (high/critical):**
+1. Immediately check collector Lambda invocation history
+2. Verify API credentials in Secrets Manager / Secret Manager / Key Vault
+3. Test manual collector invocation
+4. Check CloudWatch/Cloud Monitoring/Azure Monitor for collector errors
+5. If the source is intentionally offline, acknowledge the alert
+
+**VOLUME_ANOMALY alert:**
+1. Check if volume drop corresponds to a known event (weekend, holiday, maintenance)
+2. For spikes, investigate if a log flood is occurring (misconfigured application, attack)
+3. Adjust thresholds if the volume change is the new normal
+
+### Acknowledging Alerts
+
+Suppress further alerts for a source while investigating:
+
+```bash
+curl -X POST "$API_ENDPOINT/health/sources/okta/acknowledge" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "suppression_duration_seconds": 7200,
+    "notes": "Investigating Okta API outage - ticket INC-1234"
+  }'
+```
+
+### Checking for Data Gaps
+
+View data gaps for a specific source:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_ENDPOINT/health/sources/okta/history?granularity=hour"
+```
+
+The response includes `gap_windows` with start/end timestamps for detected gaps.
+
+### Customizing Thresholds
+
+Update thresholds for a specific source via the API:
+
+```bash
+curl -X PUT "$API_ENDPOINT/health/sources/okta/config" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "silence_threshold_seconds": 7200,
+    "volume_anomaly_stddev_threshold": 2.5
+  }'
+```
+
+Or update the custom config file in S3/GCS/Blob Storage. See [Log Sources Configuration](../configuration/log-sources.md#custom-health-configuration) for details.
+
+### Triggering On-Demand Checks
+
+Run a health check for a specific source immediately:
+
+```bash
+curl -X POST "$API_ENDPOINT/health/sources/okta/check" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Health Monitoring Key Metrics
+
+| Metric | Source | Alarm Threshold |
+|--------|--------|----------------|
+| Health check Lambda errors | CloudWatch | > 0 errors in 5 min |
+| Health check duration | CloudWatch | > 30s average |
+| Sources in SILENT state | Health API summary | > 0 |
+| Sources in DELAYED state | Health API summary | > 3 |
+| Baseline computation errors | CloudWatch | > 0 errors |
+
 ## Common Queries
 
 ### Security Investigations

@@ -576,6 +576,161 @@ If a Sigma rule fails to convert:
 - Optimize distribution
 - Use result set caching
 
+## Health Monitoring Deployment
+
+Log source health monitoring is available across all three cloud providers. Each deployment includes scheduled health checks (every 5 minutes), daily baseline computation, and state storage for tracking source status over time.
+
+### AWS Health Monitoring
+
+AWS health monitoring uses DynamoDB for state storage, Athena for data lake queries, and EventBridge for scheduling. See [AWS Deployment Guide](aws-deployment.md#health-monitoring-resources) for full details.
+
+**Terraform module:** `infrastructure/aws/terraform/modules/log_source_health/`
+
+**Resources created:**
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| `mantissa-log-source-health` | DynamoDB Table | Health state storage (pk/sk keys) |
+| `mantissa-health-check` | Lambda Function | 5-minute scheduled health checks |
+| `mantissa-health-baseline` | Lambda Function | Daily baseline computation |
+| `mantissa-health-api` | Lambda Function | Health monitoring API endpoints |
+| EventBridge Rules | CloudWatch Event | Schedule triggers (5-min + daily 2 AM UTC) |
+| CloudWatch Alarms | Metric Alarm | Self-monitoring (errors, duration, throttles, DLQ) |
+
+**Key environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `LOG_SOURCE_HEALTH_TABLE` | DynamoDB table name for health state |
+| `ATHENA_DATABASE` | Athena database for log queries |
+| `ATHENA_OUTPUT_LOCATION` | S3 path for Athena query results |
+| `TENANT_ID` | Tenant identifier |
+| `HEALTH_CONFIG_S3_BUCKET` | S3 bucket for custom health configs |
+
+### GCP Health Monitoring
+
+GCP health monitoring uses Firestore for state storage, BigQuery for data lake queries, and Cloud Scheduler for triggering.
+
+**Terraform file:** `infrastructure/gcp/terraform/log_source_health.tf`
+
+**Resources created:**
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| `mantissa-health-check-*` | Cloud Function (2nd gen) | 5-minute scheduled health checks |
+| `mantissa-health-baseline-*` | Cloud Function (2nd gen) | Daily baseline computation (2 AM UTC) |
+| `mantissa-health-check-*` | Cloud Scheduler Job | 5-minute cron trigger |
+| `mantissa-health-baseline-*` | Cloud Scheduler Job | Daily cron trigger |
+
+**Key environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `GCP_PROJECT_ID` | GCP project ID |
+| `BIGQUERY_DATASET` | BigQuery dataset for log queries |
+| `HEALTH_STATE_COLLECTION` | Firestore collection name (default: `log_source_health`) |
+| `TENANT_ID` | Tenant identifier |
+| `HEALTH_CONFIG_GCS_BUCKET` | GCS bucket for custom health configs |
+
+**Verification:**
+
+```bash
+# List health Cloud Functions
+gcloud functions list --filter="name~mantissa-health" --format="table(name,state,updateTime)"
+
+# Check recent health check invocations
+gcloud functions logs read mantissa-health-check-prod --limit=10
+
+# Check Cloud Scheduler job status
+gcloud scheduler jobs list --filter="name~mantissa-health"
+
+# Query Firestore health state
+gcloud firestore documents list --collection="log_source_health" --limit=5
+
+# Trigger a manual health check
+gcloud functions call mantissa-health-check-prod --data='{}'
+```
+
+### Azure Health Monitoring
+
+Azure health monitoring uses Cosmos DB for state storage, Synapse Analytics for data lake queries, Timer triggers for scheduling, and Key Vault for secrets.
+
+**Terraform file:** `infrastructure/azure/terraform/log_source_health.tf`
+
+**Resources created:**
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| `log_source_health` | Cosmos DB SQL Container | Health state storage (partitioned by `/tenant_id`) |
+| `func-mantissa-health-*` | Linux Function App | Health check, baseline, and HTTP handlers |
+| `mantissa-health-function-errors` | Monitor Metric Alert | Alerts on Function App HTTP 5xx errors |
+| `mantissa-health-function-duration` | Monitor Metric Alert | Alerts on excessive check duration |
+
+**Key environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `COSMOS_ENDPOINT` | Cosmos DB account endpoint |
+| `COSMOS_KEY` | Cosmos DB account key |
+| `COSMOS_HEALTH_CONTAINER` | Cosmos DB container name for health state |
+| `SYNAPSE_WORKSPACE_NAME` | Synapse Analytics workspace name |
+| `KEY_VAULT_URL` | Azure Key Vault URI for secrets |
+| `TENANT_ID` | Tenant identifier |
+| `HEALTH_CHECK_SCHEDULE` | Timer trigger CRON (default: `0 */5 * * * *`) |
+| `BASELINE_SCHEDULE` | Timer trigger CRON (default: `0 0 2 * * *`) |
+
+**Verification:**
+
+```bash
+# Check Function App status
+az functionapp show --name func-mantissa-health-prod \
+  --resource-group rg-mantissa-prod --query "state"
+
+# View recent function invocations
+az monitor metrics list --resource func-mantissa-health-prod \
+  --resource-group rg-mantissa-prod --resource-type "Microsoft.Web/sites" \
+  --metric "FunctionExecutionCount" --interval PT1H
+
+# Query Cosmos DB health state
+az cosmosdb sql container show \
+  --account-name mantissa-state-prod \
+  --database-name mantissa \
+  --name log_source_health \
+  --resource-group rg-mantissa-prod
+
+# Check monitor alerts
+az monitor metrics alert list --resource-group rg-mantissa-prod \
+  --query "[?contains(name, 'health')]"
+
+# Trigger an on-demand health check via HTTP
+az functionapp function invoke \
+  --name func-mantissa-health-prod \
+  --resource-group rg-mantissa-prod \
+  --function-name main
+```
+
+### Cross-Cloud Health Configuration
+
+Health monitoring configuration is consistent across all clouds. Upload a custom `health_config.json` to the appropriate storage backend:
+
+**AWS:**
+```bash
+aws s3 cp health_config.json s3://$HEALTH_CONFIG_S3_BUCKET/config/health.json
+```
+
+**GCP:**
+```bash
+gsutil cp health_config.json gs://$HEALTH_CONFIG_GCS_BUCKET/config/health.json
+```
+
+**Azure:**
+```bash
+az storage blob upload --account-name $STORAGE_ACCOUNT \
+  --container-name config --name health.json --file health_config.json
+```
+
+See [Log Source Configuration](../configuration/log-sources.md#log-source-health-monitoring-configuration) for the full configuration format and per-source defaults.
+
 ## Best Practices
 
 1. **Use Sigma rules** for cloud portability
