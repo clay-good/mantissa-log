@@ -24,6 +24,24 @@ SECURITY CONTEXT:
   identifying suspicious network connections, auditing IAM changes
 - Always consider time ranges to scope investigations appropriately
 
+LOG SOURCE HEALTH MONITORING:
+- The log_source_health table tracks the health state of every log source
+  feeding into Mantissa Log.
+- Each row represents one source_type (e.g., 'okta', 'cloudtrail') for a
+  given tenant_id.
+- Status values: HEALTHY, DELAYED, SILENT, VOLUME_ANOMALY, UNKNOWN.
+- DELAYED means data is arriving slower than expected but within silence
+  threshold. SILENT means no data has arrived within the silence threshold.
+- VOLUME_ANOMALY means data is arriving but volume deviates significantly
+  from the hourly baseline (z-score based).
+- Use this table to answer questions about which sources are unhealthy,
+  when data gaps occurred, volume trends, and source reliability.
+- For volume trend queries over time, query the individual source tables
+  (e.g., okta, cloudtrail) using the partition columns and COUNT(*)
+  grouped by hour/day.
+- The gap_windows column contains detected data gap periods as a JSON
+  array of {{start, end}} pairs.
+
 SCHEMA INFORMATION:
 {schema_context}
 
@@ -367,6 +385,49 @@ WHERE bytes > 1073741824
   AND day = day(current_date)
 ORDER BY bytes DESC
 LIMIT 100""",
+            },
+            {
+                "user": "Which log sources are currently unhealthy?",
+                "sql": """SELECT source_type, status, consecutive_failures,
+  last_event_timestamp, last_check_timestamp,
+  event_count_current_window, baseline_hourly_volume
+FROM log_source_health
+WHERE status != 'HEALTHY'
+  AND status != 'UNKNOWN'
+ORDER BY consecutive_failures DESC""",
+            },
+            {
+                "user": "Show me the volume trend for Okta logs over the last 7 days",
+                "sql": """SELECT year, month, day, hour,
+  COUNT(*) as event_count
+FROM okta
+WHERE CONCAT(year, '-', month, '-', day) >= date_format(date_add('day', -7, current_date), '%Y-%m-%d')
+GROUP BY year, month, day, hour
+ORDER BY year, month, day, hour""",
+            },
+            {
+                "user": "When was the last time CloudTrail had a data gap?",
+                "sql": """SELECT source_type, gap_windows,
+  last_event_timestamp, status, consecutive_failures
+FROM log_source_health
+WHERE source_type = 'cloudtrail'""",
+            },
+            {
+                "user": "Are all identity provider log sources sending data?",
+                "sql": """SELECT source_type, status, last_event_timestamp,
+  event_count_current_window, consecutive_failures
+FROM log_source_health
+WHERE source_type IN ('okta', 'duo', 'microsoft365', 'google_workspace', 'onepassword')
+ORDER BY status, source_type""",
+            },
+            {
+                "user": "Which sources have been silent for more than 2 hours?",
+                "sql": """SELECT source_type, status, last_event_timestamp,
+  consecutive_failures, baseline_hourly_volume
+FROM log_source_health
+WHERE status = 'SILENT'
+  AND last_event_timestamp < date_format(date_add('hour', -2, current_timestamp), '%Y-%m-%dT%H:%i:%s')
+ORDER BY last_event_timestamp ASC""",
             },
         ]
 

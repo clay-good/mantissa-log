@@ -301,6 +301,73 @@ class StaticSchemaSource:
                     "User activity analysis",
                 ],
             ),
+            TableInfo(
+                name="log_source_health",
+                description="Health state of all monitored log sources. "
+                "Tracks status, volume, baselines, and data gaps for "
+                "each source_type per tenant.",
+                columns=[
+                    ColumnInfo(
+                        "source_type", "string",
+                        "Log source name (e.g., okta, cloudtrail, "
+                        "vpc_flow_logs)"
+                    ),
+                    ColumnInfo(
+                        "tenant_id", "string",
+                        "Tenant identifier for multi-tenant deployments"
+                    ),
+                    ColumnInfo(
+                        "status", "string",
+                        "Current health status: HEALTHY, DELAYED, SILENT, "
+                        "VOLUME_ANOMALY, or UNKNOWN"
+                    ),
+                    ColumnInfo(
+                        "last_event_timestamp", "string",
+                        "ISO 8601 timestamp of the most recent event "
+                        "received"
+                    ),
+                    ColumnInfo(
+                        "last_check_timestamp", "string",
+                        "ISO 8601 timestamp of the last health check run"
+                    ),
+                    ColumnInfo(
+                        "event_count_current_window", "int",
+                        "Events received in the current monitoring window"
+                    ),
+                    ColumnInfo(
+                        "event_count_previous_window", "int",
+                        "Events received in the previous equivalent window"
+                    ),
+                    ColumnInfo(
+                        "baseline_hourly_volume", "double",
+                        "Rolling average hourly event volume"
+                    ),
+                    ColumnInfo(
+                        "baseline_hourly_stddev", "double",
+                        "Standard deviation of hourly event volume"
+                    ),
+                    ColumnInfo(
+                        "consecutive_failures", "int",
+                        "Consecutive check cycles in non-HEALTHY state"
+                    ),
+                    ColumnInfo(
+                        "last_alert_timestamp", "string",
+                        "ISO 8601 timestamp of last health alert sent"
+                    ),
+                    ColumnInfo(
+                        "gap_windows", "string",
+                        "JSON array of detected data gaps, each with "
+                        "start and end ISO 8601 timestamps"
+                    ),
+                ],
+                partitions=[],
+                use_cases=[
+                    "Log source health monitoring",
+                    "Data gap detection",
+                    "Volume anomaly detection",
+                    "Source availability tracking",
+                ],
+            ),
         ]
 
 
@@ -384,6 +451,17 @@ class SchemaContext:
             "application": ["application_logs"],
             "error": ["application_logs"],
             "api": ["cloudtrail_logs"],
+            "health": ["log_source_health"],
+            "healthy": ["log_source_health"],
+            "unhealthy": ["log_source_health"],
+            "silent": ["log_source_health"],
+            "delayed": ["log_source_health"],
+            "gap": ["log_source_health"],
+            "volume": ["log_source_health"],
+            "baseline": ["log_source_health"],
+            "source status": ["log_source_health"],
+            "log source": ["log_source_health"],
+            "sending data": ["log_source_health"],
         }
 
         for keyword, table_names in keywords.items():
@@ -445,9 +523,17 @@ class SchemaContext:
             "- Grouping: GROUP BY sourceipaddress, eventname",
             "- Ordering: ORDER BY eventtime DESC LIMIT 100",
             "",
+            "Health Monitoring Patterns:",
+            "- Find unhealthy sources: SELECT * FROM log_source_health WHERE status != 'HEALTHY'",
+            "- Check specific source: SELECT * FROM log_source_health WHERE source_type = 'okta'",
+            "- Sources with gaps: SELECT source_type, gap_windows FROM log_source_health WHERE gap_windows != '[]'",
+            "- Volume trends: Query source tables directly with COUNT(*) GROUP BY year, month, day, hour",
+            "- Identity sources: WHERE source_type IN ('okta', 'duo', 'microsoft365', 'google_workspace', 'onepassword')",
+            "",
             "Important Notes:",
             "- Always use partition columns (year, month, day) for better performance",
             "- String comparisons are case-sensitive",
             "- Use date_parse() or from_iso8601_timestamp() for timestamp conversions",
             "- Limit result sets with LIMIT clause to avoid large scans",
+            "- The log_source_health table has no partitions; query it directly without year/month/day filters",
         ]
