@@ -1,0 +1,46 @@
+title: Log Source Volume Drop Exceeds 50% of Baseline
+id: mantissa-health-log-source-volume-drop-001
+status: stable
+description: Detects when a monitored log source volume drops by more than 50% from its computed hourly baseline. A significant volume decrease may indicate partial collector failure, upstream filtering changes, or deliberate log suppression by an attacker attempting to reduce visibility.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    new_status: VOLUME_ANOMALY
+    alert_category: log_source_health
+  filter_drop:
+    z_score|lt: 0
+  condition: selection and filter_drop
+
+fields:
+  - source_type
+  - old_status
+  - new_status
+  - event_count_current
+  - event_count_previous
+  - baseline_volume
+  - baseline_stddev
+  - z_score
+  - consecutive_failures
+
+falsepositives:
+  - Reduced activity during off-business hours or weekends
+  - Planned source reconfiguration reducing log verbosity
+  - Source-side log level changes
+  - Seasonal variations in system usage
+
+level: medium
+
+tags:
+  - log_source_health
+  - volume_anomaly
+  - data_integrity
+  - attack.defense_evasion
+
+references:
+  - https://attack.mitre.org/tactics/TA0005/

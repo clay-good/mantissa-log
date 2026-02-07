@@ -1,0 +1,45 @@
+title: Log Source Prolonged Silence for More Than 4 Hours
+id: mantissa-health-log-source-prolonged-silence-001
+status: stable
+description: Detects when any monitored log source has been in SILENT status for more than 4 hours. This is an escalation from the 1-hour silence rule and indicates a serious, sustained failure requiring immediate investigation. Extended silence significantly increases the risk of missed security events and compliance gaps.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    new_status: SILENT
+    alert_category: log_source_health
+  filter_duration:
+    unhealthy_duration_seconds|gte: 14400
+  condition: selection and filter_duration
+
+fields:
+  - source_type
+  - old_status
+  - new_status
+  - consecutive_failures
+  - last_event_timestamp
+  - event_count_current
+  - event_count_previous
+  - unhealthy_duration_seconds
+
+falsepositives:
+  - Extended planned maintenance windows
+  - Log source intentionally disabled or decommissioned
+  - Infrastructure migration in progress
+
+level: critical
+
+tags:
+  - log_source_health
+  - availability
+  - data_integrity
+  - escalation
+  - attack.defense_evasion
+
+references:
+  - https://attack.mitre.org/tactics/TA0005/

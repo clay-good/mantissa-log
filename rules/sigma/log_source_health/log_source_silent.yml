@@ -1,0 +1,44 @@
+title: Log Source Silent for More Than 1 Hour
+id: mantissa-health-log-source-silent-001
+status: stable
+description: Detects when any monitored log source has been in SILENT status for more than 1 hour, meaning no events have been received within the configured silence threshold. This may indicate a collector failure, credential expiration, source-side configuration change, or network connectivity issue.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    new_status: SILENT
+    alert_category: log_source_health
+  filter_duration:
+    unhealthy_duration_seconds|gte: 3600
+  condition: selection and filter_duration
+
+fields:
+  - source_type
+  - old_status
+  - new_status
+  - consecutive_failures
+  - last_event_timestamp
+  - event_count_current
+  - event_count_previous
+  - unhealthy_duration_seconds
+
+falsepositives:
+  - Planned maintenance windows for the log source
+  - Log source intentionally disabled or decommissioned
+  - Seasonal or business-hours-only log sources with expected gaps
+
+level: high
+
+tags:
+  - log_source_health
+  - availability
+  - data_integrity
+  - attack.defense_evasion
+
+references:
+  - https://attack.mitre.org/tactics/TA0005/

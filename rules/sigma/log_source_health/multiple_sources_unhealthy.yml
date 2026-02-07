@@ -1,0 +1,42 @@
+title: Multiple Log Sources Simultaneously Unhealthy
+id: mantissa-health-multiple-sources-unhealthy-001
+status: stable
+description: Detects when 3 or more monitored log sources are simultaneously in a non-healthy state (DELAYED, SILENT, or VOLUME_ANOMALY). This pattern could indicate a systemic issue such as a network connectivity problem, shared credential expiration, storage infrastructure failure, or a coordinated attack targeting logging infrastructure to reduce visibility.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    alert_category: log_source_health
+  timeframe: 5m
+  condition: selection | aggregate by tenant_id where count(new_status in ('DELAYED', 'SILENT', 'VOLUME_ANOMALY')) >= 3
+
+fields:
+  - source_type
+  - new_status
+  - consecutive_failures
+  - last_event_timestamp
+  - unhealthy_duration_seconds
+
+falsepositives:
+  - Major infrastructure maintenance affecting multiple systems
+  - Cloud provider regional outage
+  - Network-wide connectivity issues
+  - Coordinated credential rotation across multiple sources
+
+level: critical
+
+tags:
+  - log_source_health
+  - availability
+  - systemic_failure
+  - data_integrity
+  - attack.defense_evasion
+  - attack.t1562
+
+references:
+  - https://attack.mitre.org/techniques/T1562/

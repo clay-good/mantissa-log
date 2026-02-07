@@ -1,0 +1,48 @@
+title: Collector Authentication Failure Detected
+id: mantissa-health-collector-auth-failure-001
+status: stable
+description: Detects when a log collector repeatedly fails to authenticate to its source API. Repeated authentication failures may indicate expired or revoked credentials, API key rotation without updating the collector, permission changes on the source side, or an attacker tampering with collector credentials to disrupt log collection.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    alert_category: log_source_health
+    new_status:
+      - DELAYED
+      - SILENT
+    detail_message|contains: authentication
+  filter_repeated:
+    consecutive_failures|gte: 3
+  condition: selection and filter_repeated
+
+fields:
+  - source_type
+  - old_status
+  - new_status
+  - consecutive_failures
+  - last_event_timestamp
+  - detail_message
+  - event_count_current
+
+falsepositives:
+  - Scheduled credential rotation with brief authentication gap
+  - Source API undergoing maintenance or upgrade
+  - Temporary rate limiting by the source API
+
+level: high
+
+tags:
+  - log_source_health
+  - authentication
+  - credential_failure
+  - availability
+  - attack.credential_access
+  - attack.t1556
+
+references:
+  - https://attack.mitre.org/techniques/T1556/

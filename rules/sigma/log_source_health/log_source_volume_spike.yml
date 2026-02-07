@@ -1,0 +1,45 @@
+title: Log Source Volume Spike Exceeds 300% of Baseline
+id: mantissa-health-log-source-volume-spike-001
+status: stable
+description: Detects when a monitored log source volume spikes to more than 300% of its computed hourly baseline. A significant volume increase may indicate a brute force attack generating excessive authentication logs, a misconfigured application creating log storms, or an active incident producing abnormal event volumes.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    new_status: VOLUME_ANOMALY
+    alert_category: log_source_health
+  filter_spike:
+    z_score|gte: 0
+  condition: selection and filter_spike
+
+fields:
+  - source_type
+  - old_status
+  - new_status
+  - event_count_current
+  - event_count_previous
+  - baseline_volume
+  - baseline_stddev
+  - z_score
+  - consecutive_failures
+
+falsepositives:
+  - Legitimate traffic spikes during peak business periods
+  - Batch processing or bulk operations
+  - Initial onboarding of new users or systems
+  - Penetration testing activities
+
+level: medium
+
+tags:
+  - log_source_health
+  - volume_anomaly
+  - data_integrity
+
+references:
+  - https://attack.mitre.org/tactics/TA0001/

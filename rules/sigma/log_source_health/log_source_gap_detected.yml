@@ -1,0 +1,42 @@
+title: Data Gap Detected in Log Source
+id: mantissa-health-log-source-gap-detected-001
+status: stable
+description: Detects when a gap longer than 15 minutes is found in a monitored log source's event stream. Gaps indicate periods where no events were received despite the source being otherwise active. This may indicate intermittent collector failures, network interruptions, or deliberate log tampering during an attack window.
+author: Mantissa Security Team
+date: 2026-02-06
+
+logsource:
+  product: mantissa_health
+  service: health_check
+
+detection:
+  selection:
+    alert_category: log_source_health
+    gap_count|gte: 1
+  filter_duration:
+    gaps.duration_seconds|gte: 900
+  condition: selection and filter_duration
+
+fields:
+  - source_type
+  - gap_count
+  - gaps
+  - event_count_current
+  - event_count_previous
+  - last_event_timestamp
+
+falsepositives:
+  - Scheduled maintenance windows causing brief interruptions
+  - Log sources with naturally bursty or periodic event patterns
+  - Network maintenance or failover events
+
+level: medium
+
+tags:
+  - log_source_health
+  - data_integrity
+  - gap_detection
+  - attack.defense_evasion
+
+references:
+  - https://attack.mitre.org/techniques/T1562/
