@@ -1,15 +1,31 @@
-"""VPC Flow Logs parser."""
+"""VPC Flow Logs parser.
 
+Enhanced for NDR (Network Detection and Response) with support for VPC Flow
+Log versions 2-5, TCP flag bitmask decoding, RFC 1918 internal-traffic
+detection, and normalized fields required by network detection rules.
+"""
+
+import re
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .base import ParsedEvent, Parser, ParserError, handle_parse_errors, validate_required_fields
 from .registry import register_parser
 
+# Pre-compiled regex for RFC 1918 private address detection.
+_RFC1918_RE = re.compile(
+    r"^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)"
+)
+
 
 @register_parser
 class VPCFlowLogsParser(Parser):
-    """Parser for AWS VPC Flow Logs."""
+    """Parser for AWS VPC Flow Logs (versions 2-5).
+
+    Produces ParsedEvent objects with NDR-ready metadata including parsed TCP
+    flags, ``is_internal`` classification, ``duration_seconds``, and a
+    ``"network"`` tag for easy filtering by detection rules.
+    """
 
     PROTOCOL_MAP = {
         1: "ICMP",
@@ -19,6 +35,17 @@ class VPCFlowLogsParser(Parser):
         50: "ESP",
         51: "AH",
         58: "ICMPv6",
+    }
+
+    # TCP flag bitmask → flag name.  AWS encodes flags as an integer formed
+    # by OR-ing the standard TCP flag bits.
+    TCP_FLAGS = {
+        0x01: "FIN",
+        0x02: "SYN",
+        0x04: "RST",
+        0x08: "PSH",
+        0x10: "ACK",
+        0x20: "URG",
     }
 
     @property
@@ -81,7 +108,7 @@ class VPCFlowLogsParser(Parser):
 
         if version == 2:
             return self._parse_v2(parts, raw_event)
-        elif version == 3 or version == 4 or version == 5:
+        elif version in (3, 4, 5):
             return self._parse_v5(parts, raw_event)
         else:
             raise ParserError(
@@ -89,6 +116,60 @@ class VPCFlowLogsParser(Parser):
                 parser_name=self.log_type,
                 raw_event=raw_event,
             )
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_tcp_flags(raw_value: Optional[str]) -> List[str]:
+        """Decode a TCP flags integer bitmask into a list of flag names.
+
+        Args:
+            raw_value: String representation of the bitmask (e.g. ``"2"``
+                for SYN, ``"18"`` for SYN+ACK).  ``"-"`` or ``None``
+                means no flags available.
+
+        Returns:
+            Sorted list of flag name strings, e.g. ``["ACK", "SYN"]``.
+        """
+        if raw_value is None or raw_value == "-":
+            return []
+        try:
+            bitmask = int(raw_value)
+        except ValueError:
+            return []
+        flags = []
+        for bit, name in VPCFlowLogsParser.TCP_FLAGS.items():
+            if bitmask & bit:
+                flags.append(name)
+        flags.sort()
+        return flags
+
+    @staticmethod
+    def _is_rfc1918(ip: str) -> bool:
+        """Return True if *ip* is an RFC 1918 private IPv4 address."""
+        return bool(_RFC1918_RE.match(ip))
+
+    @staticmethod
+    def _is_internal(srcaddr: str, dstaddr: str) -> bool:
+        """Return True if both addresses are RFC 1918 private addresses."""
+        return (
+            VPCFlowLogsParser._is_rfc1918(srcaddr)
+            and VPCFlowLogsParser._is_rfc1918(dstaddr)
+        )
+
+    @staticmethod
+    def _safe_field(parts: List[str], index: int) -> Optional[str]:
+        """Return ``parts[index]`` if present and not ``"-"``, else None."""
+        if len(parts) > index:
+            val = parts[index]
+            return None if val == "-" else val
+        return None
+
+    # ------------------------------------------------------------------
+    # Version-specific parse methods
+    # ------------------------------------------------------------------
 
     def _parse_v2(self, parts: List[str], raw_event: str) -> ParsedEvent:
         """Parse VPC Flow Log version 2 format.
@@ -120,10 +201,13 @@ class VPCFlowLogsParser(Parser):
             )
 
         timestamp = datetime.fromtimestamp(start)
+        end_timestamp = datetime.fromtimestamp(end)
         protocol_name = self.PROTOCOL_MAP.get(protocol, str(protocol))
         result = "success" if action == "ACCEPT" else "failure"
+        duration = end - start
 
         metadata = {
+            # Original fields (backward compatible)
             "version": version,
             "account_id": account_id,
             "interface_id": interface_id,
@@ -136,6 +220,18 @@ class VPCFlowLogsParser(Parser):
             "start": start,
             "end": end,
             "log_status": log_status,
+            # NDR-normalized fields
+            "source_port": srcport,
+            "destination_port": dstport,
+            "bytes_transferred": bytes_transferred,
+            "tcp_flags": [],
+            "flow_direction": None,
+            "start_time": timestamp.isoformat(),
+            "end_time": end_timestamp.isoformat(),
+            "duration_seconds": duration,
+            "is_internal": self._is_internal(srcaddr, dstaddr),
+            "aws_service": None,
+            "tags": ["network"],
         }
 
         return ParsedEvent(
@@ -151,9 +247,10 @@ class VPCFlowLogsParser(Parser):
         )
 
     def _parse_v5(self, parts: List[str], raw_event: str) -> ParsedEvent:
-        """Parse VPC Flow Log version 5 format (extended fields).
+        """Parse VPC Flow Log version 3-5 format (extended fields).
 
-        Version 5 includes additional fields like vpc-id, subnet-id, instance-id, etc.
+        Indices 14-28 may be present depending on the configured log format.
+        Missing or ``"-"`` values are normalised to ``None``.
         """
         try:
             version = int(parts[0])
@@ -171,15 +268,22 @@ class VPCFlowLogsParser(Parser):
             action = parts[12]
             log_status = parts[13]
 
-            vpc_id = parts[14] if len(parts) > 14 else None
-            subnet_id = parts[15] if len(parts) > 15 else None
-            instance_id = parts[16] if len(parts) > 16 else None
-            tcp_flags = parts[17] if len(parts) > 17 else None
-            flow_type = parts[18] if len(parts) > 18 else None
-            pkt_srcaddr = parts[19] if len(parts) > 19 else None
-            pkt_dstaddr = parts[20] if len(parts) > 20 else None
-            region = parts[21] if len(parts) > 21 else None
-            az_id = parts[22] if len(parts) > 22 else None
+            # Extended fields (v3-v5, indices 14-28)
+            vpc_id = self._safe_field(parts, 14)
+            subnet_id = self._safe_field(parts, 15)
+            instance_id = self._safe_field(parts, 16)
+            tcp_flags_raw = self._safe_field(parts, 17)
+            flow_type = self._safe_field(parts, 18)
+            pkt_srcaddr = self._safe_field(parts, 19)
+            pkt_dstaddr = self._safe_field(parts, 20)
+            region = self._safe_field(parts, 21)
+            az_id = self._safe_field(parts, 22)
+            sublocation_type = self._safe_field(parts, 23)
+            sublocation_id = self._safe_field(parts, 24)
+            pkt_src_aws_service = self._safe_field(parts, 25)
+            pkt_dst_aws_service = self._safe_field(parts, 26)
+            flow_direction = self._safe_field(parts, 27)
+            traffic_path = self._safe_field(parts, 28)
 
         except (ValueError, IndexError) as e:
             raise ParserError(
@@ -190,10 +294,17 @@ class VPCFlowLogsParser(Parser):
             )
 
         timestamp = datetime.fromtimestamp(start)
+        end_timestamp = datetime.fromtimestamp(end)
         protocol_name = self.PROTOCOL_MAP.get(protocol, str(protocol))
         result = "success" if action == "ACCEPT" else "failure"
+        duration = end - start
+        parsed_flags = self._parse_tcp_flags(tcp_flags_raw)
+
+        # Derive the aws_service value from either direction.
+        aws_service = pkt_dst_aws_service or pkt_src_aws_service
 
         metadata = {
+            # Original fields (backward compatible)
             "version": version,
             "account_id": account_id,
             "interface_id": interface_id,
@@ -209,12 +320,29 @@ class VPCFlowLogsParser(Parser):
             "vpc_id": vpc_id,
             "subnet_id": subnet_id,
             "instance_id": instance_id,
-            "tcp_flags": tcp_flags,
+            "tcp_flags": parsed_flags,
+            "tcp_flags_raw": tcp_flags_raw,
             "flow_type": flow_type,
             "pkt_srcaddr": pkt_srcaddr,
             "pkt_dstaddr": pkt_dstaddr,
             "region": region,
             "az_id": az_id,
+            "sublocation_type": sublocation_type,
+            "sublocation_id": sublocation_id,
+            "pkt_src_aws_service": pkt_src_aws_service,
+            "pkt_dst_aws_service": pkt_dst_aws_service,
+            "flow_direction": flow_direction,
+            "traffic_path": traffic_path,
+            # NDR-normalized fields
+            "source_port": srcport,
+            "destination_port": dstport,
+            "bytes_transferred": bytes_transferred,
+            "start_time": timestamp.isoformat(),
+            "end_time": end_timestamp.isoformat(),
+            "duration_seconds": duration,
+            "is_internal": self._is_internal(srcaddr, dstaddr),
+            "aws_service": aws_service,
+            "tags": ["network"],
         }
 
         return ParsedEvent(
