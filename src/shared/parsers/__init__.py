@@ -29,6 +29,7 @@ from .gcp_cloud_dns import GCPCloudDNSParser
 from .azure_dns import AzureDNSParser
 from .cloud_firewall import CloudFirewallParser
 from .zeek import ZeekParser
+from .suricata import SuricataParser
 
 __all__ = [
     "ParsedEvent",
@@ -64,4 +65,5 @@ __all__ = [
     "AzureDNSParser",
     "CloudFirewallParser",
     "ZeekParser",
+    "SuricataParser",
 ]
