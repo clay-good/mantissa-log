@@ -26,6 +26,7 @@ from .gcp_vpc_flow import GCPVPCFlowParser
 from .azure_nsg_flow import AzureNSGFlowParser
 from .route53_dns import Route53DNSParser
 from .gcp_cloud_dns import GCPCloudDNSParser
+from .azure_dns import AzureDNSParser
 
 __all__ = [
     "ParsedEvent",
@@ -58,4 +59,5 @@ __all__ = [
     "AzureNSGFlowParser",
     "Route53DNSParser",
     "GCPCloudDNSParser",
+    "AzureDNSParser",
 ]
