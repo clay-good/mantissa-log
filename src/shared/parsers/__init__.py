@@ -27,6 +27,7 @@ from .azure_nsg_flow import AzureNSGFlowParser
 from .route53_dns import Route53DNSParser
 from .gcp_cloud_dns import GCPCloudDNSParser
 from .azure_dns import AzureDNSParser
+from .cloud_firewall import CloudFirewallParser
 
 __all__ = [
     "ParsedEvent",
@@ -60,4 +61,5 @@ __all__ = [
     "Route53DNSParser",
     "GCPCloudDNSParser",
     "AzureDNSParser",
+    "CloudFirewallParser",
 ]
