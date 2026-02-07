@@ -7,6 +7,7 @@ import {
   Cog6ToothIcon,
   AdjustmentsHorizontalIcon,
   CurrencyDollarIcon,
+  HeartIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Tuning', to: '/tuning', icon: AdjustmentsHorizontalIcon },
   { name: 'Alerts', to: '/alerts', icon: BellAlertIcon },
   { name: 'Costs', to: '/costs', icon: CurrencyDollarIcon },
+  { name: 'Source Health', to: '/health', icon: HeartIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 

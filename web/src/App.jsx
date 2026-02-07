@@ -9,6 +9,7 @@ import Alerts from './pages/Alerts'
 import Settings from './pages/Settings'
 import DetectionTuning from './pages/DetectionTuning'
 import CostDashboard from './pages/CostDashboard'
+import LogSourceHealth from './pages/LogSourceHealth'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -38,6 +39,7 @@ function App() {
         <Route path="alerts" element={<Alerts />} />
         <Route path="tuning" element={<DetectionTuning />} />
         <Route path="costs" element={<CostDashboard />} />
+        <Route path="health/*" element={<LogSourceHealth />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
