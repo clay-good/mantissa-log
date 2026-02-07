@@ -97,6 +97,8 @@ module "api" {
   redaction_api_function_name      = module.compute.redaction_api_function_name
   scheduled_query_function_arn     = module.compute.scheduled_query_function_arn
   scheduled_query_function_name    = module.compute.scheduled_query_function_name
+  health_api_function_arn          = module.log_source_health.health_api_function_arn
+  health_api_function_name         = module.log_source_health.health_api_function_name
   cognito_user_pool_arn            = module.auth.user_pool_arn
   cognito_user_pool_id             = module.auth.user_pool_id
   cognito_user_pool_client_id      = module.auth.user_pool_client_id
@@ -153,6 +155,23 @@ module "collectors" {
   log_level                = var.log_level
   environment              = var.environment
   enable_collectors        = var.enable_collectors
+}
+
+module "log_source_health" {
+  source = "./modules/log_source_health"
+
+  name_prefix                = local.name_prefix
+  environment                = var.environment
+  database_name              = module.catalog.database_name
+  athena_workgroup_name      = module.catalog.athena_workgroup_name
+  logs_bucket_name           = module.storage.logs_bucket_name
+  logs_bucket_arn            = module.storage.logs_bucket_arn
+  athena_results_bucket_name = module.storage.athena_results_bucket_name
+  athena_results_bucket_arn  = module.storage.athena_results_bucket_arn
+  cloudwatch_log_retention   = var.cloudwatch_log_retention_days
+  enable_vpc                 = var.enable_vpc
+  vpc_id                     = var.vpc_id
+  subnet_ids                 = var.subnet_ids
 }
 
 module "web" {

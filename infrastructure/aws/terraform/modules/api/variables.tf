@@ -100,3 +100,13 @@ variable "scheduled_query_function_name" {
   description = "Name of the scheduled query Lambda function"
   type        = string
 }
+
+variable "health_api_function_arn" {
+  description = "ARN of the health API Lambda function"
+  type        = string
+}
+
+variable "health_api_function_name" {
+  description = "Name of the health API Lambda function"
+  type        = string
+}

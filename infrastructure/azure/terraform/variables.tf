@@ -123,6 +123,12 @@ variable "alert_email" {
   default     = ""
 }
 
+variable "alert_action_group_id" {
+  description = "Action group ID for health monitoring alerts (optional)"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Additional tags to apply to resources"
   type        = map(string)

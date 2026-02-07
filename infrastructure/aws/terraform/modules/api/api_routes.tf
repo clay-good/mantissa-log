@@ -283,3 +283,76 @@ resource "aws_lambda_permission" "api_gateway_scheduled_query" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
 }
+
+# Health API routes
+resource "aws_apigatewayv2_integration" "health_api" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.health_api_function_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "health_sources_list" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /health/sources"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_sources_get" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /health/sources/{source_type}"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_sources_check" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /health/sources/{source_type}/check"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_sources_config" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "PUT /health/sources/{source_type}/config"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_sources_history" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /health/sources/{source_type}/history"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_sources_acknowledge" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /health/sources/{source_type}/acknowledge"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "health_summary" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /health/summary"
+  target             = "integrations/${aws_apigatewayv2_integration.health_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "api_gateway_health" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.health_api_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
