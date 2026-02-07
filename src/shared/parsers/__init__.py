@@ -22,6 +22,7 @@ from .jamf import JamfParser
 from .onepassword import OnePasswordParser
 from .azure_monitor import AzureMonitorParser
 from .gcp_logging import GCPLoggingParser
+from .gcp_vpc_flow import GCPVPCFlowParser
 
 __all__ = [
     "ParsedEvent",
@@ -50,4 +51,5 @@ __all__ = [
     "OnePasswordParser",
     "AzureMonitorParser",
     "GCPLoggingParser",
+    "GCPVPCFlowParser",
 ]
