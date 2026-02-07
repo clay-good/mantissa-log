@@ -34,6 +34,29 @@ logger = logging.getLogger(__name__)
 GCS_BUCKET = os.environ.get('GCS_BUCKET')
 PROJECT_ID = os.environ.get('PROJECT_ID')
 FIRESTORE_DB = os.environ.get('FIRESTORE_DB', '(default)')
+HEALTH_STATE_COLLECTION = os.environ.get('HEALTH_STATE_COLLECTION')
+TENANT_ID = os.environ.get('TENANT_ID', 'default')
+
+
+def _report_health_event_count(source_type: str, count: int):
+    """Report event count to health state store for monitoring."""
+    try:
+        if not HEALTH_STATE_COLLECTION:
+            return
+        sys.path.insert(0, '/workspace')
+        from shared.health.health_state_store import FirestoreHealthStateStore
+        store = FirestoreHealthStateStore(
+            collection_name=HEALTH_STATE_COLLECTION,
+            project_id=PROJECT_ID,
+        )
+        store.update_event_count(
+            source_type=source_type,
+            tenant_id=TENANT_ID,
+            count_increment=count,
+            latest_timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to update health state for {source_type}: {e}")
 
 # Initialize clients
 storage_client = storage.Client()
@@ -101,6 +124,7 @@ def collect_okta_logs(request):
             write_to_gcs(events, 'okta', 'raw')
             latest_timestamp = events[-1].get('published', now.isoformat())
             save_checkpoint('okta', {'last_fetch_time': latest_timestamp})
+            _report_health_event_count('okta', len(events))
 
         return {'status': 'success', 'source': 'okta', 'events_collected': len(events)}
     except Exception as e:
@@ -136,6 +160,7 @@ def collect_google_workspace_logs(request):
         if events:
             write_to_gcs(events, 'google_workspace', 'raw')
             save_checkpoint('google_workspace', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('google_workspace', len(events))
 
         return {'status': 'success', 'source': 'google_workspace', 'events_collected': len(events)}
     except Exception as e:
@@ -172,6 +197,7 @@ def collect_microsoft365_logs(request):
         if events:
             write_to_gcs(events, 'microsoft365', 'raw')
             save_checkpoint('microsoft365', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('microsoft365', len(events))
 
         return {'status': 'success', 'source': 'microsoft365', 'events_collected': len(events)}
     except Exception as e:
@@ -210,6 +236,7 @@ def collect_github_logs(request):
             write_to_gcs(events, 'github', 'raw')
             latest_timestamp = max(event.get('@timestamp', 0) for event in events)
             save_checkpoint('github', {'last_fetch_time': latest_timestamp})
+            _report_health_event_count('github', len(events))
 
         return {'status': 'success', 'source': 'github', 'events_collected': len(events)}
     except Exception as e:
@@ -244,6 +271,7 @@ def collect_slack_logs(request):
             write_to_gcs(entries, 'slack', 'raw')
             latest_timestamp = max(entry['date_create'] for entry in entries)
             save_checkpoint('slack', {'last_fetch_time': latest_timestamp})
+            _report_health_event_count('slack', len(entries))
 
         return {'status': 'success', 'source': 'slack', 'events_collected': len(entries)}
     except Exception as e:
@@ -281,6 +309,7 @@ def collect_duo_logs(request):
         if events:
             write_to_gcs(events, 'duo', 'raw')
             save_checkpoint('duo', {'last_fetch_time': maxtime})
+            _report_health_event_count('duo', len(events))
 
         return {'status': 'success', 'source': 'duo', 'events_collected': len(events)}
     except Exception as e:
@@ -317,6 +346,7 @@ def collect_crowdstrike_logs(request):
         if events:
             write_to_gcs(events, 'crowdstrike', 'raw')
             save_checkpoint('crowdstrike', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('crowdstrike', len(events))
 
         return {'status': 'success', 'source': 'crowdstrike', 'events_collected': len(events)}
     except Exception as e:
@@ -363,6 +393,7 @@ def collect_salesforce_logs(request):
         if events:
             write_to_gcs(events, 'salesforce', 'raw')
             save_checkpoint('salesforce', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('salesforce', len(events))
 
         return {'status': 'success', 'source': 'salesforce', 'events_collected': len(events)}
     except Exception as e:
@@ -403,6 +434,7 @@ def collect_snowflake_logs(request):
         if all_events:
             write_to_gcs(all_events, 'snowflake', 'raw')
             save_checkpoint('snowflake', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('snowflake', len(all_events))
 
         return {'status': 'success', 'source': 'snowflake', 'events_collected': len(all_events)}
     except Exception as e:
@@ -441,6 +473,7 @@ def collect_docker_logs(request):
         if events:
             write_to_gcs(events, 'docker', 'raw')
             save_checkpoint('docker', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('docker', len(events))
 
         return {'status': 'success', 'source': 'docker', 'events_collected': len(events)}
     except Exception as e:
@@ -480,6 +513,7 @@ def collect_kubernetes_logs(request):
         if events:
             write_to_gcs(events, 'kubernetes', 'raw')
             save_checkpoint('kubernetes', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('kubernetes', len(events))
 
         return {'status': 'success', 'source': 'kubernetes', 'events_collected': len(events)}
     except Exception as e:
@@ -516,6 +550,7 @@ def collect_jamf_logs(request):
         if events:
             write_to_gcs(events, 'jamf', 'raw')
             save_checkpoint('jamf', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('jamf', len(events))
 
         return {'status': 'success', 'source': 'jamf', 'events_collected': len(events)}
     except Exception as e:
@@ -553,6 +588,7 @@ def collect_onepassword_logs(request):
         if all_events:
             write_to_gcs(all_events, 'onepassword', 'raw')
             save_checkpoint('onepassword', {'last_fetch_time': now.isoformat()})
+            _report_health_event_count('onepassword', len(all_events))
 
         return {'status': 'success', 'source': 'onepassword', 'events_collected': len(all_events)}
     except Exception as e:
@@ -590,6 +626,7 @@ def collect_azure_monitor_logs(request):
         if all_events:
             write_to_gcs(all_events, 'azure_monitor', 'raw')
             save_checkpoint('azure_monitor', {'last_fetch_time': datetime.now(timezone.utc).isoformat()})
+            _report_health_event_count('azure_monitor', len(all_events))
 
         return {'status': 'success', 'source': 'azure_monitor', 'events_collected': len(all_events)}
     except Exception as e:
@@ -695,6 +732,9 @@ def collect_gcp_logs(request):
             'log_types_collected': collected_types,
             'events_collected': total_events
         })
+
+        if total_events > 0:
+            _report_health_event_count('gcp_logging', total_events)
 
         return {
             'status': 'success',

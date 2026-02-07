@@ -217,6 +217,22 @@ class OTLPReceiver:
 
             logger.info(f"Received {len(metric_events)} metrics")
 
+            # Report event count for health monitoring
+            try:
+                from src.shared.health.health_state_store import DynamoDBHealthStateStore
+                health_table = os.environ.get('LOG_SOURCE_HEALTH_TABLE')
+                tenant_id = os.environ.get('TENANT_ID', 'default')
+                if health_table:
+                    store = DynamoDBHealthStateStore(table_name=health_table)
+                    store.update_event_count(
+                        source_type='otlp',
+                        tenant_id=tenant_id,
+                        count_increment=len(metric_events),
+                        latest_timestamp=datetime.now(timezone.utc),
+                    )
+            except Exception as he:
+                logger.warning(f"Failed to update health state: {he}")
+
             return {
                 "success": True,
                 "event_count": len(metric_events),
@@ -268,6 +284,22 @@ class OTLPReceiver:
             logger.info(
                 f"Received {len(span_events)} spans from {len(trace_ids)} traces"
             )
+
+            # Report event count for health monitoring
+            try:
+                from src.shared.health.health_state_store import DynamoDBHealthStateStore
+                health_table = os.environ.get('LOG_SOURCE_HEALTH_TABLE')
+                tenant_id = os.environ.get('TENANT_ID', 'default')
+                if health_table:
+                    store = DynamoDBHealthStateStore(table_name=health_table)
+                    store.update_event_count(
+                        source_type='otlp',
+                        tenant_id=tenant_id,
+                        count_increment=len(span_events),
+                        latest_timestamp=datetime.now(timezone.utc),
+                    )
+            except Exception as he:
+                logger.warning(f"Failed to update health state: {he}")
 
             return {
                 "success": True,

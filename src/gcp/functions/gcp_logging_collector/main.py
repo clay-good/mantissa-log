@@ -323,6 +323,25 @@ class GCPLoggingCollector:
                 content_type='application/x-ndjson'
             )
 
+        # Report event count for health monitoring
+        try:
+            from shared.health.health_state_store import FirestoreHealthStateStore
+            health_collection = os.environ.get('HEALTH_STATE_COLLECTION')
+            tenant_id = os.environ.get('TENANT_ID', 'default')
+            if health_collection and len(entries) > 0:
+                store = FirestoreHealthStateStore(
+                    collection_name=health_collection,
+                    project_id=self.project_id,
+                )
+                store.update_event_count(
+                    source_type='gcp_logging',
+                    tenant_id=tenant_id,
+                    count_increment=len(entries),
+                    latest_timestamp=datetime.now(timezone.utc),
+                )
+        except Exception as e:
+            print(f"Failed to update health state: {e}")
+
         return {
             'collected': len(entries),
             'normalized': len(normalized_entries),

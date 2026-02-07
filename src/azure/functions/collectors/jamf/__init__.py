@@ -43,6 +43,27 @@ def upload_to_blob(
     blob_client = container.get_blob_client(blob_path)
     blob_client.upload_blob(content, overwrite=True)
 
+    # Report event count for health monitoring
+    try:
+        from src.shared.health.health_state_store import CosmosHealthStateStore
+        cosmos_endpoint = os.environ.get('COSMOS_ENDPOINT')
+        cosmos_key = os.environ.get('COSMOS_KEY')
+        health_container = os.environ.get('COSMOS_HEALTH_CONTAINER')
+        tenant_id = os.environ.get('TENANT_ID', 'default')
+        if cosmos_endpoint and health_container:
+            store = CosmosHealthStateStore(
+                endpoint=cosmos_endpoint, key=cosmos_key,
+                database_name=os.environ.get('COSMOS_DATABASE', 'mantissa'),
+                container_name=health_container,
+            )
+            store.update_event_count(
+                source_type=source, tenant_id=tenant_id,
+                count_increment=len(events),
+                latest_timestamp=timestamp,
+            )
+    except Exception as he:
+        logging.getLogger(__name__).warning(f"Failed to update health state: {he}")
+
     return blob_path
 
 

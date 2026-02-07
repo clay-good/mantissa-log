@@ -290,6 +290,23 @@ class DockerCollector:
                 ContentType='application/json'
             )
             print(f"Wrote {len(events)} events to s3://{self.s3_bucket}/{s3_key}")
+
+            # Report event count for health monitoring
+            try:
+                from src.shared.health.health_state_store import DynamoDBHealthStateStore
+                health_table = os.environ.get('LOG_SOURCE_HEALTH_TABLE')
+                tenant_id = os.environ.get('TENANT_ID', 'default')
+                if health_table:
+                    store = DynamoDBHealthStateStore(table_name=health_table)
+                    store.update_event_count(
+                        source_type='docker',
+                        tenant_id=tenant_id,
+                        count_increment=len(events),
+                        latest_timestamp=datetime.now(timezone.utc),
+                    )
+            except Exception as he:
+                print(f"Failed to update health state: {he}")
+
             return s3_key
 
         except Exception as e:

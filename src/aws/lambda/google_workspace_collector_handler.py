@@ -229,6 +229,23 @@ class GoogleWorkspaceCollector:
             logger.info(
                 f"Stored {len(activities)} {application_name} activities to s3://{LOGS_BUCKET}/{s3_key}"
             )
+
+            # Report event count for health monitoring
+            try:
+                from src.shared.health.health_state_store import DynamoDBHealthStateStore
+                health_table = os.environ.get('LOG_SOURCE_HEALTH_TABLE')
+                tenant_id = os.environ.get('TENANT_ID', 'default')
+                if health_table:
+                    store = DynamoDBHealthStateStore(table_name=health_table)
+                    store.update_event_count(
+                        source_type='google_workspace',
+                        tenant_id=tenant_id,
+                        count_increment=len(activities),
+                        latest_timestamp=datetime.now(timezone.utc),
+                    )
+            except Exception as he:
+                logger.warning(f"Failed to update health state: {he}")
+
         except Exception as e:
             logger.error(f"Failed to store {application_name} activities in S3: {e}")
             raise
