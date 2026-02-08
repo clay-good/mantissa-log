@@ -1,0 +1,177 @@
+title: Connection to Dynamic DNS Domain
+id: mantissa-ndr-c2-ddns-004
+status: stable
+description: >
+  Detects connections to domains registered with dynamic DNS providers. Dynamic
+  DNS is frequently used for command and control because it allows attackers
+  to quickly change the IP address behind a domain without registering a new
+  domain. Common dynamic DNS providers include no-ip.com, dyndns.org,
+  afraid.org, duckdns.org, and many others. While some dynamic DNS usage is
+  legitimate (home servers, IoT devices), corporate environments should
+  rarely have outbound connections to DDNS domains. This rule queries
+  dns_queries for lookups matching a comprehensive list of known dynamic DNS
+  provider domain suffixes.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_ddns_providers:
+    query_name|endswith:
+      # No-IP
+      - '.ddns.net'
+      - '.no-ip.org'
+      - '.no-ip.biz'
+      - '.no-ip.info'
+      - '.no-ip.com'
+      - '.noip.com'
+      # DynDNS
+      - '.dyndns.org'
+      - '.dyndns.biz'
+      - '.dyndns.info'
+      - '.dyndns.tv'
+      - '.dyndns.ws'
+      # DuckDNS
+      - '.duckdns.org'
+      # FreeDNS / afraid.org
+      - '.afraid.org'
+      - '.us.to'
+      - '.uk.to'
+      - '.mooo.com'
+      - '.strangled.net'
+      - '.ignorelist.com'
+      # ChangeIP
+      - '.changeip.com'
+      - '.changeip.net'
+      - '.changeip.org'
+      # DNS Exit
+      - '.dnsexit.com'
+      # FreeDNS
+      - '.freedns.afraid.org'
+      # Dynu
+      - '.dynu.com'
+      - '.dynu.net'
+      # DNS-O-Matic
+      - '.dnsomatic.com'
+      # Securepoint
+      - '.spdns.de'
+      - '.spdns.eu'
+      - '.spdns.org'
+      # DDNS providers commonly abused by malware
+      - '.hopto.org'
+      - '.myftp.biz'
+      - '.myftp.org'
+      - '.myvnc.com'
+      - '.serveblog.net'
+      - '.servecounterstrike.com'
+      - '.serveftp.com'
+      - '.servegame.com'
+      - '.servehalflife.com'
+      - '.servehttp.com'
+      - '.serveirc.com'
+      - '.serveminecraft.net'
+      - '.servemp3.com'
+      - '.servepics.com'
+      - '.servequake.com'
+      - '.sytes.net'
+      - '.zapto.org'
+      - '.gotdns.ch'
+      - '.redirectme.net'
+      - '.bounceme.net'
+      # Others
+      - '.chickenkiller.com'
+      - '.crabdance.com'
+      - '.twilightparadox.com'
+      - '.loseyourip.com'
+      - '.3utilities.com'
+  condition: selection and filter_ddns_providers
+
+fields:
+  - source_ip
+  - query_name
+  - query_type
+  - response_code
+  - resolved_ips
+  - query_count
+  - subdomain_entropy
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate use of dynamic DNS for personal projects or home servers
+  - IoT devices using DDNS for remote management
+  - VPN or remote access services using DDNS for endpoint discovery
+  - Development or testing environments using DDNS for accessible services
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - c2
+  - dynamic_dns
+  - attack.command_and_control
+  - attack.t1568.001
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1568/001/
+
+query_hint: |
+  SELECT
+    source_ip,
+    query_name,
+    query_type,
+    response_code,
+    resolved_ips,
+    COUNT(*) AS query_count,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND (
+      query_name LIKE '%.ddns.net'
+      OR query_name LIKE '%.no-ip.org'
+      OR query_name LIKE '%.no-ip.biz'
+      OR query_name LIKE '%.no-ip.info'
+      OR query_name LIKE '%.no-ip.com'
+      OR query_name LIKE '%.noip.com'
+      OR query_name LIKE '%.dyndns.org'
+      OR query_name LIKE '%.dyndns.biz'
+      OR query_name LIKE '%.dyndns.info'
+      OR query_name LIKE '%.duckdns.org'
+      OR query_name LIKE '%.afraid.org'
+      OR query_name LIKE '%.us.to'
+      OR query_name LIKE '%.mooo.com'
+      OR query_name LIKE '%.strangled.net'
+      OR query_name LIKE '%.changeip.com'
+      OR query_name LIKE '%.changeip.net'
+      OR query_name LIKE '%.dnsexit.com'
+      OR query_name LIKE '%.dynu.com'
+      OR query_name LIKE '%.dynu.net'
+      OR query_name LIKE '%.hopto.org'
+      OR query_name LIKE '%.myftp.biz'
+      OR query_name LIKE '%.myftp.org'
+      OR query_name LIKE '%.myvnc.com'
+      OR query_name LIKE '%.serveftp.com'
+      OR query_name LIKE '%.servehttp.com'
+      OR query_name LIKE '%.sytes.net'
+      OR query_name LIKE '%.zapto.org'
+      OR query_name LIKE '%.bounceme.net'
+      OR query_name LIKE '%.redirectme.net'
+      OR query_name LIKE '%.gotdns.ch'
+      OR query_name LIKE '%.spdns.de'
+      OR query_name LIKE '%.spdns.eu'
+      OR query_name LIKE '%.spdns.org'
+    )
+  GROUP BY source_ip, query_name, query_type, response_code, resolved_ips
+  ORDER BY query_count DESC

@@ -1,0 +1,129 @@
+title: Potential Cobalt Strike Default Profile Traffic
+id: mantissa-ndr-c2-cobaltstrike-002
+status: stable
+description: >
+  Detects network patterns consistent with Cobalt Strike's default malleable
+  C2 profile. Default profiles use predictable URI patterns, user agents, and
+  timing. Common default URIs include /submit.php, /pixel.gif, /__utm.gif,
+  /ca, /push, /updates, and /visit.js. Default user agents may include
+  specific strings like "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT
+  6.1; Trident/5.0)" or other IE-era user agents that are rarely seen in
+  modern traffic. This rule examines Zeek http.log or Suricata http events
+  for matching URI and user agent combinations. While sophisticated operators
+  use custom malleable C2 profiles, many deployments retain default or
+  minimally modified profiles.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    source_type:
+      - zeek_conn
+      - suricata_flow
+  filter_cs_default_uris:
+    uri:
+      - '/submit.php'
+      - '/pixel.gif'
+      - '/__utm.gif'
+      - '/pixel'
+      - '/ca'
+      - '/push'
+      - '/updates.rss'
+      - '/visit.js'
+      - '/tab_icon.ico'
+      - '/stab'
+      - '/match'
+      - '/j.ad'
+      - '/fwlink'
+      - '/__utm'
+      - '/IE9CompatViewList.xml'
+  filter_cs_user_agents:
+    user_agent|contains:
+      - 'MSIE 9.0'
+      - 'MSIE 8.0'
+      - 'MSIE 7.0'
+      - 'Trident/5.0'
+      - 'Trident/4.0'
+  filter_cs_combined:
+    http_method:
+      - GET
+      - POST
+  condition: selection and filter_cs_combined and (filter_cs_default_uris or filter_cs_user_agents)
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - uri
+  - http_method
+  - user_agent
+  - status_code
+  - request_body_len
+  - response_body_len
+  - source_type
+  - host
+  - ja3_fingerprint
+  - timestamp
+
+falsepositives:
+  - Legitimate web applications using similar URI patterns
+  - Legacy systems still running Internet Explorer with old user agents
+  - Web crawlers or security scanners with IE-like user agent strings
+  - Compatibility testing tools using old browser user agents
+
+level: critical
+
+schedule:
+  interval: 15m
+  lookback: 15m
+
+tags:
+  - network
+  - c2
+  - cobalt_strike
+  - attack.command_and_control
+  - attack.t1071.001
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://hstechdocs.helpsystems.com/manuals/cobaltstrike/current/userguide/content/topics/malleable-c2_main.htm
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    uri,
+    http_method,
+    user_agent,
+    status_code,
+    request_body_len,
+    response_body_len,
+    source_type,
+    host,
+    ja3_fingerprint,
+    timestamp
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '15 minutes'
+    AND source_type IN ('zeek_conn', 'suricata_flow')
+    AND (
+      uri IN (
+        '/submit.php', '/pixel.gif', '/__utm.gif', '/pixel',
+        '/ca', '/push', '/updates.rss', '/visit.js',
+        '/tab_icon.ico', '/stab', '/match', '/j.ad',
+        '/fwlink', '/__utm', '/IE9CompatViewList.xml'
+      )
+      OR (
+        user_agent LIKE '%MSIE 9.0%'
+        OR user_agent LIKE '%MSIE 8.0%'
+        OR user_agent LIKE '%MSIE 7.0%'
+        OR user_agent LIKE '%Trident/5.0%'
+        OR user_agent LIKE '%Trident/4.0%'
+      )
+    )
+  ORDER BY timestamp DESC

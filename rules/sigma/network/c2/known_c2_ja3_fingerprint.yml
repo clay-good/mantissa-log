@@ -1,0 +1,143 @@
+title: Known C2 Framework JA3 Fingerprint Detected
+id: mantissa-ndr-c2-ja3-001
+status: stable
+description: >
+  Detects TLS connections with JA3 fingerprints matching known C2 frameworks
+  including Cobalt Strike, Metasploit, Empire, Sliver, Covenant, and other
+  post-exploitation tools. JA3 is a method of TLS client fingerprinting that
+  hashes the TLS Client Hello parameters (SSL version, ciphers, extensions,
+  elliptic curves, EC point formats). Many C2 frameworks produce distinctive
+  JA3 hashes due to their use of specific TLS libraries or hardcoded
+  cipher suites. This rule requires Zeek ssl.log or Suricata tls event data
+  that includes JA3 hashes. VPC Flow Logs do not provide this level of detail.
+  The JA3 hash list should be regularly updated from threat intelligence feeds.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    source_type:
+      - zeek_conn
+      - suricata_flow
+  filter_known_c2_ja3:
+    ja3_fingerprint:
+      # Cobalt Strike default
+      - '72a589da586844d7f0818ce684948eea'
+      - 'a0e9f5d64349fb13191bc781f81f42e1'
+      - 'b742b407517bac9536a77a7b0fee28e9'
+      # Cobalt Strike 4.x variants
+      - '6734f37431670b3ab4292b8f60f29984'
+      - 'e35df3e00ca4ef31d42b34bebaa2f86e'
+      - '19e29534fd49dd27d09234e639c4057e'
+      # Metasploit Meterpreter
+      - '5d65ea3fb1d4aa7d499be982e7c1de9d'
+      - 'c12f54a3f91dc7bafd92b1d3f3570ece'
+      # Empire / PowerShell Empire
+      - 'a7a1aba1759b25f8d6bcc0b3e5a1faad'
+      - 'b580b5e3eaa3fc4e4d2d32e1d3b6d2d6'
+      # Sliver C2
+      - 'e53a753bac7f02f5c4b0c2e2a783618d'
+      - '6e379853fc3848ee60cae0ac3e3a0f36'
+      # Covenant C2
+      - '51c64c77e60f3980eea90869b68c58a8'
+      # PoshC2
+      - 'd7a94a4ebf0e23443b88b3d9d0cfb31f'
+      # Mythic C2
+      - '3b5074b1b5d032e5620f69f9f700ff0e'
+      # Brute Ratel C4
+      - 'c441ce2a7b22bae59f5f61f40ed09cce'
+      # Havoc C2
+      - '2d82fef1aaf7e40e1f64c4c39c3e0c55'
+      # Generic suspicious / known-bad
+      - '1138de370e523e824bbca3fe245b7ac0'
+      - 'e7d705a3286e19ea42f587b344ee6865'
+  condition: selection and filter_known_c2_ja3
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - ja3_fingerprint
+  - ja3s_fingerprint
+  - server_name
+  - tls_version
+  - subject
+  - issuer
+  - validation_status
+  - source_type
+  - bytes_sent
+  - bytes_received
+  - duration_seconds
+  - timestamp
+
+falsepositives:
+  - Legitimate software using the same TLS library versions as C2 frameworks
+  - JA3 hash collisions between different TLS implementations
+  - Outdated or stale JA3 indicator lists matching deprecated software
+  - Custom internal tools built with common TLS libraries
+
+level: critical
+
+schedule:
+  interval: 15m
+  lookback: 15m
+
+tags:
+  - network
+  - c2
+  - ja3
+  - threat_intelligence
+  - attack.command_and_control
+  - attack.t1071.001
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://engineering.salesforce.com/tls-fingerprinting-with-ja3-and-ja3s-247362855967/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    ja3_fingerprint,
+    ja3s_fingerprint,
+    server_name,
+    tls_version,
+    subject,
+    issuer,
+    validation_status,
+    source_type,
+    bytes_sent,
+    bytes_received,
+    duration_seconds,
+    timestamp
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '15 minutes'
+    AND source_type IN ('zeek_conn', 'suricata_flow')
+    AND ja3_fingerprint IN (
+      '72a589da586844d7f0818ce684948eea',
+      'a0e9f5d64349fb13191bc781f81f42e1',
+      'b742b407517bac9536a77a7b0fee28e9',
+      '6734f37431670b3ab4292b8f60f29984',
+      'e35df3e00ca4ef31d42b34bebaa2f86e',
+      '19e29534fd49dd27d09234e639c4057e',
+      '5d65ea3fb1d4aa7d499be982e7c1de9d',
+      'c12f54a3f91dc7bafd92b1d3f3570ece',
+      'a7a1aba1759b25f8d6bcc0b3e5a1faad',
+      'b580b5e3eaa3fc4e4d2d32e1d3b6d2d6',
+      'e53a753bac7f02f5c4b0c2e2a783618d',
+      '6e379853fc3848ee60cae0ac3e3a0f36',
+      '51c64c77e60f3980eea90869b68c58a8',
+      'd7a94a4ebf0e23443b88b3d9d0cfb31f',
+      '3b5074b1b5d032e5620f69f9f700ff0e',
+      'c441ce2a7b22bae59f5f61f40ed09cce',
+      '2d82fef1aaf7e40e1f64c4c39c3e0c55',
+      '1138de370e523e824bbca3fe245b7ac0',
+      'e7d705a3286e19ea42f587b344ee6865'
+    )
+  ORDER BY timestamp DESC

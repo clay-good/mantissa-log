@@ -1,0 +1,127 @@
+title: Anomalous Encrypted Channel Detected
+id: mantissa-ndr-c2-encrypted-anomaly-003
+status: stable
+description: >
+  Detects encrypted connections with unusual characteristics that may indicate
+  C2 communication. Specifically targets: self-signed certificates (common in
+  hastily deployed C2 infrastructure), certificate validity periods exceeding
+  10 years (often seen in auto-generated C2 certificates), certificates with
+  IP addresses as Common Name instead of domain names (indicative of direct
+  IP-based C2), and outdated TLS versions (TLSv1.0 or TLSv1.1) which are
+  deprecated and unusual in modern traffic. Requires Zeek ssl.log or Suricata
+  tls event data for certificate inspection.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    source_type:
+      - zeek_conn
+      - suricata_flow
+  filter_self_signed:
+    validation_status|contains:
+      - 'self signed'
+      - 'self-signed'
+      - 'unable to get local issuer'
+  filter_ip_as_cn:
+    subject|re: 'CN=\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+  filter_deprecated_tls:
+    tls_version:
+      - 'TLSv1'
+      - 'TLSv1.0'
+      - 'TLSv1.1'
+      - 'SSLv3'
+  filter_external:
+    is_internal: false
+    direction: outbound
+  condition: selection and filter_external and (filter_self_signed or filter_ip_as_cn or filter_deprecated_tls)
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - tls_version
+  - server_name
+  - subject
+  - issuer
+  - validation_status
+  - ja3_fingerprint
+  - ja3s_fingerprint
+  - established
+  - source_type
+  - bytes_sent
+  - bytes_received
+  - duration_seconds
+  - timestamp
+
+falsepositives:
+  - Internal development or testing environments using self-signed certificates
+  - IoT devices with embedded self-signed TLS certificates
+  - Legacy systems that have not been updated to modern TLS versions
+  - Certificate authority renewal delays causing temporary validation failures
+  - IP-based management interfaces for network appliances
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - c2
+  - encrypted_channel
+  - tls
+  - certificate_anomaly
+  - attack.command_and_control
+  - attack.t1573
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1573/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    tls_version,
+    server_name,
+    subject,
+    issuer,
+    validation_status,
+    ja3_fingerprint,
+    ja3s_fingerprint,
+    established,
+    source_type,
+    bytes_sent,
+    bytes_received,
+    duration_seconds,
+    timestamp,
+    CASE
+      WHEN validation_status LIKE '%self signed%'
+           OR validation_status LIKE '%self-signed%'
+        THEN 'self_signed_certificate'
+      WHEN subject REGEXP 'CN=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'
+        THEN 'ip_address_as_cn'
+      WHEN tls_version IN ('TLSv1', 'TLSv1.0', 'TLSv1.1', 'SSLv3')
+        THEN 'deprecated_tls_version'
+      ELSE 'unknown'
+    END AS anomaly_reason
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND source_type IN ('zeek_conn', 'suricata_flow')
+    AND is_internal = false
+    AND direction = 'outbound'
+    AND (
+      validation_status LIKE '%self signed%'
+      OR validation_status LIKE '%self-signed%'
+      OR validation_status LIKE '%unable to get local issuer%'
+      OR subject REGEXP 'CN=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'
+      OR tls_version IN ('TLSv1', 'TLSv1.0', 'TLSv1.1', 'SSLv3')
+    )
+  ORDER BY timestamp DESC
