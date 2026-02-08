@@ -1,0 +1,84 @@
+title: Unusual Volume of DNS TXT Record Queries
+id: mantissa-ndr-dns-tunnel-txt-002
+status: stable
+description: >
+  Detects when an internal host makes an abnormally high number of TXT record
+  queries. TXT records are commonly used for DNS tunneling because they allow
+  longer response payloads (up to approximately 4000 bytes per response) than
+  other record types. While TXT records serve legitimate purposes (SPF, DKIM,
+  domain verification), most hosts generate fewer than 10 TXT queries per
+  hour. This rule alerts when a single host exceeds 50 TXT queries in 1
+  hour, especially when directed at a small number of base domains.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+    query_type: TXT
+  filter_high_volume:
+    txt_query_count|gte: 50
+  filter_known_verification:
+    query_name|not|contains:
+      - '_dmarc.'
+      - '_domainkey.'
+      - '_acme-challenge.'
+      - '_mta-sts.'
+  condition: selection and filter_high_volume and not filter_known_verification
+
+fields:
+  - source_ip
+  - base_domain
+  - txt_query_count
+  - unique_query_names
+  - avg_subdomain_entropy
+  - is_nxdomain_count
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Email servers performing high-volume SPF/DKIM/DMARC lookups
+  - Automated certificate validation (ACME DNS-01 challenges)
+  - DNS debugging or monitoring tools
+  - Security tools performing DNS reputation lookups
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - dns
+  - dns_tunneling
+  - attack.command_and_control
+  - attack.t1071.004
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/004/
+
+query_hint: |
+  SELECT
+    source_ip,
+    REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$') AS base_domain,
+    COUNT(*) AS txt_query_count,
+    COUNT(DISTINCT query_name) AS unique_query_names,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    SUM(CASE WHEN is_nxdomain = true THEN 1 ELSE 0 END) AS is_nxdomain_count,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND query_type = 'TXT'
+    AND query_name NOT LIKE '%_dmarc.%'
+    AND query_name NOT LIKE '%_domainkey.%'
+    AND query_name NOT LIKE '%_acme-challenge.%'
+  GROUP BY source_ip, REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$')
+  HAVING COUNT(*) >= 50
+  ORDER BY txt_query_count DESC

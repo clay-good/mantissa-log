@@ -1,0 +1,114 @@
+title: WinRM Lateral Movement (Port 5985/5986)
+id: mantissa-ndr-lateral-winrm-006
+status: stable
+description: >
+  Detects unusual WinRM connections between internal hosts. WinRM (Windows
+  Remote Management) on ports 5985 (HTTP) and 5986 (HTTPS) enables PowerShell
+  remoting and is commonly used in post-exploitation for lateral movement,
+  remote command execution, and credential harvesting. This rule triggers
+  when a host makes WinRM connections to more than 5 new internal
+  destinations in 1 hour that were not contacted via WinRM in the previous
+  30 days.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+    destination_port:
+      - 5985
+      - 5986
+  filter_new_winrm_destinations:
+    new_destination_count|gte: 5
+  condition: selection and filter_new_winrm_destinations
+
+fields:
+  - source_ip
+  - new_destination_count
+  - total_destination_count
+  - destination_ips
+  - winrm_http_count
+  - winrm_https_count
+  - total_bytes_sent
+  - total_bytes_received
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - PowerShell DSC (Desired State Configuration) operations
+  - SCCM or SCOM management agent communication
+  - Automated Windows patching or configuration tools
+  - IT administration scripts using PowerShell remoting
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - lateral_movement
+  - winrm
+  - powershell
+  - attack.lateral_movement
+  - attack.t1021.006
+
+references:
+  - https://attack.mitre.org/tactics/TA0008/
+  - https://attack.mitre.org/techniques/T1021/006/
+
+query_hint: |
+  WITH current_winrm AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      COUNT(*) AS connection_count,
+      SUM(bytes_sent) AS bytes_sent,
+      SUM(bytes_received) AS bytes_received,
+      AVG(duration_seconds) AS avg_duration_seconds,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port IN (5985, 5986)
+    GROUP BY source_ip, destination_ip, destination_port
+  ),
+  historical_winrm AS (
+    SELECT DISTINCT source_ip, destination_ip
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '30 days'
+      AND timestamp < NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port IN (5985, 5986)
+  )
+  SELECT
+    cw.source_ip,
+    COUNT(DISTINCT CASE WHEN hw.destination_ip IS NULL
+                        THEN cw.destination_ip END) AS new_destination_count,
+    COUNT(DISTINCT cw.destination_ip) AS total_destination_count,
+    ARRAY_AGG(DISTINCT cw.destination_ip) AS destination_ips,
+    SUM(CASE WHEN cw.destination_port = 5985 THEN cw.connection_count
+             ELSE 0 END) AS winrm_http_count,
+    SUM(CASE WHEN cw.destination_port = 5986 THEN cw.connection_count
+             ELSE 0 END) AS winrm_https_count,
+    SUM(cw.bytes_sent) AS total_bytes_sent,
+    SUM(cw.bytes_received) AS total_bytes_received,
+    AVG(cw.avg_duration_seconds) AS avg_duration_seconds,
+    MIN(cw.first_seen) AS first_seen,
+    MAX(cw.last_seen) AS last_seen
+  FROM current_winrm cw
+  LEFT JOIN historical_winrm hw
+    ON cw.source_ip = hw.source_ip
+    AND cw.destination_ip = hw.destination_ip
+  GROUP BY cw.source_ip
+  HAVING COUNT(DISTINCT CASE WHEN hw.destination_ip IS NULL
+                             THEN cw.destination_ip END) >= 5
+  ORDER BY new_destination_count DESC

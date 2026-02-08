@@ -1,0 +1,93 @@
+title: External Connection on Non-Standard Port
+id: mantissa-ndr-anomaly-nonstandard-port-002
+status: stable
+description: >
+  Detects outbound connections to external IPs on ports that are not commonly
+  used for legitimate internet traffic. Standard external ports include HTTP
+  (80), HTTPS (443), HTTP alt (8080, 8443), DNS (53), NTP (123), IMAP (993),
+  SMTP (587, 465), and SSH (22). Connections on other ports may indicate C2
+  channels, data exfiltration, or misconfigurations. The rule requires at
+  least 3 connections to reduce noise from ephemeral or one-off connections.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_non_standard:
+    destination_port|not:
+      - 22
+      - 53
+      - 80
+      - 123
+      - 443
+      - 465
+      - 587
+      - 993
+      - 8080
+      - 8443
+  filter_minimum_connections:
+    connection_count|gte: 3
+  condition: selection and filter_non_standard and filter_minimum_connections
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - total_bytes_sent
+  - total_bytes_received
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - VPN connections on non-standard ports
+  - Gaming clients using custom server ports
+  - Custom SaaS applications on non-standard ports
+  - IoT devices communicating on proprietary ports
+  - Development environments connecting to staging services
+
+level: low
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - anomalous_traffic
+  - non_standard_port
+  - attack.command_and_control
+  - attack.t1571
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1571/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    COUNT(*) AS connection_count,
+    SUM(bytes_sent) AS total_bytes_sent,
+    SUM(bytes_received) AS total_bytes_received,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND is_internal = false
+    AND direction = 'outbound'
+    AND destination_port NOT IN (22, 53, 80, 123, 443, 465, 587, 993, 8080, 8443)
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING COUNT(*) >= 3
+  ORDER BY connection_count DESC

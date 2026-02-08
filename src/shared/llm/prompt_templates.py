@@ -42,6 +42,22 @@ LOG SOURCE HEALTH MONITORING:
 - The gap_windows column contains detected data gap periods as a JSON
   array of {{start, end}} pairs.
 
+NETWORK DETECTION AND RESPONSE (NDR):
+- The network_flows table contains normalised flow records from VPC flow
+  logs (AWS/GCP/Azure), Zeek conn.log, and Suricata flow events.
+- The dns_queries table contains DNS query logs from Route 53, GCP Cloud
+  DNS, Azure DNS, Zeek dns.log, and Suricata DNS events.
+- The firewall_events table contains firewall and IDS/IPS events from
+  AWS Network Firewall, GCP Firewall, Azure Firewall, and Suricata alerts.
+- All NDR tables are partitioned by year, month, day, hour.
+- Use is_internal to filter RFC 1918 internal traffic vs external.
+- Use subdomain_entropy (Shannon entropy) to detect DNS tunneling/DGA.
+  Values above 3.5 are suspicious.
+- Use conn_state for Zeek connection analysis: SF=normal, S0=SYN only,
+  REJ=rejected, RSTO/RSTR=reset.
+- Join network_flows with dns_queries on destination_ip to correlate
+  connections with domain lookups.
+
 SCHEMA INFORMATION:
 {schema_context}
 
@@ -428,6 +444,145 @@ FROM log_source_health
 WHERE status = 'SILENT'
   AND last_event_timestamp < date_format(date_add('hour', -2, current_timestamp), '%Y-%m-%dT%H:%i:%s')
 ORDER BY last_event_timestamp ASC""",
+            },
+            {
+                "user": "Which internal hosts communicated with external IPs on non-standard ports in the last 24 hours?",
+                "sql": """SELECT source_ip, destination_ip, destination_port,
+  protocol, SUM(bytes_sent) as total_bytes, COUNT(*) as connection_count
+FROM network_flows
+WHERE is_internal = false
+  AND source_ip LIKE '10.%' OR source_ip LIKE '172.1%' OR source_ip LIKE '192.168.%'
+  AND destination_port NOT IN (80, 443, 53, 22, 25, 993, 587, 8080, 8443)
+  AND timestamp >= cast(date_add('hour', -24, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day >= lpad(cast(day(date_add('day', -1, current_date)) as varchar), 2, '0')
+GROUP BY source_ip, destination_ip, destination_port, protocol
+ORDER BY connection_count DESC
+LIMIT 100""",
+            },
+            {
+                "user": "Show me the top talkers by bytes transferred outbound",
+                "sql": """SELECT source_ip,
+  SUM(bytes_sent) as total_bytes_sent,
+  SUM(bytes_received) as total_bytes_received,
+  COUNT(*) as flow_count,
+  COUNT(DISTINCT destination_ip) as unique_destinations
+FROM network_flows
+WHERE direction = 'outbound'
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day = lpad(cast(day(current_date) as varchar), 2, '0')
+GROUP BY source_ip
+ORDER BY total_bytes_sent DESC
+LIMIT 20""",
+            },
+            {
+                "user": "Find all DNS queries with high entropy subdomains",
+                "sql": """SELECT source_ip, query_name, query_type,
+  subdomain_entropy, subdomain_label_count,
+  response_code, source_type
+FROM dns_queries
+WHERE subdomain_entropy > 3.5
+  AND timestamp >= cast(date_add('hour', -24, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day >= lpad(cast(day(date_add('day', -1, current_date)) as varchar), 2, '0')
+ORDER BY subdomain_entropy DESC
+LIMIT 1000""",
+            },
+            {
+                "user": "What are the most queried domains by internal hosts today?",
+                "sql": """SELECT query_name,
+  COUNT(*) as query_count,
+  COUNT(DISTINCT source_ip) as unique_clients,
+  ARRAY_AGG(DISTINCT query_type) as query_types
+FROM dns_queries
+WHERE year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day = lpad(cast(day(current_date) as varchar), 2, '0')
+GROUP BY query_name
+ORDER BY query_count DESC
+LIMIT 50""",
+            },
+            {
+                "user": "Show me all denied firewall connections grouped by source IP",
+                "sql": """SELECT source_ip,
+  COUNT(*) as denied_count,
+  COUNT(DISTINCT destination_ip) as unique_targets,
+  COUNT(DISTINCT destination_port) as unique_ports,
+  ARRAY_AGG(DISTINCT firewall_rule_name) as rules_triggered
+FROM firewall_events
+WHERE action IN ('deny', 'drop', 'blocked')
+  AND timestamp >= cast(date_add('hour', -24, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day >= lpad(cast(day(date_add('day', -1, current_date)) as varchar), 2, '0')
+GROUP BY source_ip
+ORDER BY denied_count DESC
+LIMIT 50""",
+            },
+            {
+                "user": "Find any regular interval connections to the same external IP (possible beaconing)",
+                "sql": """SELECT source_ip, destination_ip, destination_port,
+  COUNT(*) as connection_count,
+  MIN(timestamp) as first_seen,
+  MAX(timestamp) as last_seen
+FROM network_flows
+WHERE is_internal = false
+  AND action = 'accept'
+  AND timestamp >= cast(date_add('hour', -24, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day >= lpad(cast(day(date_add('day', -1, current_date)) as varchar), 2, '0')
+GROUP BY source_ip, destination_ip, destination_port
+HAVING COUNT(*) >= 10
+ORDER BY connection_count DESC
+LIMIT 100""",
+            },
+            {
+                "user": "Which hosts made connections on port 4444, 5555, or 8888?",
+                "sql": """SELECT source_ip, destination_ip, destination_port,
+  protocol, timestamp, cloud_provider, source_type
+FROM network_flows
+WHERE destination_port IN (4444, 5555, 8888)
+  AND timestamp >= cast(date_add('day', -7, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day >= lpad(cast(day(date_add('day', -7, current_date)) as varchar), 2, '0')
+ORDER BY timestamp DESC
+LIMIT 1000""",
+            },
+            {
+                "user": "Show me all TXT record DNS queries in the last hour",
+                "sql": """SELECT source_ip, query_name, response_code,
+  subdomain_entropy, resolved_ips, source_type
+FROM dns_queries
+WHERE query_type = 'TXT'
+  AND timestamp >= cast(date_add('hour', -1, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day = lpad(cast(day(current_date) as varchar), 2, '0')
+ORDER BY timestamp DESC
+LIMIT 1000""",
+            },
+            {
+                "user": "Find internal hosts that connected to more than 50 unique destination IPs in the last hour (possible scanning)",
+                "sql": """SELECT source_ip,
+  COUNT(DISTINCT destination_ip) as unique_destinations,
+  COUNT(DISTINCT destination_port) as unique_ports,
+  COUNT(*) as total_connections,
+  SUM(bytes_sent) as total_bytes
+FROM network_flows
+WHERE source_ip LIKE '10.%' OR source_ip LIKE '172.1%' OR source_ip LIKE '192.168.%'
+  AND timestamp >= cast(date_add('hour', -1, current_timestamp) as varchar)
+  AND year = cast(year(current_date) as varchar)
+  AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+  AND day = lpad(cast(day(current_date) as varchar), 2, '0')
+GROUP BY source_ip
+HAVING COUNT(DISTINCT destination_ip) > 50
+ORDER BY unique_destinations DESC
+LIMIT 50""",
             },
         ]
 

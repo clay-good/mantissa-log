@@ -1,0 +1,106 @@
+title: Slow Drip Data Exfiltration Detected
+id: mantissa-ndr-exfil-slow-drip-004
+status: stable
+description: >
+  Detects sustained low-volume data transfers to the same external
+  destination over extended periods. Sophisticated attackers exfiltrate data
+  slowly to avoid volume-based detection thresholds. This rule triggers when
+  consistent small transfers (each less than 1 MB) to the same destination
+  total more than 100 MB over a 24-hour window with regular timing. The
+  combination of sustained, small, regular transfers to a single destination
+  is a strong indicator of automated exfiltration.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_small_individual_transfers:
+    max_single_transfer_bytes|lt: 1048576
+  filter_high_cumulative_volume:
+    total_bytes_sent|gte: 104857600
+  filter_sustained_pattern:
+    connection_count|gte: 20
+    active_hours|gte: 4
+  condition: selection and filter_small_individual_transfers and filter_high_cumulative_volume and filter_sustained_pattern
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - total_bytes_sent
+  - total_bytes_received
+  - connection_count
+  - max_single_transfer_bytes
+  - active_hours
+  - avg_bytes_per_connection
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Continuous log forwarding or telemetry to external SIEM/monitoring
+  - IoT devices with persistent low-bandwidth connections
+  - Application performance monitoring agents
+  - Incremental backup services with small delta transfers
+
+level: medium
+
+schedule:
+  interval: 6h
+  lookback: 24h
+
+tags:
+  - network
+  - data_exfiltration
+  - slow_exfiltration
+  - attack.exfiltration
+  - attack.t1048
+
+references:
+  - https://attack.mitre.org/tactics/TA0010/
+  - https://attack.mitre.org/techniques/T1048/
+
+query_hint: |
+  WITH hourly_transfers AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      protocol,
+      DATE_TRUNC('hour', timestamp) AS hour_bucket,
+      SUM(bytes_sent) AS hourly_bytes_sent,
+      MAX(bytes_sent) AS max_single_transfer_bytes,
+      COUNT(*) AS hourly_connection_count
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+      AND is_internal = false
+      AND direction = 'outbound'
+    GROUP BY source_ip, destination_ip, destination_port, protocol,
+             DATE_TRUNC('hour', timestamp)
+  )
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    SUM(hourly_bytes_sent) AS total_bytes_sent,
+    SUM(hourly_connection_count) AS connection_count,
+    MAX(max_single_transfer_bytes) AS max_single_transfer_bytes,
+    COUNT(DISTINCT hour_bucket) AS active_hours,
+    SUM(hourly_bytes_sent) / NULLIF(SUM(hourly_connection_count), 0)
+      AS avg_bytes_per_connection,
+    MIN(hour_bucket) AS first_seen,
+    MAX(hour_bucket) AS last_seen
+  FROM hourly_transfers
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING MAX(max_single_transfer_bytes) < 1048576
+    AND SUM(hourly_bytes_sent) >= 104857600
+    AND SUM(hourly_connection_count) >= 20
+    AND COUNT(DISTINCT hour_bucket) >= 4
+  ORDER BY total_bytes_sent DESC

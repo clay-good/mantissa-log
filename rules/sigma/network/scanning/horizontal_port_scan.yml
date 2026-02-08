@@ -1,0 +1,81 @@
+title: Horizontal Port Scan Detected
+id: mantissa-ndr-scan-horizontal-001
+status: stable
+description: >
+  Detects a single host scanning the same port across many destination hosts
+  (horizontal scan). This is a common reconnaissance technique used to find
+  hosts running a specific service. The rule triggers when a single source IP
+  connects to more than 20 unique destination IPs on the same destination
+  port within 10 minutes. If VPC Flow Logs or Zeek conn.log show SYN without
+  ACK (tcp_flags contains SYN but not ACK, or conn_state = "S0"), the
+  connections are even more suspicious as they indicate half-open scans.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection_any_flow:
+    destination_port|exists: true
+  filter_many_destinations:
+    unique_destination_ips|gte: 20
+  filter_syn_only:
+    conn_state:
+      - S0
+      - REJ
+  condition: selection_any_flow and filter_many_destinations
+
+fields:
+  - source_ip
+  - destination_port
+  - protocol
+  - unique_destination_ips
+  - total_connection_count
+  - syn_only_count
+  - rejected_count
+  - is_internal
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate vulnerability scanners (Nessus, Qualys, OpenVAS)
+  - Network monitoring tools performing health checks
+  - Service discovery mechanisms in microservices architectures
+  - Load balancer health probes
+
+level: high
+
+schedule:
+  interval: 10m
+  lookback: 10m
+
+tags:
+  - network
+  - scanning
+  - reconnaissance
+  - attack.discovery
+  - attack.t1046
+
+references:
+  - https://attack.mitre.org/tactics/TA0007/
+  - https://attack.mitre.org/techniques/T1046/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_port,
+    protocol,
+    COUNT(DISTINCT destination_ip) AS unique_destination_ips,
+    COUNT(*) AS total_connection_count,
+    SUM(CASE WHEN conn_state = 'S0' THEN 1 ELSE 0 END) AS syn_only_count,
+    SUM(CASE WHEN conn_state = 'REJ' THEN 1 ELSE 0 END) AS rejected_count,
+    BOOL_OR(is_internal) AS is_internal,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '10 minutes'
+  GROUP BY source_ip, destination_port, protocol
+  HAVING COUNT(DISTINCT destination_ip) >= 20
+  ORDER BY unique_destination_ips DESC

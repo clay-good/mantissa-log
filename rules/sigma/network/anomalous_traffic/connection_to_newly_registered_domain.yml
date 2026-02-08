@@ -1,0 +1,91 @@
+title: Connection to Newly Registered Domain
+id: mantissa-ndr-anomaly-new-domain-001
+status: stable
+description: >
+  Detects connections to domains registered within the last 30 days. Newly
+  registered domains are frequently used for phishing, command and control,
+  and malware distribution. Domain age is determined through WHOIS lookup or
+  threat intelligence feed integration. The domain_age_days field is enriched
+  by the parsers (currently set to null as a placeholder for enrichment).
+  When domain age enrichment is available, this rule alerts on domains with
+  age less than 30 days. Requires integration with a domain age data source
+  such as WHOIS API, DomainTools API, or a local feed of newly registered
+  domains from ICANN CZDS or commercial NRD feeds.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_new_domain:
+    domain_age_days|lt: 30
+    domain_age_days|exists: true
+  filter_known_tlds:
+    query_name|not|endswith:
+      - '.local'
+      - '.internal'
+      - '.in-addr.arpa'
+      - '.ip6.arpa'
+  condition: selection and filter_new_domain and not filter_known_tlds
+
+fields:
+  - source_ip
+  - query_name
+  - domain_age_days
+  - query_type
+  - response_code
+  - resolved_ips
+  - query_count
+  - subdomain_entropy
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate newly launched websites or services
+  - Marketing campaign landing pages on new domains
+  - Startup or project websites registered recently
+  - Domain migrations to newly purchased domains
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - anomalous_traffic
+  - new_domain
+  - attack.command_and_control
+  - attack.t1583.001
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1583/001/
+
+query_hint: |
+  SELECT
+    source_ip,
+    query_name,
+    domain_age_days,
+    query_type,
+    response_code,
+    resolved_ips,
+    COUNT(*) AS query_count,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND domain_age_days IS NOT NULL
+    AND domain_age_days < 30
+    AND query_name NOT LIKE '%.local'
+    AND query_name NOT LIKE '%.internal'
+    AND query_name NOT LIKE '%.in-addr.arpa'
+  GROUP BY source_ip, query_name, domain_age_days, query_type,
+           response_code, resolved_ips
+  ORDER BY domain_age_days ASC, query_count DESC

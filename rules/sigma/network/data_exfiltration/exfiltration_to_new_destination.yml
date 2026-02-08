@@ -1,0 +1,98 @@
+title: Large Data Transfer to Previously Unseen External Destination
+id: mantissa-ndr-exfil-new-dest-002
+status: stable
+description: >
+  Detects large outbound transfers to external IPs that have never been
+  contacted before by any internal host. New destinations combined with large
+  data transfers are more suspicious than transfers to known partners or
+  cloud services. The rule first identifies transfers exceeding 100 MB to a
+  single destination in 1 hour, then cross-references the destination
+  against a 30-day history. If the destination has never been seen before,
+  the severity is elevated to critical.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_significant_transfer:
+    total_bytes_sent|gte: 104857600
+  filter_new_destination:
+    destination_first_seen_days|lt: 1
+  condition: selection and filter_significant_transfer and filter_new_destination
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - total_bytes_sent
+  - total_bytes_received
+  - connection_count
+  - is_new_destination
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - First-time data migrations to new cloud providers
+  - New business partner integrations
+  - One-time large file sharing via legitimate services
+  - New CDN or content delivery endpoints
+
+level: critical
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - data_exfiltration
+  - new_destination
+  - attack.exfiltration
+  - attack.t1048
+
+references:
+  - https://attack.mitre.org/tactics/TA0010/
+  - https://attack.mitre.org/techniques/T1048/
+
+query_hint: |
+  WITH current_transfers AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      protocol,
+      SUM(bytes_sent) AS total_bytes_sent,
+      SUM(bytes_received) AS total_bytes_received,
+      COUNT(*) AS connection_count,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND is_internal = false
+      AND direction = 'outbound'
+    GROUP BY source_ip, destination_ip, destination_port, protocol
+    HAVING SUM(bytes_sent) >= 104857600
+  ),
+  historical_destinations AS (
+    SELECT DISTINCT destination_ip
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '30 days'
+      AND timestamp < NOW() - INTERVAL '1 hour'
+      AND is_internal = false
+  )
+  SELECT
+    ct.*,
+    CASE WHEN hd.destination_ip IS NULL THEN true ELSE false END
+      AS is_new_destination
+  FROM current_transfers ct
+  LEFT JOIN historical_destinations hd
+    ON ct.destination_ip = hd.destination_ip
+  WHERE hd.destination_ip IS NULL
+  ORDER BY ct.total_bytes_sent DESC

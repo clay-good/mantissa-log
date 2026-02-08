@@ -1,0 +1,104 @@
+title: Unauthorized VPN Tunnel Detected
+id: mantissa-ndr-anomaly-vpn-tunnel-006
+status: stable
+description: >
+  Detects traffic patterns consistent with unauthorised VPN tunnels
+  (OpenVPN, WireGuard, etc.). OpenVPN typically uses UDP 1194 or TCP 443
+  with specific packet signatures. WireGuard uses UDP 51820. This rule
+  identifies sustained encrypted connections on known VPN ports or
+  connections with consistent bidirectional traffic patterns characteristic
+  of VPN tunnels. For Zeek/Suricata data, connections flagged as "tunnel"
+  or with protocol analysis failures on port 443 are also detected.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_openvpn:
+    destination_port: 1194
+  filter_wireguard:
+    destination_port: 51820
+    protocol: udp
+  filter_ipsec:
+    destination_port:
+      - 500
+      - 4500
+    protocol: udp
+  filter_sstp:
+    destination_port: 443
+    protocol: tcp
+    service|contains: sstp
+  filter_sustained_connection:
+    duration_seconds|gte: 300
+  condition: selection and (filter_openvpn or filter_wireguard or filter_ipsec or filter_sstp) and filter_sustained_connection
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - total_bytes_sent
+  - total_bytes_received
+  - avg_duration_seconds
+  - max_duration_seconds
+  - service
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Authorised corporate VPN connections
+  - Remote workers using approved VPN clients
+  - Site-to-site VPN tunnels between offices
+  - Cloud provider VPN gateway connections
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - anomalous_traffic
+  - vpn
+  - unauthorized_tunnel
+  - attack.command_and_control
+  - attack.t1572
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1572/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    COUNT(*) AS connection_count,
+    SUM(bytes_sent) AS total_bytes_sent,
+    SUM(bytes_received) AS total_bytes_received,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    MAX(duration_seconds) AS max_duration_seconds,
+    service,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND is_internal = false
+    AND direction = 'outbound'
+    AND (
+      destination_port = 1194
+      OR (destination_port = 51820 AND protocol = 'udp')
+      OR (destination_port IN (500, 4500) AND protocol = 'udp')
+    )
+    AND duration_seconds >= 300
+  GROUP BY source_ip, destination_ip, destination_port, protocol, service
+  ORDER BY max_duration_seconds DESC

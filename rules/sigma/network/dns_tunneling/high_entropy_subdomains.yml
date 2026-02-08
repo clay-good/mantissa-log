@@ -1,0 +1,93 @@
+title: High Entropy DNS Subdomain Queries (Possible DNS Tunneling)
+id: mantissa-ndr-dns-tunnel-entropy-001
+status: stable
+description: >
+  Detects DNS queries where the subdomain portion has unusually high Shannon
+  entropy, indicating encoded or encrypted data. DNS tunneling tools like
+  iodine, dnscat2, and DNSExfiltrator encode data in subdomain labels,
+  producing high-entropy strings that score approximately 4.0-4.7 on the
+  Shannon scale compared to normal domains which score 2.0-3.0. This rule
+  looks for hosts making at least 20 high-entropy queries (entropy > 3.5)
+  to the same base domain within 1 hour, indicating sustained tunneling
+  activity rather than isolated anomalies.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_high_entropy:
+    subdomain_entropy|gte: 3.5
+  filter_minimum_queries:
+    high_entropy_query_count|gte: 20
+  filter_known_domains:
+    query_name|not|endswith:
+      - '.in-addr.arpa'
+      - '.local'
+      - '.internal'
+      - '._tcp.local'
+      - '._udp.local'
+  condition: selection and filter_high_entropy and filter_minimum_queries and not filter_known_domains
+
+fields:
+  - source_ip
+  - base_domain
+  - high_entropy_query_count
+  - avg_subdomain_entropy
+  - max_subdomain_entropy
+  - avg_subdomain_length
+  - max_subdomain_length
+  - unique_subdomains
+  - query_types_seen
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - CDN-distributed content with encoded resource identifiers in subdomains
+  - Anti-spam DNSBL lookups with encoded email hashes
+  - DKIM and SPF verification queries
+  - Legitimate encoded tracking identifiers in marketing domains
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - dns
+  - dns_tunneling
+  - exfiltration
+  - attack.command_and_control
+  - attack.t1071.004
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/004/
+
+query_hint: |
+  SELECT
+    source_ip,
+    REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$') AS base_domain,
+    COUNT(*) AS high_entropy_query_count,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    MAX(subdomain_entropy) AS max_subdomain_entropy,
+    AVG(LENGTH(SPLIT_PART(query_name, '.', 1))) AS avg_subdomain_length,
+    MAX(LENGTH(SPLIT_PART(query_name, '.', 1))) AS max_subdomain_length,
+    COUNT(DISTINCT SPLIT_PART(query_name, '.', 1)) AS unique_subdomains,
+    ARRAY_AGG(DISTINCT query_type) AS query_types_seen,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND subdomain_entropy > 3.5
+    AND query_name NOT LIKE '%.in-addr.arpa'
+    AND query_name NOT LIKE '%.local'
+  GROUP BY source_ip, REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$')
+  HAVING COUNT(*) >= 20
+  ORDER BY avg_subdomain_entropy DESC

@@ -1,0 +1,103 @@
+title: RDP Lateral Movement (Port 3389)
+id: mantissa-ndr-lateral-rdp-003
+status: stable
+description: >
+  Detects unusual RDP connections between internal hosts. RDP (port 3389) is
+  commonly abused for lateral movement after credential compromise. This rule
+  triggers when a host makes RDP connections to new internal destinations
+  that were not contacted in the previous 30 days. Alert when more than 5
+  new RDP destinations are observed from a single source within 1 hour,
+  indicating potential credential-based lateral movement or RDP brute forcing.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+    destination_port: 3389
+  filter_new_rdp_destinations:
+    new_destination_count|gte: 5
+  condition: selection and filter_new_rdp_destinations
+
+fields:
+  - source_ip
+  - new_destination_count
+  - total_destination_count
+  - destination_ips
+  - total_bytes_sent
+  - total_bytes_received
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - IT help desk or system administrators managing multiple servers
+  - Automated remote management tools
+  - RDP jump server or bastion host activity
+  - VDI (Virtual Desktop Infrastructure) management operations
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - lateral_movement
+  - rdp
+  - attack.lateral_movement
+  - attack.t1021.001
+
+references:
+  - https://attack.mitre.org/tactics/TA0008/
+  - https://attack.mitre.org/techniques/T1021/001/
+
+query_hint: |
+  WITH current_rdp AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      COUNT(*) AS connection_count,
+      SUM(bytes_sent) AS bytes_sent,
+      SUM(bytes_received) AS bytes_received,
+      AVG(duration_seconds) AS avg_duration_seconds,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port = 3389
+    GROUP BY source_ip, destination_ip
+  ),
+  historical_rdp AS (
+    SELECT DISTINCT source_ip, destination_ip
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '30 days'
+      AND timestamp < NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port = 3389
+  )
+  SELECT
+    cr.source_ip,
+    COUNT(DISTINCT CASE WHEN hr.destination_ip IS NULL
+                        THEN cr.destination_ip END) AS new_destination_count,
+    COUNT(DISTINCT cr.destination_ip) AS total_destination_count,
+    ARRAY_AGG(DISTINCT cr.destination_ip) AS destination_ips,
+    SUM(cr.bytes_sent) AS total_bytes_sent,
+    SUM(cr.bytes_received) AS total_bytes_received,
+    AVG(cr.avg_duration_seconds) AS avg_duration_seconds,
+    MIN(cr.first_seen) AS first_seen,
+    MAX(cr.last_seen) AS last_seen
+  FROM current_rdp cr
+  LEFT JOIN historical_rdp hr
+    ON cr.source_ip = hr.source_ip
+    AND cr.destination_ip = hr.destination_ip
+  GROUP BY cr.source_ip
+  HAVING COUNT(DISTINCT CASE WHEN hr.destination_ip IS NULL
+                             THEN cr.destination_ip END) >= 5
+  ORDER BY new_destination_count DESC

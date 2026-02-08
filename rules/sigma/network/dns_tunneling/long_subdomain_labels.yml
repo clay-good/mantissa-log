@@ -1,0 +1,93 @@
+title: Abnormally Long DNS Subdomain Labels
+id: mantissa-ndr-dns-tunnel-long-label-003
+status: stable
+description: >
+  DNS tunneling often uses very long subdomain labels (close to the 63-character
+  label limit per RFC 1035) to maximise data throughput per query. Normal
+  subdomain labels rarely exceed 20 characters. This rule detects queries
+  where the leftmost subdomain label exceeds 30 characters or where there are
+  more than 4 subdomain labels, both of which are strong indicators of data
+  encoding in DNS query names. Requires at least 10 such queries within 1
+  hour to reduce false positives from isolated long labels.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_long_labels:
+    subdomain_label_count|gte: 5
+  filter_long_leftmost:
+    leftmost_label_length|gte: 30
+  filter_minimum_queries:
+    long_label_query_count|gte: 10
+  filter_known_domains:
+    query_name|not|endswith:
+      - '.in-addr.arpa'
+      - '.ip6.arpa'
+      - '.local'
+  condition: selection and (filter_long_labels or filter_long_leftmost) and filter_minimum_queries and not filter_known_domains
+
+fields:
+  - source_ip
+  - base_domain
+  - long_label_query_count
+  - avg_subdomain_label_count
+  - max_subdomain_label_count
+  - avg_leftmost_label_length
+  - max_leftmost_label_length
+  - avg_subdomain_entropy
+  - unique_query_names
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - DNSBL (DNS blacklist) lookups with encoded IP addresses
+  - Automated certificate validation with long challenge tokens
+  - Cloud service discovery with encoded resource identifiers
+  - PTR record lookups for IPv6 addresses
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - dns
+  - dns_tunneling
+  - attack.command_and_control
+  - attack.t1071.004
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/004/
+
+query_hint: |
+  SELECT
+    source_ip,
+    REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$') AS base_domain,
+    COUNT(*) AS long_label_query_count,
+    AVG(subdomain_label_count) AS avg_subdomain_label_count,
+    MAX(subdomain_label_count) AS max_subdomain_label_count,
+    AVG(LENGTH(SPLIT_PART(query_name, '.', 1))) AS avg_leftmost_label_length,
+    MAX(LENGTH(SPLIT_PART(query_name, '.', 1))) AS max_leftmost_label_length,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    COUNT(DISTINCT query_name) AS unique_query_names,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND (subdomain_label_count > 4
+         OR LENGTH(SPLIT_PART(query_name, '.', 1)) > 30)
+    AND query_name NOT LIKE '%.in-addr.arpa'
+    AND query_name NOT LIKE '%.ip6.arpa'
+    AND query_name NOT LIKE '%.local'
+  GROUP BY source_ip, REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$')
+  HAVING COUNT(*) >= 10
+  ORDER BY long_label_query_count DESC

@@ -1,0 +1,131 @@
+title: Beaconing to Newly Observed External Destination
+id: mantissa-ndr-beaconing-new-dest-005
+status: stable
+description: >
+  Detects beaconing patterns to external IPs or domains that have never been
+  contacted before by any internal host. The combination of regular interval
+  connections and a previously unseen destination makes this pattern highly
+  suspicious. The rule first identifies beaconing behaviour (coefficient of
+  variation < 0.2 over at least 10 connections), then cross-references the
+  destination against a 30-day history of all external destinations contacted
+  by any host in the environment. If the destination has never been seen
+  before, the alert is elevated.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_beaconing:
+    connection_count|gte: 10
+    interval_coefficient_of_variation|lt: 0.2
+  filter_new_destination:
+    destination_first_seen_days|lt: 1
+  filter_known_services:
+    destination_port|not:
+      - 123
+      - 53
+  condition: selection and filter_beaconing and filter_new_destination and not filter_known_services
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - mean_interval_seconds
+  - stddev_interval_seconds
+  - interval_coefficient_of_variation
+  - bytes_sent
+  - bytes_received
+  - destination_first_seen
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate new software installations establishing periodic update checks
+  - New third-party SaaS integrations
+  - First-time connections to new CDN edge nodes
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 24h
+
+tags:
+  - network
+  - beaconing
+  - c2
+  - new_destination
+  - attack.command_and_control
+  - attack.t1071
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/
+
+query_hint: |
+  WITH beaconing_candidates AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      protocol,
+      COUNT(*) AS connection_count,
+      AVG(interval_seconds) AS mean_interval_seconds,
+      STDDEV(interval_seconds) AS stddev_interval_seconds,
+      CASE WHEN AVG(interval_seconds) > 0
+           THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+           ELSE 1.0 END AS interval_coefficient_of_variation,
+      SUM(bytes_sent) AS total_bytes_sent,
+      SUM(bytes_received) AS total_bytes_received,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM (
+      SELECT
+        source_ip,
+        destination_ip,
+        destination_port,
+        protocol,
+        bytes_sent,
+        bytes_received,
+        timestamp,
+        EXTRACT(EPOCH FROM (timestamp - LAG(timestamp) OVER (
+          PARTITION BY source_ip, destination_ip, destination_port
+          ORDER BY timestamp
+        ))) AS interval_seconds
+      FROM network_flows
+      WHERE timestamp >= NOW() - INTERVAL '24 hours'
+        AND is_internal = false
+        AND direction = 'outbound'
+        AND destination_port NOT IN (123, 53)
+    ) intervals
+    WHERE interval_seconds IS NOT NULL
+      AND interval_seconds > 0
+    GROUP BY source_ip, destination_ip, destination_port, protocol
+    HAVING COUNT(*) >= 10
+      AND CASE WHEN AVG(interval_seconds) > 0
+               THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+               ELSE 1.0 END < 0.2
+  ),
+  historical_destinations AS (
+    SELECT DISTINCT destination_ip
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '30 days'
+      AND timestamp < NOW() - INTERVAL '24 hours'
+      AND is_internal = false
+  )
+  SELECT
+    bc.*,
+    CASE WHEN hd.destination_ip IS NULL THEN true ELSE false END AS is_new_destination
+  FROM beaconing_candidates bc
+  LEFT JOIN historical_destinations hd
+    ON bc.destination_ip = hd.destination_ip
+  WHERE hd.destination_ip IS NULL
+  ORDER BY bc.interval_coefficient_of_variation ASC

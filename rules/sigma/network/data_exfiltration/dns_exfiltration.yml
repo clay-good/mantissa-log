@@ -1,0 +1,92 @@
+title: Data Exfiltration via DNS Queries
+id: mantissa-ndr-exfil-dns-003
+status: stable
+description: >
+  Detects potential data exfiltration through DNS queries. Attackers encode
+  data in DNS query subdomains and exfiltrate it through normal DNS
+  resolution. This rule focuses on the volume aspect: it triggers when the
+  total payload size (sum of subdomain label bytes) to the same base domain
+  exceeds approximately 100 KB in 1 hour. Each DNS query can carry roughly
+  200 bytes in the subdomain, so 500 high-entropy queries to the same base
+  domain approximate 100 KB of exfiltrated data. The subdomain entropy
+  threshold of 3.0 ensures we only count encoded/encrypted data payloads.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_high_entropy:
+    subdomain_entropy|gte: 3.0
+  filter_high_volume:
+    estimated_payload_bytes|gte: 102400
+  filter_known_domains:
+    query_name|not|endswith:
+      - '.in-addr.arpa'
+      - '.ip6.arpa'
+      - '.local'
+  condition: selection and filter_high_entropy and filter_high_volume and not filter_known_domains
+
+fields:
+  - source_ip
+  - base_domain
+  - query_count
+  - estimated_payload_bytes
+  - avg_subdomain_entropy
+  - avg_subdomain_length
+  - unique_subdomains
+  - query_types_seen
+  - nxdomain_count
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Anti-spam DNSBL services with encoded lookups
+  - Content delivery networks with encoded resource identifiers
+  - Email authentication verification (DKIM) with long subdomain labels
+  - Security scanning tools performing DNS-based reputation lookups
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - data_exfiltration
+  - dns
+  - dns_tunneling
+  - attack.exfiltration
+  - attack.t1048.003
+
+references:
+  - https://attack.mitre.org/tactics/TA0010/
+  - https://attack.mitre.org/techniques/T1048/003/
+
+query_hint: |
+  SELECT
+    source_ip,
+    REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$') AS base_domain,
+    COUNT(*) AS query_count,
+    SUM(LENGTH(SPLIT_PART(query_name, '.', 1))) AS estimated_payload_bytes,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    AVG(LENGTH(SPLIT_PART(query_name, '.', 1))) AS avg_subdomain_length,
+    COUNT(DISTINCT SPLIT_PART(query_name, '.', 1)) AS unique_subdomains,
+    ARRAY_AGG(DISTINCT query_type) AS query_types_seen,
+    SUM(CASE WHEN is_nxdomain = true THEN 1 ELSE 0 END) AS nxdomain_count,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM dns_queries
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND subdomain_entropy >= 3.0
+    AND query_name NOT LIKE '%.in-addr.arpa'
+    AND query_name NOT LIKE '%.ip6.arpa'
+    AND query_name NOT LIKE '%.local'
+  GROUP BY source_ip, REGEXP_EXTRACT(query_name, '([^.]+\.[^.]+)$')
+  HAVING SUM(LENGTH(SPLIT_PART(query_name, '.', 1))) >= 102400
+  ORDER BY estimated_payload_bytes DESC

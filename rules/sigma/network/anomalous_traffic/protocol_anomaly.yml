@@ -1,0 +1,112 @@
+title: Potential Protocol Tunneling Detected
+id: mantissa-ndr-anomaly-protocol-tunnel-004
+status: stable
+description: >
+  Detects when network traffic on a standard port does not match the expected
+  protocol. For example, non-HTTP traffic on port 80 or non-HTTPS traffic on
+  port 443. This technique is used to tunnel arbitrary protocols through
+  firewall-allowed ports. Detection requires Zeek or Suricata data which
+  performs deep packet inspection and can report the actual application
+  protocol. For Zeek conn.log data: detects connections where the destination
+  port implies a protocol (e.g. 80=http, 443=ssl) but the observed service
+  field does not match. For Suricata: uses the app_proto field similarly.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    source_type:
+      - zeek_conn
+      - suricata_flow
+  filter_port_80_not_http:
+    destination_port: 80
+    service|not:
+      - http
+      - ''
+  filter_port_443_not_ssl:
+    destination_port: 443
+    service|not:
+      - ssl
+      - tls
+      - ''
+  filter_port_22_not_ssh:
+    destination_port: 22
+    service|not:
+      - ssh
+      - ''
+  filter_port_53_not_dns:
+    destination_port: 53
+    service|not:
+      - dns
+      - ''
+  condition: selection and (filter_port_80_not_http or filter_port_443_not_ssl or filter_port_22_not_ssh or filter_port_53_not_dns)
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - service
+  - source_type
+  - bytes_sent
+  - bytes_received
+  - duration_seconds
+  - conn_state
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Protocol identification failures in Zeek/Suricata for encrypted or obfuscated traffic
+  - Legitimate protocol multiplexing (e.g. gRPC over HTTP/2 on port 443)
+  - Custom internal applications using standard ports with non-standard protocols
+  - VPN or proxy services on standard ports
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - anomalous_traffic
+  - protocol_tunneling
+  - attack.command_and_control
+  - attack.t1572
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1572/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    service,
+    source_type,
+    SUM(bytes_sent) AS bytes_sent,
+    SUM(bytes_received) AS bytes_received,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    conn_state,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND source_type IN ('zeek_conn', 'suricata_flow')
+    AND (
+      (destination_port = 80 AND service NOT IN ('http', ''))
+      OR (destination_port = 443 AND service NOT IN ('ssl', 'tls', ''))
+      OR (destination_port = 22 AND service NOT IN ('ssh', ''))
+      OR (destination_port = 53 AND service NOT IN ('dns', ''))
+    )
+    AND service IS NOT NULL
+    AND service != ''
+  GROUP BY source_ip, destination_ip, destination_port, protocol,
+           service, source_type, conn_state
+  ORDER BY first_seen DESC

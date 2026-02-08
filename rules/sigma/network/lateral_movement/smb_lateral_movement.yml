@@ -1,0 +1,105 @@
+title: SMB Lateral Movement (Port 445)
+id: mantissa-ndr-lateral-smb-002
+status: stable
+description: >
+  Detects unusual SMB (port 445) connections between internal hosts. SMB is
+  heavily abused for lateral movement via tools like PsExec, WMI, and
+  credential harvesting utilities. This rule triggers when a host that has
+  never previously used SMB starts making SMB connections, or when a host
+  makes SMB connections to many new internal hosts (more than 5 unique
+  destinations in 1 hour that were not contacted in the previous 30 days).
+  Rapid SMB connection spreading is a strong indicator of worm-like
+  propagation or manual lateral movement.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+    destination_port: 445
+  filter_new_smb_destinations:
+    new_destination_count|gte: 5
+  condition: selection and filter_new_smb_destinations
+
+fields:
+  - source_ip
+  - new_destination_count
+  - total_destination_count
+  - destination_ips
+  - total_bytes_sent
+  - total_bytes_received
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - File server migrations or backup operations
+  - IT administration tasks using legitimate management tools
+  - Automated deployment or patching systems
+  - New workstation provisioning with network share mapping
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - lateral_movement
+  - smb
+  - attack.lateral_movement
+  - attack.t1021.002
+
+references:
+  - https://attack.mitre.org/tactics/TA0008/
+  - https://attack.mitre.org/techniques/T1021/002/
+
+query_hint: |
+  WITH current_smb AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      COUNT(*) AS connection_count,
+      SUM(bytes_sent) AS bytes_sent,
+      SUM(bytes_received) AS bytes_received,
+      AVG(duration_seconds) AS avg_duration_seconds,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port = 445
+    GROUP BY source_ip, destination_ip
+  ),
+  historical_smb AS (
+    SELECT DISTINCT source_ip, destination_ip
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '30 days'
+      AND timestamp < NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port = 445
+  )
+  SELECT
+    cs.source_ip,
+    COUNT(DISTINCT CASE WHEN hs.destination_ip IS NULL
+                        THEN cs.destination_ip END) AS new_destination_count,
+    COUNT(DISTINCT cs.destination_ip) AS total_destination_count,
+    ARRAY_AGG(DISTINCT cs.destination_ip) AS destination_ips,
+    SUM(cs.bytes_sent) AS total_bytes_sent,
+    SUM(cs.bytes_received) AS total_bytes_received,
+    AVG(cs.avg_duration_seconds) AS avg_duration_seconds,
+    MIN(cs.first_seen) AS first_seen,
+    MAX(cs.last_seen) AS last_seen
+  FROM current_smb cs
+  LEFT JOIN historical_smb hs
+    ON cs.source_ip = hs.source_ip
+    AND cs.destination_ip = hs.destination_ip
+  GROUP BY cs.source_ip
+  HAVING COUNT(DISTINCT CASE WHEN hs.destination_ip IS NULL
+                             THEN cs.destination_ip END) >= 5
+  ORDER BY new_destination_count DESC

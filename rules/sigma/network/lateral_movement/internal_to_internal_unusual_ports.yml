@@ -1,0 +1,101 @@
+title: Internal-to-Internal Connection on Unusual Port
+id: mantissa-ndr-lateral-unusual-port-001
+status: stable
+description: >
+  Detects connections between internal hosts on ports that are not commonly
+  used for internal communication. After initial compromise, attackers often
+  move laterally using uncommon ports or tools. Legitimate internal services
+  typically use well-known ports (22, 80, 443, 445, 3389, etc.). Connections
+  to unusual ports, especially ephemeral range ports being used as destination
+  ports, are suspicious because legitimate services bind to well-known ports
+  while ephemeral ports are normally only used as source ports.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+  filter_unusual_port:
+    destination_port|not:
+      - 22
+      - 80
+      - 443
+      - 445
+      - 3306
+      - 3389
+      - 5432
+      - 5985
+      - 5986
+      - 6379
+      - 8080
+      - 8443
+      - 9090
+      - 9200
+      - 9300
+      - 27017
+  filter_ephemeral_destination:
+    destination_port|gte: 1024
+  filter_minimum_connections:
+    connection_count|gte: 3
+  condition: selection and filter_unusual_port and filter_ephemeral_destination and filter_minimum_connections
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - bytes_sent
+  - bytes_received
+  - duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Custom internal applications running on non-standard ports
+  - Development and testing environments with ad-hoc services
+  - Peer-to-peer backup or sync tools
+  - Container-to-container communication on dynamically assigned ports
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - lateral_movement
+  - attack.lateral_movement
+  - attack.t1021
+
+references:
+  - https://attack.mitre.org/tactics/TA0008/
+  - https://attack.mitre.org/techniques/T1021/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    COUNT(*) AS connection_count,
+    SUM(bytes_sent) AS bytes_sent,
+    SUM(bytes_received) AS bytes_received,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND is_internal = true
+    AND destination_port >= 1024
+    AND destination_port NOT IN (
+      3306, 5432, 6379, 8080, 8443, 9090, 9200, 9300, 27017
+    )
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING COUNT(*) >= 3
+  ORDER BY connection_count DESC

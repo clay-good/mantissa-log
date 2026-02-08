@@ -1,0 +1,84 @@
+title: Network Sweep Detected
+id: mantissa-ndr-scan-sweep-003
+status: stable
+description: >
+  Detects a host systematically scanning an entire subnet. This is a
+  combination of horizontal and vertical scanning where a single source IP
+  connects to more than 50 unique internal destination IPs across multiple
+  ports within 30 minutes. This pattern is characteristic of automated
+  network reconnaissance tools. The severity is elevated to critical because
+  it indicates a more comprehensive and likely automated scanning effort,
+  especially when many connections are rejected or reset.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+  filter_many_destinations:
+    unique_destination_ips|gte: 50
+  filter_multiple_ports:
+    unique_destination_ports|gte: 3
+  condition: selection and filter_many_destinations and filter_multiple_ports
+
+fields:
+  - source_ip
+  - unique_destination_ips
+  - unique_destination_ports
+  - total_connection_count
+  - syn_only_count
+  - rejected_count
+  - reset_count
+  - ports_scanned
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Authorised vulnerability scanning or asset discovery
+  - Network inventory management tools
+  - DHCP or ARP-based network mapping
+  - Containerised service mesh with many service endpoints
+
+level: critical
+
+schedule:
+  interval: 30m
+  lookback: 30m
+
+tags:
+  - network
+  - scanning
+  - reconnaissance
+  - network_sweep
+  - attack.discovery
+  - attack.t1046
+
+references:
+  - https://attack.mitre.org/tactics/TA0007/
+  - https://attack.mitre.org/techniques/T1046/
+
+query_hint: |
+  SELECT
+    source_ip,
+    COUNT(DISTINCT destination_ip) AS unique_destination_ips,
+    COUNT(DISTINCT destination_port) AS unique_destination_ports,
+    COUNT(*) AS total_connection_count,
+    SUM(CASE WHEN conn_state = 'S0' THEN 1 ELSE 0 END) AS syn_only_count,
+    SUM(CASE WHEN conn_state = 'REJ' THEN 1 ELSE 0 END) AS rejected_count,
+    SUM(CASE WHEN conn_state IN ('RSTO', 'RSTR', 'RSTOS0', 'RSTRH')
+             THEN 1 ELSE 0 END) AS reset_count,
+    ARRAY_AGG(DISTINCT destination_port ORDER BY destination_port)
+      AS ports_scanned,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '30 minutes'
+    AND is_internal = true
+  GROUP BY source_ip
+  HAVING COUNT(DISTINCT destination_ip) >= 50
+    AND COUNT(DISTINCT destination_port) >= 3
+  ORDER BY unique_destination_ips DESC

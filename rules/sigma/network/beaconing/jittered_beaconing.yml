@@ -1,0 +1,116 @@
+title: Jittered C2 Beaconing Detected
+id: mantissa-ndr-beaconing-jittered-002
+status: stable
+description: >
+  Detects beaconing with jitter (randomised interval variation). More
+  sophisticated C2 adds random jitter to avoid regular-interval detection.
+  This rule identifies connections with a mean interval within a suspicious
+  range (30 seconds to 30 minutes) and a coefficient of variation between
+  0.1 and 0.3 — too regular to be human-driven but with enough jitter to
+  appear random. Requires a minimum of 10 connections over a 24-hour window
+  to establish a pattern.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_minimum_connections:
+    connection_count|gte: 10
+  filter_jittered_interval:
+    interval_coefficient_of_variation|gte: 0.1
+    interval_coefficient_of_variation|lt: 0.3
+  filter_suspicious_interval_range:
+    mean_interval_seconds|gte: 30
+    mean_interval_seconds|lte: 1800
+  filter_known_services:
+    destination_port|not:
+      - 123
+      - 53
+  condition: selection and filter_minimum_connections and filter_jittered_interval and filter_suspicious_interval_range and not filter_known_services
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - mean_interval_seconds
+  - stddev_interval_seconds
+  - interval_coefficient_of_variation
+  - bytes_sent
+  - bytes_received
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Polling-based applications with configured jitter (e.g. config management agents)
+  - Mobile apps with background refresh intervals
+  - Software update check mechanisms with randomised timing
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 24h
+
+tags:
+  - network
+  - beaconing
+  - c2
+  - attack.command_and_control
+  - attack.t1071
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    COUNT(*) AS connection_count,
+    AVG(interval_seconds) AS mean_interval_seconds,
+    STDDEV(interval_seconds) AS stddev_interval_seconds,
+    CASE WHEN AVG(interval_seconds) > 0
+         THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+         ELSE 1.0 END AS interval_coefficient_of_variation,
+    SUM(bytes_sent) AS total_bytes_sent,
+    SUM(bytes_received) AS total_bytes_received,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      protocol,
+      bytes_sent,
+      bytes_received,
+      timestamp,
+      EXTRACT(EPOCH FROM (timestamp - LAG(timestamp) OVER (
+        PARTITION BY source_ip, destination_ip, destination_port
+        ORDER BY timestamp
+      ))) AS interval_seconds
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+      AND is_internal = false
+      AND direction = 'outbound'
+      AND destination_port NOT IN (123, 53)
+  ) intervals
+  WHERE interval_seconds IS NOT NULL
+    AND interval_seconds > 0
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING COUNT(*) >= 10
+    AND AVG(interval_seconds) BETWEEN 30 AND 1800
+    AND CASE WHEN AVG(interval_seconds) > 0
+             THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+             ELSE 1.0 END BETWEEN 0.1 AND 0.3
+  ORDER BY interval_coefficient_of_variation ASC

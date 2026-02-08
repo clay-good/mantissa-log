@@ -1,0 +1,118 @@
+title: Unusual Upload to Cloud Storage Service
+id: mantissa-ndr-exfil-cloud-storage-005
+status: stable
+description: >
+  Detects large uploads to known cloud storage endpoints (S3, GCS, Azure Blob,
+  Dropbox, Google Drive, OneDrive, Box). While cloud storage usage is often
+  legitimate, large uploads from unexpected hosts are suspicious. This rule
+  correlates DNS queries for known cloud storage domain patterns with large
+  outbound byte counts from network flows. The rule triggers on uploads
+  exceeding 500 MB in 1 hour to any cloud storage domain.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_cloud_storage_domains:
+    destination_domain|endswith:
+      - '.s3.amazonaws.com'
+      - '.s3-accelerate.amazonaws.com'
+      - '.storage.googleapis.com'
+      - '.blob.core.windows.net'
+      - '.dropbox.com'
+      - '.dropboxusercontent.com'
+      - '.drive.google.com'
+      - '.docs.google.com'
+      - '.onedrive.live.com'
+      - '.sharepoint.com'
+      - '.box.com'
+      - '.app.box.com'
+      - '.mega.nz'
+      - '.mega.co.nz'
+      - '.wetransfer.com'
+  filter_large_upload:
+    total_bytes_sent|gte: 524288000
+  condition: selection and filter_cloud_storage_domains and filter_large_upload
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_domain
+  - destination_port
+  - total_bytes_sent
+  - total_bytes_received
+  - connection_count
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate cloud backup operations
+  - Authorised file sharing for business purposes
+  - Cloud-based collaboration workflows
+  - Development or CI/CD pipelines uploading build artifacts
+  - Marketing teams uploading media content
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - data_exfiltration
+  - cloud_storage
+  - attack.exfiltration
+  - attack.t1567
+
+references:
+  - https://attack.mitre.org/tactics/TA0010/
+  - https://attack.mitre.org/techniques/T1567/
+
+query_hint: |
+  WITH cloud_storage_dns AS (
+    SELECT DISTINCT source_ip, query_name
+    FROM dns_queries
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND (
+        query_name LIKE '%.s3.amazonaws.com'
+        OR query_name LIKE '%.s3-accelerate.amazonaws.com'
+        OR query_name LIKE '%.storage.googleapis.com'
+        OR query_name LIKE '%.blob.core.windows.net'
+        OR query_name LIKE '%.dropbox.com'
+        OR query_name LIKE '%.dropboxusercontent.com'
+        OR query_name LIKE '%.drive.google.com'
+        OR query_name LIKE '%.onedrive.live.com'
+        OR query_name LIKE '%.sharepoint.com'
+        OR query_name LIKE '%.box.com'
+        OR query_name LIKE '%.mega.nz'
+        OR query_name LIKE '%.wetransfer.com'
+      )
+  )
+  SELECT
+    nf.source_ip,
+    nf.destination_ip,
+    csd.query_name AS destination_domain,
+    nf.destination_port,
+    SUM(nf.bytes_sent) AS total_bytes_sent,
+    SUM(nf.bytes_received) AS total_bytes_received,
+    COUNT(*) AS connection_count,
+    AVG(nf.duration_seconds) AS avg_duration_seconds,
+    MIN(nf.timestamp) AS first_seen,
+    MAX(nf.timestamp) AS last_seen
+  FROM network_flows nf
+  INNER JOIN cloud_storage_dns csd
+    ON nf.source_ip = csd.source_ip
+  WHERE nf.timestamp >= NOW() - INTERVAL '1 hour'
+    AND nf.is_internal = false
+    AND nf.direction = 'outbound'
+  GROUP BY nf.source_ip, nf.destination_ip, csd.query_name, nf.destination_port
+  HAVING SUM(nf.bytes_sent) >= 524288000
+  ORDER BY total_bytes_sent DESC

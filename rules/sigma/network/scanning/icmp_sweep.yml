@@ -1,0 +1,74 @@
+title: ICMP Sweep Detected
+id: mantissa-ndr-scan-icmp-004
+status: stable
+description: >
+  Detects ICMP echo requests (ping sweep) to multiple internal hosts from a
+  single source. Ping sweeps are a common first step in network
+  reconnaissance to identify live hosts before performing more targeted
+  port scanning. The rule triggers when a single source IP sends ICMP
+  traffic to more than 20 unique destination IPs within 10 minutes.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    protocol: icmp
+  filter_many_destinations:
+    unique_destination_ips|gte: 20
+  condition: selection and filter_many_destinations
+
+fields:
+  - source_ip
+  - unique_destination_ips
+  - total_icmp_count
+  - total_bytes_sent
+  - is_internal
+  - destination_ip_sample
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Network monitoring tools performing ping-based availability checks
+  - Load balancers with ICMP health probes
+  - Network troubleshooting (e.g. fping, mtr)
+  - ICMP-based path MTU discovery
+
+level: medium
+
+schedule:
+  interval: 10m
+  lookback: 10m
+
+tags:
+  - network
+  - scanning
+  - reconnaissance
+  - icmp
+  - attack.discovery
+  - attack.t1018
+
+references:
+  - https://attack.mitre.org/tactics/TA0007/
+  - https://attack.mitre.org/techniques/T1018/
+
+query_hint: |
+  SELECT
+    source_ip,
+    COUNT(DISTINCT destination_ip) AS unique_destination_ips,
+    COUNT(*) AS total_icmp_count,
+    SUM(bytes_sent) AS total_bytes_sent,
+    BOOL_OR(is_internal) AS is_internal,
+    ARRAY_AGG(DISTINCT destination_ip ORDER BY destination_ip LIMIT 10)
+      AS destination_ip_sample,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '10 minutes'
+    AND protocol = 'icmp'
+  GROUP BY source_ip
+  HAVING COUNT(DISTINCT destination_ip) >= 20
+  ORDER BY unique_destination_ips DESC

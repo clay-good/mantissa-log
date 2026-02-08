@@ -1,0 +1,79 @@
+title: Vertical Port Scan Detected
+id: mantissa-ndr-scan-vertical-002
+status: stable
+description: >
+  Detects a single host scanning many ports on a single destination host
+  (vertical scan). This technique is used to enumerate available services on
+  a specific target. The rule triggers when a single source IP connects to
+  more than 50 unique destination ports on the same destination IP within
+  10 minutes. This is a strong indicator of port enumeration tools like
+  nmap, masscan, or manual service discovery.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection_any_flow:
+    destination_ip|exists: true
+  filter_many_ports:
+    unique_destination_ports|gte: 50
+  condition: selection_any_flow and filter_many_ports
+
+fields:
+  - source_ip
+  - destination_ip
+  - unique_destination_ports
+  - total_connection_count
+  - syn_only_count
+  - rejected_count
+  - protocol
+  - port_range_min
+  - port_range_max
+  - is_internal
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Authorised penetration testing or vulnerability scanning
+  - Network monitoring agents performing comprehensive service checks
+  - Application health checks across many ports on a single server
+
+level: high
+
+schedule:
+  interval: 10m
+  lookback: 10m
+
+tags:
+  - network
+  - scanning
+  - reconnaissance
+  - attack.discovery
+  - attack.t1046
+
+references:
+  - https://attack.mitre.org/tactics/TA0007/
+  - https://attack.mitre.org/techniques/T1046/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    COUNT(DISTINCT destination_port) AS unique_destination_ports,
+    COUNT(*) AS total_connection_count,
+    SUM(CASE WHEN conn_state = 'S0' THEN 1 ELSE 0 END) AS syn_only_count,
+    SUM(CASE WHEN conn_state = 'REJ' THEN 1 ELSE 0 END) AS rejected_count,
+    protocol,
+    MIN(destination_port) AS port_range_min,
+    MAX(destination_port) AS port_range_max,
+    BOOL_OR(is_internal) AS is_internal,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '10 minutes'
+  GROUP BY source_ip, destination_ip, protocol
+  HAVING COUNT(DISTINCT destination_port) >= 50
+  ORDER BY unique_destination_ports DESC

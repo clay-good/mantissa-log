@@ -1,0 +1,94 @@
+title: High Frequency Short-Lived Connections to Same Destination
+id: mantissa-ndr-beaconing-short-conn-004
+status: stable
+description: >
+  Detects many short-duration connections (less than 5 seconds) from the same
+  source to the same destination. This pattern is common in C2 check-ins that
+  open a connection, exchange small amounts of data, and close immediately.
+  The rule triggers when more than 20 connections with duration under 5
+  seconds are observed to the same destination within a 1-hour window.
+  Short-lived connections with small byte counts are especially suspicious
+  as they suggest automated polling rather than legitimate data transfer.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_short_duration:
+    duration_seconds|lt: 5
+  filter_high_frequency:
+    connection_count|gte: 20
+  filter_small_payload:
+    avg_bytes_transferred|lt: 10240
+  filter_known_services:
+    destination_port|not:
+      - 53
+      - 123
+      - 443
+  condition: selection and filter_short_duration and filter_high_frequency and filter_small_payload and not filter_known_services
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - connection_count
+  - avg_duration_seconds
+  - avg_bytes_sent
+  - avg_bytes_received
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate keepalive or health check probes
+  - API polling clients with short-lived HTTPS connections
+  - Container orchestration health checks
+  - DNS over HTTPS (DoH) connections
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - beaconing
+  - c2
+  - attack.command_and_control
+  - attack.t1071
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    COUNT(*) AS connection_count,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    AVG(bytes_sent) AS avg_bytes_sent,
+    AVG(bytes_received) AS avg_bytes_received,
+    SUM(bytes_sent) AS total_bytes_sent,
+    SUM(bytes_received) AS total_bytes_received,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND is_internal = false
+    AND direction = 'outbound'
+    AND duration_seconds < 5
+    AND destination_port NOT IN (53, 123)
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING COUNT(*) >= 20
+    AND AVG(bytes_sent + bytes_received) < 10240
+  ORDER BY connection_count DESC

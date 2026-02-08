@@ -1,0 +1,116 @@
+title: DNS-Based C2 Beaconing Detected
+id: mantissa-ndr-beaconing-dns-003
+status: stable
+description: >
+  Detects regular DNS queries to the same domain at suspicious intervals.
+  Some C2 frameworks use DNS for communication, sending encoded data in query
+  names and receiving commands in TXT or other records. This rule identifies
+  repeated queries from the same source host to the same query_name at
+  regular intervals. A coefficient of variation below 0.15 over at least 10
+  queries within 24 hours indicates automated DNS-based beaconing.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_minimum_queries:
+    query_count|gte: 10
+  filter_regular_interval:
+    interval_coefficient_of_variation|lt: 0.15
+  filter_suspicious_interval:
+    mean_interval_seconds|gte: 10
+    mean_interval_seconds|lte: 3600
+  filter_known_domains:
+    query_name|not|endswith:
+      - '.in-addr.arpa'
+      - '.local'
+      - '.internal'
+      - '.amazonaws.com'
+      - '.googleapis.com'
+      - '.azure.com'
+      - '.microsoft.com'
+      - '.windowsupdate.com'
+      - '.apple.com'
+  condition: selection and filter_minimum_queries and filter_regular_interval and filter_suspicious_interval and not filter_known_domains
+
+fields:
+  - source_ip
+  - query_name
+  - query_type
+  - query_count
+  - mean_interval_seconds
+  - stddev_interval_seconds
+  - interval_coefficient_of_variation
+  - subdomain_entropy
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - DNS-based health check monitors
+  - Internal DNS polling for service discovery
+  - DDNS (Dynamic DNS) update clients
+  - Software licence validation checks
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 24h
+
+tags:
+  - network
+  - beaconing
+  - dns
+  - c2
+  - attack.command_and_control
+  - attack.t1071.004
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1071/004/
+
+query_hint: |
+  SELECT
+    source_ip,
+    query_name,
+    query_type,
+    COUNT(*) AS query_count,
+    AVG(interval_seconds) AS mean_interval_seconds,
+    STDDEV(interval_seconds) AS stddev_interval_seconds,
+    CASE WHEN AVG(interval_seconds) > 0
+         THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+         ELSE 1.0 END AS interval_coefficient_of_variation,
+    AVG(subdomain_entropy) AS avg_subdomain_entropy,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM (
+    SELECT
+      source_ip,
+      query_name,
+      query_type,
+      subdomain_entropy,
+      timestamp,
+      EXTRACT(EPOCH FROM (timestamp - LAG(timestamp) OVER (
+        PARTITION BY source_ip, query_name
+        ORDER BY timestamp
+      ))) AS interval_seconds
+    FROM dns_queries
+    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+      AND query_name NOT LIKE '%.in-addr.arpa'
+      AND query_name NOT LIKE '%.local'
+      AND query_name NOT LIKE '%.internal'
+  ) intervals
+  WHERE interval_seconds IS NOT NULL
+    AND interval_seconds > 0
+  GROUP BY source_ip, query_name, query_type
+  HAVING COUNT(*) >= 10
+    AND AVG(interval_seconds) BETWEEN 10 AND 3600
+    AND CASE WHEN AVG(interval_seconds) > 0
+             THEN STDDEV(interval_seconds) / AVG(interval_seconds)
+             ELSE 1.0 END < 0.15
+  ORDER BY interval_coefficient_of_variation ASC

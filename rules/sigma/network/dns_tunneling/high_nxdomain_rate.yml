@@ -1,0 +1,102 @@
+title: High NXDOMAIN Response Rate (Possible DGA or DNS Tunneling)
+id: mantissa-ndr-dns-tunnel-nxdomain-004
+status: stable
+description: >
+  A high rate of NXDOMAIN responses from a single host suggests either a
+  Domain Generation Algorithm (DGA) trying to find active C2 domains, or a
+  misconfigured DNS tunneling client. DGA malware systematically generates
+  pseudo-random domain names and attempts to resolve them, expecting most to
+  fail (NXDOMAIN) until it finds the attacker's registered domain. This rule
+  triggers when a host generates more than 100 NXDOMAIN responses per hour
+  or when the NXDOMAIN ratio exceeds 50% of total queries from that host.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: dns_queries
+
+detection:
+  selection:
+    source_ip|is_internal: true
+  filter_high_nxdomain_count:
+    nxdomain_count|gte: 100
+  filter_high_nxdomain_ratio:
+    nxdomain_ratio|gte: 0.5
+  filter_known_domains:
+    query_name|not|endswith:
+      - '.in-addr.arpa'
+      - '.ip6.arpa'
+      - '.local'
+      - '.internal'
+  condition: selection and (filter_high_nxdomain_count or filter_high_nxdomain_ratio) and not filter_known_domains
+
+fields:
+  - source_ip
+  - total_queries
+  - nxdomain_count
+  - nxdomain_ratio
+  - unique_nxdomain_names
+  - avg_subdomain_entropy
+  - max_subdomain_entropy
+  - unique_base_domains
+  - sample_nxdomain_queries
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Misconfigured applications referencing non-existent domains
+  - DNS-based service discovery in dynamic environments
+  - Automated testing or CI/CD systems querying ephemeral domains
+  - Web crawlers encountering broken links with DNS errors
+
+level: medium
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - dns
+  - dns_tunneling
+  - dga
+  - attack.command_and_control
+  - attack.t1568.002
+
+references:
+  - https://attack.mitre.org/tactics/TA0011/
+  - https://attack.mitre.org/techniques/T1568/002/
+
+query_hint: |
+  WITH host_dns_stats AS (
+    SELECT
+      source_ip,
+      COUNT(*) AS total_queries,
+      SUM(CASE WHEN is_nxdomain = true THEN 1 ELSE 0 END) AS nxdomain_count,
+      CAST(SUM(CASE WHEN is_nxdomain = true THEN 1 ELSE 0 END) AS FLOAT)
+        / NULLIF(COUNT(*), 0) AS nxdomain_ratio,
+      COUNT(DISTINCT CASE WHEN is_nxdomain = true THEN query_name END)
+        AS unique_nxdomain_names,
+      AVG(CASE WHEN is_nxdomain = true THEN subdomain_entropy END)
+        AS avg_subdomain_entropy,
+      MAX(CASE WHEN is_nxdomain = true THEN subdomain_entropy END)
+        AS max_subdomain_entropy,
+      COUNT(DISTINCT REGEXP_EXTRACT(
+        CASE WHEN is_nxdomain = true THEN query_name END,
+        '([^.]+\.[^.]+)$'
+      )) AS unique_base_domains,
+      MIN(timestamp) AS first_seen,
+      MAX(timestamp) AS last_seen
+    FROM dns_queries
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND query_name NOT LIKE '%.in-addr.arpa'
+      AND query_name NOT LIKE '%.ip6.arpa'
+      AND query_name NOT LIKE '%.local'
+    GROUP BY source_ip
+  )
+  SELECT *
+  FROM host_dns_stats
+  WHERE nxdomain_count >= 100
+     OR nxdomain_ratio >= 0.5
+  ORDER BY nxdomain_count DESC

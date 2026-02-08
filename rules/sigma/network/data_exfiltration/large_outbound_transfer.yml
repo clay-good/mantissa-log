@@ -1,0 +1,83 @@
+title: Large Outbound Data Transfer to External Destination
+id: mantissa-ndr-exfil-large-transfer-001
+status: stable
+description: >
+  Detects when an internal host transfers an unusually large amount of data
+  to an external IP address. This could indicate data exfiltration. The rule
+  triggers when total bytes_sent to a single external destination exceeds
+  1 GB within a 1-hour window. The threshold is configurable and should be
+  compared against the baseline outbound transfer volume for each host to
+  reduce false positives.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: false
+    direction: outbound
+  filter_large_transfer:
+    total_bytes_sent|gte: 1073741824
+  condition: selection and filter_large_transfer
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination_port
+  - protocol
+  - total_bytes_sent
+  - total_bytes_received
+  - connection_count
+  - avg_duration_seconds
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Legitimate cloud backup services
+  - Large file uploads to approved cloud storage
+  - Video conferencing or streaming services
+  - Software distribution or CI/CD artifact uploads
+  - Database replication to external data centres
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+configuration:
+  threshold_bytes: 1073741824
+  time_window: 1h
+
+tags:
+  - network
+  - data_exfiltration
+  - attack.exfiltration
+  - attack.t1048
+
+references:
+  - https://attack.mitre.org/tactics/TA0010/
+  - https://attack.mitre.org/techniques/T1048/
+
+query_hint: |
+  SELECT
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    SUM(bytes_sent) AS total_bytes_sent,
+    SUM(bytes_received) AS total_bytes_received,
+    COUNT(*) AS connection_count,
+    AVG(duration_seconds) AS avg_duration_seconds,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM network_flows
+  WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    AND is_internal = false
+    AND direction = 'outbound'
+  GROUP BY source_ip, destination_ip, destination_port, protocol
+  HAVING SUM(bytes_sent) >= 1073741824
+  ORDER BY total_bytes_sent DESC

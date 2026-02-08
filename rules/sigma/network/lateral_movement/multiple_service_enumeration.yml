@@ -1,0 +1,118 @@
+title: Internal Service Enumeration (Multiple Protocols)
+id: mantissa-ndr-lateral-enum-005
+status: stable
+description: >
+  Detects when a single internal host connects to multiple other internal
+  hosts using different service ports (SSH, RDP, SMB, WinRM, database ports)
+  in a short time window. This pattern suggests an attacker probing for
+  available services after gaining initial access. The rule triggers when a
+  host connects to more than 10 unique internal service endpoints using 3
+  or more different service types within 1 hour.
+author: Mantissa Security Team
+date: 2026-02-07
+
+logsource:
+  product: mantissa_ndr
+  service: network_flows
+
+detection:
+  selection:
+    is_internal: true
+    destination_port:
+      - 22
+      - 80
+      - 443
+      - 445
+      - 3306
+      - 3389
+      - 5432
+      - 5985
+      - 5986
+      - 6379
+      - 8080
+      - 8443
+      - 9200
+      - 27017
+  filter_diverse_services:
+    unique_service_types|gte: 3
+  filter_many_endpoints:
+    unique_endpoints|gte: 10
+  condition: selection and filter_diverse_services and filter_many_endpoints
+
+fields:
+  - source_ip
+  - unique_endpoints
+  - unique_service_types
+  - unique_destination_ips
+  - service_ports_used
+  - total_connection_count
+  - first_seen
+  - last_seen
+
+falsepositives:
+  - Network monitoring or vulnerability scanning tools
+  - IT asset discovery or inventory systems
+  - Legitimate service mesh health checks
+  - Infrastructure deployment or migration operations
+
+level: high
+
+schedule:
+  interval: 1h
+  lookback: 1h
+
+tags:
+  - network
+  - lateral_movement
+  - service_enumeration
+  - attack.lateral_movement
+  - attack.t1021
+
+references:
+  - https://attack.mitre.org/tactics/TA0008/
+  - https://attack.mitre.org/techniques/T1021/
+
+query_hint: |
+  WITH service_mapping AS (
+    SELECT
+      source_ip,
+      destination_ip,
+      destination_port,
+      CASE
+        WHEN destination_port = 22 THEN 'SSH'
+        WHEN destination_port IN (80, 8080) THEN 'HTTP'
+        WHEN destination_port IN (443, 8443) THEN 'HTTPS'
+        WHEN destination_port = 445 THEN 'SMB'
+        WHEN destination_port = 3306 THEN 'MySQL'
+        WHEN destination_port = 3389 THEN 'RDP'
+        WHEN destination_port = 5432 THEN 'PostgreSQL'
+        WHEN destination_port IN (5985, 5986) THEN 'WinRM'
+        WHEN destination_port = 6379 THEN 'Redis'
+        WHEN destination_port = 9200 THEN 'Elasticsearch'
+        WHEN destination_port = 27017 THEN 'MongoDB'
+        ELSE 'Other'
+      END AS service_type,
+      timestamp
+    FROM network_flows
+    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      AND is_internal = true
+      AND destination_port IN (
+        22, 80, 443, 445, 3306, 3389, 5432,
+        5985, 5986, 6379, 8080, 8443, 9200, 27017
+      )
+  )
+  SELECT
+    source_ip,
+    COUNT(DISTINCT CONCAT(destination_ip, ':', destination_port))
+      AS unique_endpoints,
+    COUNT(DISTINCT service_type) AS unique_service_types,
+    COUNT(DISTINCT destination_ip) AS unique_destination_ips,
+    ARRAY_AGG(DISTINCT service_type) AS service_ports_used,
+    COUNT(*) AS total_connection_count,
+    MIN(timestamp) AS first_seen,
+    MAX(timestamp) AS last_seen
+  FROM service_mapping
+  GROUP BY source_ip
+  HAVING COUNT(DISTINCT service_type) >= 3
+    AND COUNT(DISTINCT CONCAT(destination_ip, ':', destination_port)) >= 10
+  ORDER BY unique_service_types DESC, unique_endpoints DESC
