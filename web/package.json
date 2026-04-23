@@ -24,7 +24,7 @@
     "aws-amplify": "^6.0.7",
     "clsx": "^2.1.0",
     "react-hot-toast": "^2.4.1",
-    "uuid": "^9.0.1"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
