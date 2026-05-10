@@ -1,0 +1,47 @@
+title: AWS S3 Mass Delete or Lifecycle Purge
+id: d1000016-0000-4000-8000-000000000016
+status: experimental
+description: Detects DeleteObjects/Lifecycle expiration that removes objects at scale.
+author: Mantissa Log Destructive-Event Pack
+date: 2026-05-10
+modified: 2026-05-10
+
+logsource:
+  product: aws
+  service: cloudtrail
+
+detection:
+  selection:
+    event.action:
+      - 'DeleteObjects'
+      - 'DeleteBucket'
+      - 'PutBucketLifecycleConfiguration'
+  condition: selection
+
+threshold:
+  field: aws.cloudtrail.user_identity.arn
+  operator: '>='
+  value: 500
+  window_minutes: 10
+
+fields:
+  - aws.cloudtrail.user_identity.arn
+  - '@timestamp'
+  - aws.cloudtrail.request_parameters.bucket_name
+
+tags:
+  - attack.impact
+  - attack.t1485
+
+evidence_query: |
+  SELECT aws.cloudtrail.user_identity.arn, event.action,        aws.cloudtrail.request_parameters.bucket_name, @timestamp FROM aws_cloudtrail WHERE aws.cloudtrail.user_identity.arn = '{aws.cloudtrail.user_identity.arn}' AND @timestamp BETWEEN '{when}'::timestamp - INTERVAL '30' MINUTE                     AND '{when}'::timestamp + INTERVAL '10' MINUTE ORDER BY @timestamp DESC
+
+falsepositives:
+  - Approved emergency-access procedures with prior change-ticket reference
+  - Documented break-glass account use during incident response
+level: critical
+paging: true
+paging_destinations:
+  - pagerduty
+  - slack
+  - teams

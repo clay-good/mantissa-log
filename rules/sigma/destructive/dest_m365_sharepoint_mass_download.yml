@@ -1,0 +1,47 @@
+title: Microsoft 365 SharePoint Mass Download
+id: d1000013-0000-4000-8000-000000000013
+status: experimental
+description: Detects bulk file downloads from SharePoint or OneDrive by a single user.
+author: Mantissa Log Destructive-Event Pack
+date: 2026-05-10
+modified: 2026-05-10
+
+logsource:
+  product: microsoft365
+  service: sharepoint
+
+detection:
+  selection:
+    event.action:
+      - 'FileDownloaded'
+      - 'FileSyncDownloadedFull'
+  condition: selection
+
+threshold:
+  field: user.email
+  operator: '>='
+  value: 100
+  window_minutes: 10
+
+fields:
+  - user.email
+  - '@timestamp'
+  - microsoft365.target
+  - microsoft365.site_url
+
+tags:
+  - attack.exfiltration
+  - attack.t1530
+
+evidence_query: |
+  SELECT @timestamp, microsoft365.operation, microsoft365.target, microsoft365.site_url FROM m365_sharepoint WHERE user.email = '{user.email}' AND microsoft365.operation IN ('FileDownloaded','FileSyncDownloadedFull') AND @timestamp BETWEEN '{when}'::timestamp - INTERVAL '30' MINUTE                     AND '{when}'::timestamp + INTERVAL '10' MINUTE ORDER BY @timestamp DESC
+
+falsepositives:
+  - Approved emergency-access procedures with prior change-ticket reference
+  - Documented break-glass account use during incident response
+level: critical
+paging: true
+paging_destinations:
+  - pagerduty
+  - slack
+  - teams

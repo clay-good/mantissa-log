@@ -1,0 +1,46 @@
+title: Google Workspace Drive Mass Download
+id: d1000011-0000-4000-8000-000000000011
+status: experimental
+description: Detects when a single user downloads an unusually large number of Drive files in a short window.
+author: Mantissa Log Destructive-Event Pack
+date: 2026-05-10
+modified: 2026-05-10
+
+logsource:
+  product: google_workspace
+  service: drive
+
+detection:
+  selection:
+    event.action:
+      - 'download'
+  condition: selection
+
+threshold:
+  field: actor.email
+  operator: '>='
+  value: 100
+  window_minutes: 10
+
+fields:
+  - actor.email
+  - '@timestamp'
+  - source.ip
+  - google_workspace.events.parameters.doc_id
+
+tags:
+  - attack.exfiltration
+  - attack.t1530
+
+evidence_query: |
+  SELECT @timestamp, event.action,        google_workspace.events.parameters.doc_id,        google_workspace.events.parameters.doc_title FROM gws_drive WHERE actor.email = '{actor.email}' AND event.action = 'download' AND @timestamp BETWEEN '{when}'::timestamp - INTERVAL '30' MINUTE                     AND '{when}'::timestamp + INTERVAL '10' MINUTE ORDER BY @timestamp DESC
+
+falsepositives:
+  - Approved emergency-access procedures with prior change-ticket reference
+  - Documented break-glass account use during incident response
+level: critical
+paging: true
+paging_destinations:
+  - pagerduty
+  - slack
+  - teams

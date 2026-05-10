@@ -1,0 +1,45 @@
+title: Google Workspace OAuth High-Risk Scope Granted
+id: d1000018-0000-4000-8000-000000000018
+status: experimental
+description: Detects third-party OAuth grants of Drive or Gmail full scopes.
+author: Mantissa Log Destructive-Event Pack
+date: 2026-05-10
+modified: 2026-05-10
+
+logsource:
+  product: google_workspace
+  service: token
+
+detection:
+  selection:
+    event.action:
+      - 'authorize'
+    google_workspace.events.parameters.scope:
+      - 'https://www.googleapis.com/auth/drive'
+      - 'https://mail.google.com/'
+      - 'https://www.googleapis.com/auth/gmail.modify'
+  condition: selection
+
+fields:
+  - actor.email
+  - '@timestamp'
+  - google_workspace.events.parameters.client_id
+  - google_workspace.events.parameters.scope
+  - google_workspace.events.parameters.app_name
+
+tags:
+  - attack.persistence
+  - attack.t1098.001
+
+evidence_query: |
+  SELECT actor.email,        google_workspace.events.parameters.app_name,        google_workspace.events.parameters.scope,        google_workspace.events.parameters.client_id, @timestamp FROM gws_token WHERE actor.email = '{actor.email}' AND @timestamp BETWEEN '{when}'::timestamp - INTERVAL '60' MINUTE                     AND '{when}'::timestamp + INTERVAL '10' MINUTE ORDER BY @timestamp DESC
+
+falsepositives:
+  - Approved emergency-access procedures with prior change-ticket reference
+  - Documented break-glass account use during incident response
+level: critical
+paging: true
+paging_destinations:
+  - pagerduty
+  - slack
+  - teams

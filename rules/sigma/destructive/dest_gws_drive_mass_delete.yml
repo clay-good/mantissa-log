@@ -1,0 +1,46 @@
+title: Google Workspace Drive Mass Delete
+id: d1000012-0000-4000-8000-000000000012
+status: experimental
+description: Detects bulk file deletion by a single user.
+author: Mantissa Log Destructive-Event Pack
+date: 2026-05-10
+modified: 2026-05-10
+
+logsource:
+  product: google_workspace
+  service: drive
+
+detection:
+  selection:
+    event.action:
+      - 'delete'
+      - 'trash'
+  condition: selection
+
+threshold:
+  field: actor.email
+  operator: '>='
+  value: 50
+  window_minutes: 10
+
+fields:
+  - actor.email
+  - '@timestamp'
+  - google_workspace.events.parameters.doc_id
+
+tags:
+  - attack.impact
+  - attack.t1485
+
+evidence_query: |
+  SELECT @timestamp, event.action,        google_workspace.events.parameters.doc_id,        google_workspace.events.parameters.doc_title FROM gws_drive WHERE actor.email = '{actor.email}' AND event.action IN ('delete', 'trash') AND @timestamp BETWEEN '{when}'::timestamp - INTERVAL '30' MINUTE                     AND '{when}'::timestamp + INTERVAL '10' MINUTE ORDER BY @timestamp DESC
+
+falsepositives:
+  - Approved emergency-access procedures with prior change-ticket reference
+  - Documented break-glass account use during incident response
+level: critical
+paging: true
+paging_destinations:
+  - pagerduty
+  - slack
+  - teams
